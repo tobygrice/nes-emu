@@ -104,3 +104,6 @@ build/lib/libgmock.a
 build/lib/libgtest_main.a
 build/lib/libgtest.a
 .vscode/settings.json
+.gitignore
+.gitignore
+.gitignore
