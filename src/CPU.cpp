@@ -1,5 +1,4 @@
 #include "../include/CPU.h"
-
 #include "../include/OpCode.h"
 
 /**

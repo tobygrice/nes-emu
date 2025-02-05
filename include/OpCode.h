@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <functional>
 
+class CPU; // forward declare CPU so we can use it in function pointers
+
 // enum class for addressing modes
 enum class AddressingMode {
   NoneAddressing,
@@ -38,7 +40,7 @@ struct OpCode {
         execute(std::move(execute)) {}
 };
 
-const OpCode* getOpCode(uint8_t opcode);
+extern const OpCode* getOpCode(uint8_t opcode);
 extern const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP;
 
 #endif  // OPCODE_H

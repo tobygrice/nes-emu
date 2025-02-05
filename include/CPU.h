@@ -1,6 +1,8 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include "OpCode.h"
+
 #include <array>
 #include <cstdint>
 #include <vector>

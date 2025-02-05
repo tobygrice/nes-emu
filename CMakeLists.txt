@@ -23,13 +23,14 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # Function to simplify test target creation
-function(add_nes_test TEST_NAME TEST_SRC MODULE_SRC)
-    add_executable(${TEST_NAME} ${TEST_SRC} ${MODULE_SRC})
+function(add_nes_test TEST_NAME TEST_SRC)
+    # ARGN will hold any additional source files
+    add_executable(${TEST_NAME} ${TEST_SRC} ${ARGN})
     target_link_libraries(${TEST_NAME} PRIVATE gtest_main)
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endfunction()
 
 # Add tests using the function
-add_nes_test(runCPUTests tests/CPU_test.cpp src/CPU.cpp)
+add_nes_test(runCPUTests tests/CPU_test.cpp src/CPU.cpp src/OpCode.cpp)
 # add_nes_test(runPPUTests tests/PPU_test.cpp src/PPU.cpp)
 # add_nes_test(runAPUTests tests/APU_test.cpp src/APU.cpp)

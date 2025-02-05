@@ -1,11 +1,10 @@
 #include "../include/OpCode.h"
-
 #include "../include/CPU.h"
 
 // opcode lookup table
 const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0x00, OpCode(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing,
-                  [](CPU& cpu, AddressingMode) { cpu.brk(); })},
+                  [](CPU& cpu, AddressingMode mode) { cpu.brk(); })},
 
     {0xA9, OpCode(0xA9, "LDA", 2, 2, AddressingMode::Immediate,
                   [](CPU& cpu, AddressingMode mode) { cpu.lda(mode); })},
