@@ -11,6 +11,7 @@ class CPU; // forward declare CPU so we can use it in function pointers
 // enum class for addressing modes
 enum class AddressingMode {
   NoneAddressing,
+  Accumulator,
   Immediate,
   ZeroPage,
   ZeroPage_X,
@@ -22,22 +23,24 @@ enum class AddressingMode {
   Indirect_Y
 };
 
+using InstructionHandler = void (CPU::*)(AddressingMode);
+
 struct OpCode {
   uint8_t code;
   std::string name;
   uint8_t bytes;
   uint8_t cycles;
   AddressingMode mode;
-  std::function<void(CPU&, AddressingMode)> execute;
+  InstructionHandler handler;
 
   OpCode(uint8_t code, std::string name, uint8_t bytes, uint8_t cycles,
-         AddressingMode mode, std::function<void(CPU&, AddressingMode)> execute)
+         AddressingMode mode, InstructionHandler handler)
       : code(code),
         name(std::move(name)),
         bytes(bytes),
         cycles(cycles),
         mode(mode),
-        execute(std::move(execute)) {}
+        handler(handler) {}
 };
 
 extern const OpCode* getOpCode(uint8_t opcode);

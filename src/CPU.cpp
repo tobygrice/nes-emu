@@ -1,4 +1,5 @@
 #include "../include/CPU.h"
+
 #include "../include/OpCode.h"
 
 /**
@@ -12,28 +13,6 @@ CPU::CPU()
       pc(0x0000),     // program counter starts at 0
       sp(0xFF) {      // stack pointer starts at 0xFF
   memory.fill(0);     // memory initialised to 0s
-}
-
-/**
- * Updates the zero and negative flags based on a given result.
- *
- * @param result Zero flag is set if result is 0, negative flag is set if
- * MSB of result is 1.
- */
-void CPU::updateZeroAndNegativeFlags(uint8_t result) {
-  // zero flag is bit 1
-  if (result == 0) {
-    status |= 0b00000010;  // set zero flag if result is 0
-  } else {
-    status &= 0b11111101;  // else clear zero flag
-  }
-
-  // negative flag is bit 7
-  if (result & 0b10000000) {
-    status |= 0b10000000;  // set negative flag if bit 7 of result is 1
-  } else {
-    status &= 0b01111111;  // else clear negative flag
-  }
 }
 
 /**
@@ -180,40 +159,159 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) const {
   }
 }
 
-void CPU::brk() {
-  // push pc + 2 onto stack, high byte first
-  memWrite8(0x0100 + sp--, (pc >> 8) & 0xFF);
-  memWrite8(0x0100 + sp--, pc & 0xFF);
+/**
+ * Updates the zero and negative flags based on a given result.
+ *
+ * @param result Zero flag is set if result is 0, negative flag is set if
+ * MSB of result is 1.
+ */
+void CPU::updateZeroAndNegativeFlags(uint8_t result) {
+  // zero flag is bit 1
+  if (result == 0) {
+    status |= 0b00000010;  // set zero flag if result is 0
+  } else {
+    status &= 0b11111101;  // else clear zero flag
+  }
 
-  // push status register onto stack
-  memWrite8(0x0100 + sp--, status | 0b00010000); // set break flag in P pushed onto stack
-
-  status |= 0b00000100; // set interrupt disable (I) flag (bit 2)
-
-  // fetch the new pc from the BRK interrupt vector (0xFFFE-0xFFFF)
-  pc = memRead16(0xFFFE);
+  // negative flag is bit 7
+  if (result & 0b10000000) {
+    status |= 0b10000000;  // set negative flag if bit 7 of result is 1
+  } else {
+    status &= 0b01111111;  // else clear negative flag
+  }
 }
 
-void CPU::lda(AddressingMode mode) {
+void CPU::op_ADC(AddressingMode mode) {
+  uint16_t addr = getOperandAddress(mode);
+  uint8_t value = memRead8(addr); 
+  uint8_t carry = (status & 0x01);  // extract the carry flag value from status register
+  uint16_t result = a_register + value + carry;  // compute result
+
+  // set carry flag (C) if result > 255
+  if (result > 0xFF) {
+    status |= 0b00000001;
+  } else {
+    status &= 0b11111110;  // else clear carry flag
+  }
+
+  // set overflow flag (V) if a signed overflow occurs (adding 2 positive or 2 negative 
+  // numbers results in a different-signed result)
+  bool overflow = (~(a_register ^ value) & (a_register ^ result) & 0b10000000);
+  if (overflow) {
+    status |= 0b01000000;  // set overflow flag (bit 6)
+  } else {
+    status &= 0b10111111;  // clear overflow flag
+  }
+
+  a_register = static_cast<uint8_t>(result); // store result in A reg
+
+  updateZeroAndNegativeFlags(a_register);
+}
+void CPU::op_AND(AddressingMode mode) {
+  
+}
+void CPU::op_ASL(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BCC(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BCS(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BEQ(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BIT(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BMI(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BNE(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BPL(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BRK(AddressingMode /* always implicit */) {
+  // According to many references, when BRK is executed the CPU pushes (PC - 1)
+  // onto the stack. If the PC has been advanced by 2 (i.e., PC = original PC + 2),
+  // then (PC - 1) is the return address.
+  uint16_t returnAddress = pc - 1;
+
+  // Push returnAddress onto the stack, high byte first.
+  memWrite8(0x0100 + sp--, (returnAddress >> 8) & 0xFF);
+  memWrite8(0x0100 + sp--, returnAddress & 0xFF);
+
+  // Push the status register with the Break flag set.
+  // Ensure we do not inadvertently push the Negative flag.
+  uint8_t statusToPush = (status & ~0x80) | 0b00010000;
+  memWrite8(0x0100 + sp--, statusToPush);
+
+  // Set the Interrupt Disable flag (bit 2).
+  status |= 0b00000100;
+
+  // Fetch the new program counter from the interrupt vector.
+  pc = memRead16(0xFFFE);
+}
+void CPU::op_BVC(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_BVS(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_CLC(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_CLD(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_CLI(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_CLV(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_CMP(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_CPX(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_CPY(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_DEC(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_DEX(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_DEY(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_EOR(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_INC(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_INX(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_INY(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_JMP(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_JSR(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_LDA(AddressingMode mode) {
   uint16_t addr = getOperandAddress(mode);
   uint8_t value = memRead8(addr);
   a_register = value;
   updateZeroAndNegativeFlags(a_register);
 }
-
+void CPU::op_LDX(AddressingMode mode) {
+  uint16_t addr = getOperandAddress(mode);
+  uint8_t value = memRead8(addr);
+  x_register = value;
+  updateZeroAndNegativeFlags(x_register);
+}
+void CPU::op_LDY(AddressingMode mode) {
+  uint16_t addr = getOperandAddress(mode);
+  uint8_t value = memRead8(addr);
+  y_register = value;
+  updateZeroAndNegativeFlags(y_register);
+}
+void CPU::op_LSR(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_NOP(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_ORA(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_PHA(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_PHP(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_PLA(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_PLP(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_ROL(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_ROR(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_RTI(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_RTS(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_SBC(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_SEC(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_SED(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_SEI(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_STA(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_STX(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_STY(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_TAX(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_TAY(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_TSX(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_TXA(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_TXS(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_TYA(AddressingMode mode) { /* TO-DO */ }
 
 void CPU::executeProgram() {
   while (true) {
-    uint8_t opcode = memRead8(pc); // fetch opcode
+    uint8_t opcode = memRead8(pc);  // fetch opcode
 
-    const OpCode* op = getOpCode(opcode); // look up opcode
+    const OpCode* op = getOpCode(opcode);  // look up opcode
     if (!op) {
       throw std::runtime_error("Unknown opcode: " + std::to_string(opcode));
     }
 
-    pc++; // increment PC to point to first operand byte
+    pc++;  // increment PC to point to first operand byte
 
-    op->execute(*this, op->mode); // execute appropriate handler function
+    (this->*(op->handler))(op->mode);  // execute appropriate handler function
 
     // advance PC to consume operand bytes (except for BRK, which replaces PC)
     if (opcode != 0x00) {
