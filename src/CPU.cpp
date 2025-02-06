@@ -99,7 +99,7 @@ void CPU::resetInterrupt() {
  * @param mode The addressing mode specified by the opcode
  * @return A 16-bit memory address
  */
-uint16_t CPU::getOperandAddress(AddressingMode mode) const {
+uint16_t CPU::getOperandAddress(AddressingMode mode) {
   switch (mode) {
     case AddressingMode::Immediate:
       return pc;
@@ -125,32 +125,46 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) const {
 
     case AddressingMode::Absolute_X: {
       uint16_t base = memRead16(pc);
-      return base + x_register;  // 16-bit addition
+      uint16_t addr = base + x_register;
+      if ((base & 0xFF00) != (addr & 0xFF00)) {
+        // MSB of base address and resulting addition address is different
+        this->cycleCount += 1;  // +1 cycle for page crossed
+      }
+      return addr;
     }
 
     case AddressingMode::Absolute_Y: {
       uint16_t base = memRead16(pc);
-      return base + y_register;
+      uint16_t addr = base + y_register;
+      if ((base & 0xFF00) != (addr & 0xFF00)) {
+        // MSB of base address and resulting addition address is different
+        this->cycleCount += 1;  // +1 cycle for page crossed
+      }
+      return addr;
     }
 
     case AddressingMode::Indirect_X: {
       uint8_t base = memRead8(pc);
-      uint8_t ptr = static_cast<uint8_t>(
-          base + x_register);  // wrapping addition on 8-bit
-      uint8_t lo = memRead8(static_cast<uint16_t>(ptr));
-      uint8_t hi =
+      uint8_t ptr =
+          static_cast<uint8_t>(base + x_register);  // wrapping add on 8-bit
+      uint8_t low = memRead8(static_cast<uint16_t>(ptr));
+      uint8_t high =
           memRead8(static_cast<uint16_t>(static_cast<uint8_t>(ptr + 1)));
-      return (static_cast<uint16_t>(hi) << 8) | static_cast<uint16_t>(lo);
+      return (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
     }
 
     case AddressingMode::Indirect_Y: {
       uint8_t base = memRead8(pc);
-      uint8_t lo = memRead8(static_cast<uint16_t>(base));
-      uint8_t hi =
+      uint8_t low = memRead8(static_cast<uint16_t>(base));
+      uint8_t high =
           memRead8(static_cast<uint16_t>(static_cast<uint8_t>(base + 1)));
       uint16_t deref_base =
-          (static_cast<uint16_t>(hi) << 8) | static_cast<uint16_t>(lo);
-      return deref_base + y_register;
+          (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
+      uint16_t addr = deref_base + y_register;
+      if ((deref_base & 0xFF00) != (addr & 0xFF00)) {
+        this->cycleCount += 1;  // Extra cycle
+      }
+      return addr;
     }
 
     case AddressingMode::NoneAddressing:
@@ -183,8 +197,9 @@ void CPU::updateZeroAndNegativeFlags(uint8_t result) {
 
 void CPU::op_ADC(AddressingMode mode) {
   uint16_t addr = getOperandAddress(mode);
-  uint8_t value = memRead8(addr); 
-  uint8_t carry = (status & 0x01);  // extract the carry flag value from status register
+  uint8_t value = memRead8(addr);
+  uint8_t carry =
+      (status & 0x01);  // extract the carry flag value from status register
   uint16_t result = a_register + value + carry;  // compute result
 
   // set carry flag (C) if result > 255
@@ -194,8 +209,8 @@ void CPU::op_ADC(AddressingMode mode) {
     status &= 0b11111110;  // else clear carry flag
   }
 
-  // set overflow flag (V) if a signed overflow occurs (adding 2 positive or 2 negative 
-  // numbers results in a different-signed result)
+  // set overflow flag (V) if a signed overflow occurs (adding 2 positive or 2
+  // negative numbers results in a different-signed result)
   bool overflow = (~(a_register ^ value) & (a_register ^ result) & 0b10000000);
   if (overflow) {
     status |= 0b01000000;  // set overflow flag (bit 6)
@@ -203,12 +218,14 @@ void CPU::op_ADC(AddressingMode mode) {
     status &= 0b10111111;  // clear overflow flag
   }
 
-  a_register = static_cast<uint8_t>(result); // store result in A reg
+  a_register = static_cast<uint8_t>(result);  // store result in A reg
 
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_AND(AddressingMode mode) {
-  
+  uint16_t addr = getOperandAddress(mode);
+  uint8_t value = memRead8(addr);
+  // maybe have op_ functions take an address, call getOperandAddress from execution loop
 }
 void CPU::op_ASL(AddressingMode mode) { /* TO-DO */ }
 void CPU::op_BCC(AddressingMode mode) { /* TO-DO */ }
@@ -220,8 +237,8 @@ void CPU::op_BNE(AddressingMode mode) { /* TO-DO */ }
 void CPU::op_BPL(AddressingMode mode) { /* TO-DO */ }
 void CPU::op_BRK(AddressingMode /* always implicit */) {
   // According to many references, when BRK is executed the CPU pushes (PC - 1)
-  // onto the stack. If the PC has been advanced by 2 (i.e., PC = original PC + 2),
-  // then (PC - 1) is the return address.
+  // onto the stack. If the PC has been advanced by 2 (i.e., PC = original PC +
+  // 2), then (PC - 1) is the return address.
   uint16_t returnAddress = pc - 1;
 
   // Push returnAddress onto the stack, high byte first.
@@ -312,6 +329,8 @@ void CPU::executeProgram() {
     pc++;  // increment PC to point to first operand byte
 
     (this->*(op->handler))(op->mode);  // execute appropriate handler function
+
+    cycleCount += op->cycles;  // increment cycle count
 
     // advance PC to consume operand bytes (except for BRK, which replaces PC)
     if (opcode != 0x00) {

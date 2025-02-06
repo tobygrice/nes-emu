@@ -167,6 +167,9 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // =====================================================
     // Branch Instructions
     // =====================================================
+    // 2 cycles if not taken (base, added by execution loop)
+	  // +1 cycles if taken (total 3)
+	  // +2 cycles if taken and crossing a page (total 4) 
     {0x10, OpCode(0x10, "BPL", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BPL)},
     {0x30, OpCode(0x30, "BMI", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BMI)},
     {0x50, OpCode(0x50, "BVC", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BVC)},

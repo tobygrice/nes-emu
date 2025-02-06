@@ -18,6 +18,8 @@ class CPU {
     uint8_t sp;                           // stack pointer
     std::array<uint8_t, 0x10000> memory;  // system memory (2^16 addresses)
 
+    uint64_t cycleCount = 0; // global cycle counter
+
   public:
     CPU();
 
@@ -49,7 +51,7 @@ class CPU {
     void executeProgram();
 
     // addressing mode handling
-    uint16_t getOperandAddress(AddressingMode mode) const;
+    uint16_t getOperandAddress(AddressingMode mode);
 
     // instruction implementations
     void op_ADC(AddressingMode mode);
