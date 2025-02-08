@@ -228,9 +228,9 @@ void CPU::op_ADC(uint16_t addr) {
   // negative numbers results in a different-signed result)
   bool overflow = (~(a_register ^ value) & (a_register ^ result) & 0b10000000);
   if (overflow) {
-    status |= FLAG_OVERLOW;  // set overflow flag (bit 6)
+    status |= FLAG_OVERFLOW;  // set overflow flag (bit 6)
   } else {
-    status &= ~FLAG_OVERLOW;  // clear overflow flag
+    status &= ~FLAG_OVERFLOW;  // clear overflow flag
   }
 
   a_register = static_cast<uint8_t>(result);  // store result in A reg
@@ -271,7 +271,17 @@ void CPU::op_BEQ(uint16_t addr) {
     branch(addr);  // branch if zero flag is set
   }
 }
-void CPU::op_BIT(uint16_t addr) {}
+void CPU::op_BIT(uint16_t addr) {
+  // - bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
+  // - the zero-flag is set according to the result of the operand AND the
+  // - accumulator (set, if the result is zero, unset otherwise).
+  status &= ~(FLAG_NEGATIVE | FLAG_OVERFLOW | FLAG_ZERO); // clear N,V,Z flags
+  uint8_t value = memRead8(addr);
+  status |= value & (FLAG_NEGATIVE | FLAG_OVERFLOW);
+  if ((value & a_register) == 0) {
+    status |= FLAG_ZERO;
+  }
+}
 void CPU::op_BMI(uint16_t addr) {
   if (status & FLAG_NEGATIVE) {
     branch(addr);  // branch if negative flag is set
@@ -308,12 +318,12 @@ void CPU::op_BRK(uint16_t /* always implicit */) {
   pcModified = true;
 }
 void CPU::op_BVC(uint16_t addr) {
-  if (!(status & FLAG_OVERLOW)) {
+  if (!(status & FLAG_OVERFLOW)) {
     branch(addr);  // branch if overflow flag is clear
   }
 }
 void CPU::op_BVS(uint16_t addr) {
-  if (status & FLAG_OVERLOW) {
+  if (status & FLAG_OVERFLOW) {
     branch(addr);  // branch if overflow flag is set
   }
 }

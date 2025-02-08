@@ -19,7 +19,7 @@ const OpCode* getOpCode(uint8_t opcode) {
  * Opcode lookup table
  */ 
 const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
-
+    // 151 opcodes (CHECK WHEN FINISHED)
     // =====================================================
     // Control and Subroutine Instructions
     // =====================================================
