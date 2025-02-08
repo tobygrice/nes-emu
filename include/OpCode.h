@@ -11,6 +11,7 @@ class CPU; // forward declare CPU so we can use it in function pointers
 // enum class for addressing modes
 enum class AddressingMode {
   NoneAddressing,
+  Relative,
   Accumulator,
   Immediate,
   ZeroPage,
@@ -23,7 +24,7 @@ enum class AddressingMode {
   Indirect_Y
 };
 
-using InstructionHandler = void (CPU::*)(AddressingMode);
+using InstructionHandler = void (CPU::*)(uint16_t);
 
 struct OpCode {
   uint8_t code;

@@ -10,7 +10,7 @@ CPU::CPU()
       x_register(0),  // X starts at 0
       y_register(0),  // Y starts at 0
       status(0x00),   // status register starts with all flags clear
-      pc(0x0000),     // program counter starts at 0
+      pc(0x8000),     // cartridge ROM is 0x8000-0xFFFF in NES
       sp(0xFF) {      // stack pointer starts at 0xFF
   memory.fill(0);     // memory initialised to 0s
 }
@@ -62,9 +62,8 @@ void CPU::memWrite16(uint16_t addr, uint16_t data) {
  * @param program The program instruction set.
  */
 void CPU::loadProgram(const std::vector<uint8_t>& program) {
-  // cartridge ROM is 0x8000-0xFFFF in NES
-  std::copy(program.begin(), program.end(), memory.data() + 0x8000);
-  memWrite16(0xFFFC, 0x8000);  // set reset address to start at 0x8000
+  std::copy(program.begin(), program.end(), memory.data() + pc);
+  memWrite16(0xFFFC, pc);  // set reset address to start at pc
 }
 
 /**
@@ -101,6 +100,13 @@ void CPU::resetInterrupt() {
  */
 uint16_t CPU::getOperandAddress(AddressingMode mode) {
   switch (mode) {
+    case AddressingMode::NoneAddressing:
+    case AddressingMode::Accumulator:
+      return 0;  // accumulator and implicit opcodes do not require an address
+
+    case AddressingMode::Relative:
+      return pc + 1 + static_cast<int8_t>(memRead8(pc));
+
     case AddressingMode::Immediate:
       return pc;
 
@@ -166,8 +172,6 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
       }
       return addr;
     }
-
-    case AddressingMode::NoneAddressing:
     default:
       throw std::runtime_error("Addressing mode not supported");
   }
@@ -182,21 +186,20 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
 void CPU::updateZeroAndNegativeFlags(uint8_t result) {
   // zero flag is bit 1
   if (result == 0) {
-    status |= 0b00000010;  // set zero flag if result is 0
+    status |= FLAG_ZERO;  // set zero flag if result is 0
   } else {
-    status &= 0b11111101;  // else clear zero flag
+    status &= ~FLAG_ZERO;  // else clear zero flag
   }
 
   // negative flag is bit 7
   if (result & 0b10000000) {
-    status |= 0b10000000;  // set negative flag if bit 7 of result is 1
+    status |= FLAG_NEGATIVE;  // set negative flag if bit 7 of result is 1
   } else {
-    status &= 0b01111111;  // else clear negative flag
+    status &= ~FLAG_NEGATIVE;  // else clear negative flag
   }
 }
 
-void CPU::op_ADC(AddressingMode mode) {
-  uint16_t addr = getOperandAddress(mode);
+void CPU::op_ADC(uint16_t addr) {
   uint8_t value = memRead8(addr);
   uint8_t carry =
       (status & 0x01);  // extract the carry flag value from status register
@@ -204,41 +207,68 @@ void CPU::op_ADC(AddressingMode mode) {
 
   // set carry flag (C) if result > 255
   if (result > 0xFF) {
-    status |= 0b00000001;
+    status |= FLAG_CARRY;
   } else {
-    status &= 0b11111110;  // else clear carry flag
+    status &= ~FLAG_CARRY;  // else clear carry flag
   }
 
   // set overflow flag (V) if a signed overflow occurs (adding 2 positive or 2
   // negative numbers results in a different-signed result)
   bool overflow = (~(a_register ^ value) & (a_register ^ result) & 0b10000000);
   if (overflow) {
-    status |= 0b01000000;  // set overflow flag (bit 6)
+    status |= FLAG_OVERLOW;  // set overflow flag (bit 6)
   } else {
-    status &= 0b10111111;  // clear overflow flag
+    status &= ~FLAG_OVERLOW;  // clear overflow flag
   }
 
   a_register = static_cast<uint8_t>(result);  // store result in A reg
 
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_AND(AddressingMode mode) {
-  uint16_t addr = getOperandAddress(mode);
+void CPU::op_AND(uint16_t addr) {
   uint8_t value = memRead8(addr);
-  // maybe have op_ functions take an address, call getOperandAddress from execution loop
+  a_register &= value;
+  updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_ASL(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BCC(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BCS(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BEQ(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BIT(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BMI(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BNE(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BPL(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BRK(AddressingMode /* always implicit */) {
-  // According to many references, when BRK is executed the CPU pushes (PC - 1)
-  // onto the stack. If the PC has been advanced by 2 (i.e., PC = original PC +
-  // 2), then (PC - 1) is the return address.
+void CPU::op_ASL(uint16_t addr) {
+  uint8_t value = memRead8(addr);
+  // store bit 7 before shift in carry flag
+  status = (status & ~FLAG_CARRY) | ((value & 0x80) ? 0x01 : 0);
+  value <<= 1;             // shift value left
+  memWrite8(addr, value);  // write new value back to memory
+  updateZeroAndNegativeFlags(value);
+}
+void CPU::op_ASL_ACC(uint16_t /* addr ignored */) {
+  // store bit 7 before shift in carry flag
+  status = (status & ~FLAG_CARRY) | ((a_register & 0x80) ? 0x01 : 0);
+  a_register <<= 1;  // shift accumulator left
+  updateZeroAndNegativeFlags(a_register);
+}
+void CPU::op_BCC(uint16_t addr) {
+  // relative address is already computed by getOperandAddress
+  if (!(status & FLAG_CARRY)) {
+    printf("Branching to instruction %04x: %02x\n", addr, memRead8(addr));
+
+    // carry flag not set
+    uint16_t old_pc = pc + 1;  // address of next instruction
+    pc = addr;                 // update pc
+    pcModified = true;         // set flag for execution loop
+    cycleCount += 1;           // +1 cycle for branch taken
+
+    // +1 cycle if page crossed (high byte changed)
+    if ((old_pc & 0xFF00) != (pc & 0xFF00)) {
+      cycleCount += 1;
+    }
+  }
+}
+void CPU::op_BCS(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BEQ(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BIT(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BMI(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BNE(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BPL(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BRK(uint16_t /* always implicit */) {
+  // push pc-1 onto the stack
   uint16_t returnAddress = pc - 1;
 
   // Push returnAddress onto the stack, high byte first.
@@ -247,75 +277,73 @@ void CPU::op_BRK(AddressingMode /* always implicit */) {
 
   // Push the status register with the Break flag set.
   // Ensure we do not inadvertently push the Negative flag.
-  uint8_t statusToPush = (status & ~0x80) | 0b00010000;
+  uint8_t statusToPush = (status & ~0x80) | FLAG_BREAK;
   memWrite8(0x0100 + sp--, statusToPush);
 
   // Set the Interrupt Disable flag (bit 2).
-  status |= 0b00000100;
+  status |= FLAG_INTERRUPT;
 
   // Fetch the new program counter from the interrupt vector.
   pc = memRead16(0xFFFE);
+  pcModified = true;
 }
-void CPU::op_BVC(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_BVS(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_CLC(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_CLD(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_CLI(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_CLV(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_CMP(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_CPX(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_CPY(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_DEC(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_DEX(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_DEY(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_EOR(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_INC(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_INX(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_INY(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_JMP(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_JSR(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_LDA(AddressingMode mode) {
-  uint16_t addr = getOperandAddress(mode);
+void CPU::op_BVC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BVS(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CLC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CLD(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CLI(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CLV(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CMP(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CPX(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CPY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_DEC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_DEX(uint16_t addr) { /* TO-DO */ }
+void CPU::op_DEY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_EOR(uint16_t addr) { /* TO-DO */ }
+void CPU::op_INC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_INX(uint16_t addr) { /* TO-DO */ }
+void CPU::op_INY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_JMP(uint16_t addr) { /* TO-DO */ }
+void CPU::op_JSR(uint16_t addr) { /* TO-DO */ }
+void CPU::op_LDA(uint16_t addr) {
   uint8_t value = memRead8(addr);
   a_register = value;
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_LDX(AddressingMode mode) {
-  uint16_t addr = getOperandAddress(mode);
+void CPU::op_LDX(uint16_t addr) {
   uint8_t value = memRead8(addr);
   x_register = value;
   updateZeroAndNegativeFlags(x_register);
 }
-void CPU::op_LDY(AddressingMode mode) {
-  uint16_t addr = getOperandAddress(mode);
+void CPU::op_LDY(uint16_t addr) {
   uint8_t value = memRead8(addr);
   y_register = value;
   updateZeroAndNegativeFlags(y_register);
 }
-void CPU::op_LSR(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_NOP(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_ORA(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_PHA(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_PHP(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_PLA(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_PLP(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_ROL(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_ROR(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_RTI(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_RTS(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_SBC(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_SEC(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_SED(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_SEI(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_STA(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_STX(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_STY(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_TAX(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_TAY(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_TSX(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_TXA(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_TXS(AddressingMode mode) { /* TO-DO */ }
-void CPU::op_TYA(AddressingMode mode) { /* TO-DO */ }
+void CPU::op_LSR(uint16_t addr) { /* TO-DO */ }
+void CPU::op_NOP(uint16_t addr) { /* TO-DO */ }
+void CPU::op_ORA(uint16_t addr) { /* TO-DO */ }
+void CPU::op_PHA(uint16_t addr) { /* TO-DO */ }
+void CPU::op_PHP(uint16_t addr) { /* TO-DO */ }
+void CPU::op_PLA(uint16_t addr) { /* TO-DO */ }
+void CPU::op_PLP(uint16_t addr) { /* TO-DO */ }
+void CPU::op_ROL(uint16_t addr) { /* TO-DO */ }
+void CPU::op_ROR(uint16_t addr) { /* TO-DO */ }
+void CPU::op_RTI(uint16_t addr) { /* TO-DO */ }
+void CPU::op_RTS(uint16_t addr) { /* TO-DO */ }
+void CPU::op_SBC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_SEC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_SED(uint16_t addr) { /* TO-DO */ }
+void CPU::op_SEI(uint16_t addr) { /* TO-DO */ }
+void CPU::op_STA(uint16_t addr) { /* TO-DO */ }
+void CPU::op_STX(uint16_t addr) { /* TO-DO */ }
+void CPU::op_STY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TAX(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TAY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TSX(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TXA(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TXS(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TYA(uint16_t addr) { /* TO-DO */ }
 
 void CPU::executeProgram() {
   while (true) {
@@ -328,15 +356,18 @@ void CPU::executeProgram() {
 
     pc++;  // increment PC to point to first operand byte
 
-    (this->*(op->handler))(op->mode);  // execute appropriate handler function
+    uint16_t addr = getOperandAddress(op->mode);
+    (this->*(op->handler))(addr);  // execute appropriate handler function
 
     cycleCount += op->cycles;  // increment cycle count
 
-    // advance PC to consume operand bytes (except for BRK, which replaces PC)
-    if (opcode != 0x00) {
+    if (opcode == 0x00) return; // exit if BRK
+
+    // advance PC to consume operand bytes
+    if (!pcModified) {
       pc += (op->bytes - 1);
     } else {
-      return;
+      pcModified = false;
     }
   }
 }

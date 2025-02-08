@@ -24,7 +24,7 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // Control and Subroutine Instructions
     // =====================================================
     {0x00, OpCode(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing, &CPU::op_BRK)},
-    {0x20, OpCode(0x20, "JSR", 3, 6, AddressingMode::Absolute,    &CPU::op_JSR)},
+    {0x20, OpCode(0x20, "JSR", 3, 6, AddressingMode::Absolute,       &CPU::op_JSR)},
     {0x40, OpCode(0x40, "RTI", 1, 6, AddressingMode::NoneAddressing, &CPU::op_RTI)},
     {0x60, OpCode(0x60, "RTS", 1, 6, AddressingMode::NoneAddressing, &CPU::op_RTS)},
     {0xEA, OpCode(0xEA, "NOP", 1, 2, AddressingMode::NoneAddressing, &CPU::op_NOP)},
@@ -84,7 +84,7 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0x7D, OpCode(0x7D, "ADC", 3, 4, AddressingMode::Absolute_X,  &CPU::op_ADC)}, // +1 cycle if page crossed
     {0x79, OpCode(0x79, "ADC", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_ADC)}, // +1 cycle if page crossed
     {0x61, OpCode(0x61, "ADC", 2, 6, AddressingMode::Indirect_X,  &CPU::op_ADC)},
-    {0x71, OpCode(0x71, "ADC", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_ADC)},
+    {0x71, OpCode(0x71, "ADC", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_ADC)}, // +1 cycle if page crossed
 
     // --- SBC (Subtract with Carry)
     {0xE9, OpCode(0xE9, "SBC", 2, 2, AddressingMode::Immediate,   &CPU::op_SBC)},
@@ -96,6 +96,18 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0xE1, OpCode(0xE1, "SBC", 2, 6, AddressingMode::Indirect_X,  &CPU::op_SBC)},
     {0xF1, OpCode(0xF1, "SBC", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_SBC)},
 
+    // --- INC
+    {0xE6, OpCode(0xE6, "INC", 2, 5, AddressingMode::ZeroPage,    &CPU::op_INC)},
+    {0xF6, OpCode(0xF6, "INC", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_INC)},
+    {0xEE, OpCode(0xEE, "INC", 3, 6, AddressingMode::Absolute,    &CPU::op_INC)},
+    {0xFE, OpCode(0xFE, "INC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_INC)},
+
+    // --- DEC
+    {0xC6, OpCode(0xC6, "DEC", 2, 5, AddressingMode::ZeroPage,    &CPU::op_DEC)},
+    {0xD6, OpCode(0xD6, "DEC", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_DEC)},
+    {0xCE, OpCode(0xCE, "DEC", 3, 6, AddressingMode::Absolute,    &CPU::op_DEC)},
+    {0xDE, OpCode(0xDE, "DEC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_DEC)},
+
     // =====================================================
     // Logical Instructions
     // =====================================================
@@ -104,10 +116,10 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0x25, OpCode(0x25, "AND", 2, 3, AddressingMode::ZeroPage,    &CPU::op_AND)},
     {0x35, OpCode(0x35, "AND", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_AND)},
     {0x2D, OpCode(0x2D, "AND", 3, 4, AddressingMode::Absolute,    &CPU::op_AND)},
-    {0x3D, OpCode(0x3D, "AND", 3, 4, AddressingMode::Absolute_X,  &CPU::op_AND)},
-    {0x39, OpCode(0x39, "AND", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_AND)},
+    {0x3D, OpCode(0x3D, "AND", 3, 4, AddressingMode::Absolute_X,  &CPU::op_AND)}, // +1 cycle if page crossed
+    {0x39, OpCode(0x39, "AND", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_AND)}, // +1 cycle if page crossed
     {0x21, OpCode(0x21, "AND", 2, 6, AddressingMode::Indirect_X,  &CPU::op_AND)},
-    {0x31, OpCode(0x31, "AND", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_AND)},
+    {0x31, OpCode(0x31, "AND", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_AND)}, // +1 cycle if page crossed
 
     // --- ORA
     {0x09, OpCode(0x09, "ORA", 2, 2, AddressingMode::Immediate,   &CPU::op_ORA)},
@@ -137,10 +149,10 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // Shift and Rotate Instructions
     // =====================================================
     // --- ASL
+    {0x0A, OpCode(0x0A, "ASL", 1, 2, AddressingMode::Accumulator, &CPU::op_ASL_ACC)},
     {0x06, OpCode(0x06, "ASL", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ASL)},
-    {0x0A, OpCode(0x0A, "ASL", 1, 2, AddressingMode::Accumulator, &CPU::op_ASL)},
-    {0x0E, OpCode(0x0E, "ASL", 3, 6, AddressingMode::Absolute,    &CPU::op_ASL)},
     {0x16, OpCode(0x16, "ASL", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ASL)},
+    {0x0E, OpCode(0x0E, "ASL", 3, 6, AddressingMode::Absolute,    &CPU::op_ASL)},
     {0x1E, OpCode(0x1E, "ASL", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ASL)},
 
     // --- LSR
@@ -170,14 +182,14 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // 2 cycles if not taken (base, added by execution loop)
 	  // +1 cycles if taken (total 3)
 	  // +2 cycles if taken and crossing a page (total 4) 
-    {0x10, OpCode(0x10, "BPL", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BPL)},
-    {0x30, OpCode(0x30, "BMI", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BMI)},
-    {0x50, OpCode(0x50, "BVC", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BVC)},
-    {0x70, OpCode(0x70, "BVS", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BVS)},
-    {0x90, OpCode(0x90, "BCC", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BCC)},
-    {0xB0, OpCode(0xB0, "BCS", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BCS)},
-    {0xD0, OpCode(0xD0, "BNE", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BNE)},
-    {0xF0, OpCode(0xF0, "BEQ", 2, 2, AddressingMode::NoneAddressing, &CPU::op_BEQ)},
+    {0x10, OpCode(0x10, "BPL", 2, 2, AddressingMode::Relative, &CPU::op_BPL)},
+    {0x30, OpCode(0x30, "BMI", 2, 2, AddressingMode::Relative, &CPU::op_BMI)},
+    {0x50, OpCode(0x50, "BVC", 2, 2, AddressingMode::Relative, &CPU::op_BVC)},
+    {0x70, OpCode(0x70, "BVS", 2, 2, AddressingMode::Relative, &CPU::op_BVS)},
+    {0x90, OpCode(0x90, "BCC", 2, 2, AddressingMode::Relative, &CPU::op_BCC)},
+    {0xB0, OpCode(0xB0, "BCS", 2, 2, AddressingMode::Relative, &CPU::op_BCS)},
+    {0xD0, OpCode(0xD0, "BNE", 2, 2, AddressingMode::Relative, &CPU::op_BNE)},
+    {0xF0, OpCode(0xF0, "BEQ", 2, 2, AddressingMode::Relative, &CPU::op_BEQ)},
 
     // =====================================================
     // Compare Instructions
@@ -201,21 +213,6 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0xC0, OpCode(0xC0, "CPY", 2, 2, AddressingMode::Immediate,   &CPU::op_CPY)},
     {0xC4, OpCode(0xC4, "CPY", 2, 3, AddressingMode::ZeroPage,    &CPU::op_CPY)},
     {0xCC, OpCode(0xCC, "CPY", 3, 4, AddressingMode::Absolute,    &CPU::op_CPY)},
-
-    // =====================================================
-    // Increment and Decrement Instructions
-    // =====================================================
-    // --- INC
-    {0xE6, OpCode(0xE6, "INC", 2, 5, AddressingMode::ZeroPage,    &CPU::op_INC)},
-    {0xF6, OpCode(0xF6, "INC", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_INC)},
-    {0xEE, OpCode(0xEE, "INC", 3, 6, AddressingMode::Absolute,    &CPU::op_INC)},
-    {0xFE, OpCode(0xFE, "INC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_INC)},
-
-    // --- DEC
-    {0xC6, OpCode(0xC6, "DEC", 2, 5, AddressingMode::ZeroPage,    &CPU::op_DEC)},
-    {0xD6, OpCode(0xD6, "DEC", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_DEC)},
-    {0xCE, OpCode(0xCE, "DEC", 3, 6, AddressingMode::Absolute,    &CPU::op_DEC)},
-    {0xDE, OpCode(0xDE, "DEC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_DEC)},
 
     // =====================================================
     // Stack and Register Transfer Instructions

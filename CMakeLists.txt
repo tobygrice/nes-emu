@@ -31,6 +31,16 @@ function(add_nes_test TEST_NAME TEST_SRC)
 endfunction()
 
 # Add tests using the function
-add_nes_test(runCPUTests tests/CPU_test.cpp src/CPU.cpp src/OpCode.cpp)
+add_nes_test(runCPUTests src/CPU.cpp src/OpCode.cpp 
+                tests/CPU/CPU_arithmetic_test.cpp 
+                tests/CPU/CPU_branching_test.cpp 
+                tests/CPU/CPU_compare_test.cpp 
+                tests/CPU/CPU_control_test.cpp 
+                tests/CPU/CPU_core_test.cpp 
+                tests/CPU/CPU_flag_test.cpp 
+                tests/CPU/CPU_loadstore_test.cpp 
+                tests/CPU/CPU_logical_test.cpp 
+                tests/CPU/CPU_shiftrotate_test.cpp 
+                tests/CPU/CPU_transferstack_test.cpp )
 # add_nes_test(runPPUTests tests/PPU_test.cpp src/PPU.cpp)
 # add_nes_test(runAPUTests tests/APU_test.cpp src/APU.cpp)

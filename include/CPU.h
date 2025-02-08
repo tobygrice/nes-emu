@@ -19,6 +19,7 @@ class CPU {
     std::array<uint8_t, 0x10000> memory;  // system memory (2^16 addresses)
 
     uint64_t cycleCount = 0; // global cycle counter
+    bool pcModified = false; // flag set by handler if it has modified the pc
 
   public:
     CPU();
@@ -29,12 +30,21 @@ class CPU {
     uint8_t getStatus() { return status; };
     uint16_t getPC() { return pc; };
     uint8_t getSP() { return sp; };
+    uint8_t getCycleCount() { return cycleCount; };
     void setA(uint8_t value) { a_register = value; };
     void setX(uint8_t value) { x_register = value; };
     void setY(uint8_t value) { y_register = value; };
     void setStatus(uint8_t value) { status = value; };
     void setPC(uint16_t value) { pc = value; };
     void setSP(uint8_t value) { sp = value; };
+
+    static constexpr uint8_t FLAG_CARRY     = 0b00000001;
+    static constexpr uint8_t FLAG_ZERO      = 0b00000010;
+    static constexpr uint8_t FLAG_INTERRUPT = 0b00000100;
+    static constexpr uint8_t FLAG_DECIMAL   = 0b00001000;
+    static constexpr uint8_t FLAG_BREAK     = 0b00010000;
+    static constexpr uint8_t FLAG_OVERLOW   = 0b01000000;
+    static constexpr uint8_t FLAG_NEGATIVE  = 0b10000100;
 
     void updateZeroAndNegativeFlags(uint8_t result);
 
@@ -54,62 +64,63 @@ class CPU {
     uint16_t getOperandAddress(AddressingMode mode);
 
     // instruction implementations
-    void op_ADC(AddressingMode mode);
-    void op_AND(AddressingMode mode);
-    void op_ASL(AddressingMode mode);
-    void op_BCC(AddressingMode mode);
-    void op_BCS(AddressingMode mode);
-    void op_BEQ(AddressingMode mode);
-    void op_BIT(AddressingMode mode);
-    void op_BMI(AddressingMode mode);
-    void op_BNE(AddressingMode mode);
-    void op_BPL(AddressingMode mode);
-    void op_BRK(AddressingMode mode);
-    void op_BVC(AddressingMode mode);
-    void op_BVS(AddressingMode mode);
-    void op_CLC(AddressingMode mode);
-    void op_CLD(AddressingMode mode);
-    void op_CLI(AddressingMode mode);
-    void op_CLV(AddressingMode mode);
-    void op_CMP(AddressingMode mode);
-    void op_CPX(AddressingMode mode);
-    void op_CPY(AddressingMode mode);
-    void op_DEC(AddressingMode mode);
-    void op_DEX(AddressingMode mode);
-    void op_DEY(AddressingMode mode);
-    void op_EOR(AddressingMode mode);
-    void op_INC(AddressingMode mode);
-    void op_INX(AddressingMode mode);
-    void op_INY(AddressingMode mode);
-    void op_JMP(AddressingMode mode);
-    void op_JSR(AddressingMode mode);
-    void op_LDA(AddressingMode mode);
-    void op_LDX(AddressingMode mode);
-    void op_LDY(AddressingMode mode);
-    void op_LSR(AddressingMode mode);
-    void op_NOP(AddressingMode mode);
-    void op_ORA(AddressingMode mode);
-    void op_PHA(AddressingMode mode);
-    void op_PHP(AddressingMode mode);
-    void op_PLA(AddressingMode mode);
-    void op_PLP(AddressingMode mode);
-    void op_ROL(AddressingMode mode);
-    void op_ROR(AddressingMode mode);
-    void op_RTI(AddressingMode mode);
-    void op_RTS(AddressingMode mode);
-    void op_SBC(AddressingMode mode);
-    void op_SEC(AddressingMode mode);
-    void op_SED(AddressingMode mode);
-    void op_SEI(AddressingMode mode);
-    void op_STA(AddressingMode mode);
-    void op_STX(AddressingMode mode);
-    void op_STY(AddressingMode mode);
-    void op_TAX(AddressingMode mode);
-    void op_TAY(AddressingMode mode);
-    void op_TSX(AddressingMode mode);
-    void op_TXA(AddressingMode mode);
-    void op_TXS(AddressingMode mode);
-    void op_TYA(AddressingMode mode);
+    void op_ADC(uint16_t addr);
+    void op_AND(uint16_t addr);
+    void op_ASL(uint16_t addr);
+    void op_ASL_ACC(uint16_t addr);
+    void op_BCC(uint16_t addr);
+    void op_BCS(uint16_t addr);
+    void op_BEQ(uint16_t addr);
+    void op_BIT(uint16_t addr);
+    void op_BMI(uint16_t addr);
+    void op_BNE(uint16_t addr);
+    void op_BPL(uint16_t addr);
+    void op_BRK(uint16_t /* addr */);
+    void op_BVC(uint16_t addr);
+    void op_BVS(uint16_t addr);
+    void op_CLC(uint16_t addr);
+    void op_CLD(uint16_t addr);
+    void op_CLI(uint16_t addr);
+    void op_CLV(uint16_t addr);
+    void op_CMP(uint16_t addr);
+    void op_CPX(uint16_t addr);
+    void op_CPY(uint16_t addr);
+    void op_DEC(uint16_t addr);
+    void op_DEX(uint16_t addr);
+    void op_DEY(uint16_t addr);
+    void op_EOR(uint16_t addr);
+    void op_INC(uint16_t addr);
+    void op_INX(uint16_t addr);
+    void op_INY(uint16_t addr);
+    void op_JMP(uint16_t addr);
+    void op_JSR(uint16_t addr);
+    void op_LDA(uint16_t addr);
+    void op_LDX(uint16_t addr);
+    void op_LDY(uint16_t addr);
+    void op_LSR(uint16_t addr);
+    void op_NOP(uint16_t addr);
+    void op_ORA(uint16_t addr);
+    void op_PHA(uint16_t addr);
+    void op_PHP(uint16_t addr);
+    void op_PLA(uint16_t addr);
+    void op_PLP(uint16_t addr);
+    void op_ROL(uint16_t addr);
+    void op_ROR(uint16_t addr);
+    void op_RTI(uint16_t addr);
+    void op_RTS(uint16_t addr);
+    void op_SBC(uint16_t addr);
+    void op_SEC(uint16_t addr);
+    void op_SED(uint16_t addr);
+    void op_SEI(uint16_t addr);
+    void op_STA(uint16_t addr);
+    void op_STX(uint16_t addr);
+    void op_STY(uint16_t addr);
+    void op_TAX(uint16_t addr);
+    void op_TAY(uint16_t addr);
+    void op_TSX(uint16_t addr);
+    void op_TXA(uint16_t addr);
+    void op_TXS(uint16_t addr);
+    void op_TYA(uint16_t addr);
 
 };
 
