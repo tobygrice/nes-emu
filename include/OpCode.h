@@ -10,7 +10,7 @@ class CPU; // forward declare CPU so we can use it in function pointers
 
 // enum class for addressing modes
 enum class AddressingMode {
-  NoneAddressing,
+  Implied,
   Relative,
   Accumulator,
   Immediate,
@@ -20,6 +20,7 @@ enum class AddressingMode {
   Absolute,
   Absolute_X,
   Absolute_Y,
+  Indirect,
   Indirect_X,
   Indirect_Y
 };

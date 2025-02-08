@@ -23,11 +23,13 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // =====================================================
     // Control and Subroutine Instructions
     // =====================================================
-    {0x00, OpCode(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing, &CPU::op_BRK)},
-    {0x20, OpCode(0x20, "JSR", 3, 6, AddressingMode::Absolute,       &CPU::op_JSR)},
-    {0x40, OpCode(0x40, "RTI", 1, 6, AddressingMode::NoneAddressing, &CPU::op_RTI)},
-    {0x60, OpCode(0x60, "RTS", 1, 6, AddressingMode::NoneAddressing, &CPU::op_RTS)},
-    {0xEA, OpCode(0xEA, "NOP", 1, 2, AddressingMode::NoneAddressing, &CPU::op_NOP)},
+    {0x00, OpCode(0x00, "BRK", 1, 7, AddressingMode::Implied,     &CPU::op_BRK)},
+    {0x20, OpCode(0x20, "JSR", 3, 6, AddressingMode::Absolute,    &CPU::op_JSR)},
+    {0x4C, OpCode(0x4C, "JMP", 3, 3, AddressingMode::Absolute,    &CPU::op_JSR)},
+    {0x6C, OpCode(0x6C, "JMP", 3, 5, AddressingMode::Indirect,    &CPU::op_JSR)},
+    {0x40, OpCode(0x40, "RTI", 1, 6, AddressingMode::Implied,     &CPU::op_RTI)},
+    {0x60, OpCode(0x60, "RTS", 1, 6, AddressingMode::Implied,     &CPU::op_RTS)},
+    {0xEA, OpCode(0xEA, "NOP", 1, 2, AddressingMode::Implied,     &CPU::op_NOP)},
 
     // =====================================================
     // Load/Store Instructions
@@ -102,6 +104,12 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0xEE, OpCode(0xEE, "INC", 3, 6, AddressingMode::Absolute,    &CPU::op_INC)},
     {0xFE, OpCode(0xFE, "INC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_INC)},
 
+    // --- INX
+    {0xE8, OpCode(0xE8, "INX", 1, 2, AddressingMode::Implied,     &CPU::op_INX)},
+
+    // --- INY
+    {0xC8, OpCode(0xC8, "INY", 1, 2, AddressingMode::Implied,     &CPU::op_INY)},
+
     // --- DEC
     {0xC6, OpCode(0xC6, "DEC", 2, 5, AddressingMode::ZeroPage,    &CPU::op_DEC)},
     {0xD6, OpCode(0xD6, "DEC", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_DEC)},
@@ -109,10 +117,10 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0xDE, OpCode(0xDE, "DEC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_DEC)},
 
     // --- DEX
-    {0xCA, OpCode(0xCA, "DEX", 1, 2, AddressingMode::NoneAddressing, &CPU::op_DEX)},
+    {0xCA, OpCode(0xCA, "DEX", 1, 2, AddressingMode::Implied, &CPU::op_DEX)},
 
     // --- DEY
-    {0x88, OpCode(0x88, "DEY", 1, 2, AddressingMode::NoneAddressing, &CPU::op_DEY)},
+    {0x88, OpCode(0x88, "DEY", 1, 2, AddressingMode::Implied, &CPU::op_DEY)},
 
 
     // =====================================================
@@ -225,28 +233,28 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // Stack and Register Transfer Instructions
     // =====================================================
     // --- Stack Operations
-    {0x48, OpCode(0x48, "PHA", 1, 3, AddressingMode::NoneAddressing, &CPU::op_PHA)},
-    {0x68, OpCode(0x68, "PLA", 1, 4, AddressingMode::NoneAddressing, &CPU::op_PLA)},
-    {0x08, OpCode(0x08, "PHP", 1, 3, AddressingMode::NoneAddressing, &CPU::op_PHP)},
-    {0x28, OpCode(0x28, "PLP", 1, 4, AddressingMode::NoneAddressing, &CPU::op_PLP)},
+    {0x48, OpCode(0x48, "PHA", 1, 3, AddressingMode::Implied, &CPU::op_PHA)},
+    {0x68, OpCode(0x68, "PLA", 1, 4, AddressingMode::Implied, &CPU::op_PLA)},
+    {0x08, OpCode(0x08, "PHP", 1, 3, AddressingMode::Implied, &CPU::op_PHP)},
+    {0x28, OpCode(0x28, "PLP", 1, 4, AddressingMode::Implied, &CPU::op_PLP)},
 
     // --- Register Transfers
-    {0xAA, OpCode(0xAA, "TAX", 1, 2, AddressingMode::NoneAddressing, &CPU::op_TAX)},
-    {0xA8, OpCode(0xA8, "TAY", 1, 2, AddressingMode::NoneAddressing, &CPU::op_TAY)},
-    {0xBA, OpCode(0xBA, "TSX", 1, 2, AddressingMode::NoneAddressing, &CPU::op_TSX)},
-    {0x8A, OpCode(0x8A, "TXA", 1, 2, AddressingMode::NoneAddressing, &CPU::op_TXA)},
-    {0x9A, OpCode(0x9A, "TXS", 1, 2, AddressingMode::NoneAddressing, &CPU::op_TXS)},
-    {0x98, OpCode(0x98, "TYA", 1, 2, AddressingMode::NoneAddressing, &CPU::op_TYA)},
+    {0xAA, OpCode(0xAA, "TAX", 1, 2, AddressingMode::Implied, &CPU::op_TAX)},
+    {0xA8, OpCode(0xA8, "TAY", 1, 2, AddressingMode::Implied, &CPU::op_TAY)},
+    {0xBA, OpCode(0xBA, "TSX", 1, 2, AddressingMode::Implied, &CPU::op_TSX)},
+    {0x8A, OpCode(0x8A, "TXA", 1, 2, AddressingMode::Implied, &CPU::op_TXA)},
+    {0x9A, OpCode(0x9A, "TXS", 1, 2, AddressingMode::Implied, &CPU::op_TXS)},
+    {0x98, OpCode(0x98, "TYA", 1, 2, AddressingMode::Implied, &CPU::op_TYA)},
 
     // =====================================================
     // Flag Instructions
     // =====================================================
-    {0x18, OpCode(0x18, "CLC", 1, 2, AddressingMode::NoneAddressing, &CPU::op_CLC)},
-    {0x38, OpCode(0x38, "SEC", 1, 2, AddressingMode::NoneAddressing, &CPU::op_SEC)},
-    {0x58, OpCode(0x58, "CLI", 1, 2, AddressingMode::NoneAddressing, &CPU::op_CLI)},
-    {0x78, OpCode(0x78, "SEI", 1, 2, AddressingMode::NoneAddressing, &CPU::op_SEI)},
-    {0xB8, OpCode(0xB8, "CLV", 1, 2, AddressingMode::NoneAddressing, &CPU::op_CLV)},
-    {0xD8, OpCode(0xD8, "CLD", 1, 2, AddressingMode::NoneAddressing, &CPU::op_CLD)},
-    {0xF8, OpCode(0xF8, "SED", 1, 2, AddressingMode::NoneAddressing, &CPU::op_SED)},
+    {0x18, OpCode(0x18, "CLC", 1, 2, AddressingMode::Implied, &CPU::op_CLC)},
+    {0x38, OpCode(0x38, "SEC", 1, 2, AddressingMode::Implied, &CPU::op_SEC)},
+    {0x58, OpCode(0x58, "CLI", 1, 2, AddressingMode::Implied, &CPU::op_CLI)},
+    {0x78, OpCode(0x78, "SEI", 1, 2, AddressingMode::Implied, &CPU::op_SEI)},
+    {0xB8, OpCode(0xB8, "CLV", 1, 2, AddressingMode::Implied, &CPU::op_CLV)},
+    {0xD8, OpCode(0xD8, "CLD", 1, 2, AddressingMode::Implied, &CPU::op_CLD)},
+    {0xF8, OpCode(0xF8, "SED", 1, 2, AddressingMode::Implied, &CPU::op_SED)},
 
 };

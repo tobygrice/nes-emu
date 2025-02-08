@@ -100,7 +100,7 @@ void CPU::resetInterrupt() {
  */
 uint16_t CPU::getOperandAddress(AddressingMode mode) {
   switch (mode) {
-    case AddressingMode::NoneAddressing:
+    case AddressingMode::Implied:
     case AddressingMode::Accumulator:
       return 0;  // accumulator and implicit opcodes do not require an address
 
@@ -147,6 +147,27 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
         this->cycleCount += 1;  // +1 cycle for page crossed
       }
       return addr;
+    }
+
+    case AddressingMode::Indirect: {
+      // For JMP ($xxxx): the 16-bit pointer is fetched from PC.
+      uint16_t pointer = memRead16(pc);
+      uint8_t lsb = memRead8(pointer);
+      uint8_t msb;
+      /* https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
+         "An original 6502 has does not correctly fetch the target address if the
+         indirect vector falls on a page boundary (e.g. $xxFF where xx is any
+         value from $00 to $FF). In this case fetches the LSB from $xxFF as
+         expected but takes the MSB from $xx00. This is fixed in some later
+         chips like the 65SC02 so for compatibility always ensure the indirect
+         vector is not at the end of the page." */
+      if ((pointer & 0x00FF) == 0x00FF) {
+        // error point: unsure whether to emulate bug or not!
+        msb = memRead8(pointer & 0xFF00);  // emulate bug - wrap to beginning of page
+      } else {
+        msb = memRead8(pointer + 1);
+      }
+      return (static_cast<uint16_t>(msb) << 8) | lsb;
     }
 
     case AddressingMode::Indirect_X: {
@@ -275,7 +296,7 @@ void CPU::op_BIT(uint16_t addr) {
   // - bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
   // - the zero-flag is set according to the result of the operand AND the
   // - accumulator (set, if the result is zero, unset otherwise).
-  status &= ~(FLAG_NEGATIVE | FLAG_OVERFLOW | FLAG_ZERO); // clear N,V,Z flags
+  status &= ~(FLAG_NEGATIVE | FLAG_OVERFLOW | FLAG_ZERO);  // clear N,V,Z flags
   uint8_t value = memRead8(addr);
   status |= value & (FLAG_NEGATIVE | FLAG_OVERFLOW);
   if ((value & a_register) == 0) {
@@ -327,19 +348,18 @@ void CPU::op_BVS(uint16_t addr) {
     branch(addr);  // branch if overflow flag is set
   }
 }
-void CPU::op_CLC(uint16_t addr) { /* TO-DO */ }
-void CPU::op_CLD(uint16_t addr) { /* TO-DO */ }
-void CPU::op_CLI(uint16_t addr) { /* TO-DO */ }
-void CPU::op_CLV(uint16_t addr) { /* TO-DO */ }
-void CPU::op_CMP(uint16_t addr) { /* TO-DO */ }
-void CPU::op_CPX(uint16_t addr) {
-  // C set if X >= M
-  // Z set if X == M
-  // N set if X < M
-  uint8_t result = x_register - memRead8(addr);
+void CPU::op_CLC(uint16_t addr) { status &= ~FLAG_CARRY; }
+void CPU::op_CLD(uint16_t addr) { status &= ~FLAG_DECIMAL; }
+void CPU::op_CLI(uint16_t addr) { status &= ~FLAG_INTERRUPT; }
+void CPU::op_CLV(uint16_t addr) { status &= ~FLAG_OVERFLOW; }
+void CPU::op_CMP(uint16_t addr) {
+  // C set if A >= M
+  // Z set if A == M
+  // N set if A < M
   // clear negative, zero, and carry flags
   status &= ~(FLAG_NEGATIVE | FLAG_ZERO | FLAG_CARRY);
 
+  uint8_t result = a_register - memRead8(addr);
   if (result & 0x80) {
     status |= FLAG_NEGATIVE;
   } else if (result == 0) {
@@ -349,7 +369,40 @@ void CPU::op_CPX(uint16_t addr) {
     status |= FLAG_CARRY;
   }
 }
-void CPU::op_CPY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CPX(uint16_t addr) {
+  // C set if X >= M
+  // Z set if X == M
+  // N set if X < M
+  // clear negative, zero, and carry flags
+  status &= ~(FLAG_NEGATIVE | FLAG_ZERO | FLAG_CARRY);
+
+  uint8_t result = x_register - memRead8(addr);
+  if (result & 0x80) {
+    status |= FLAG_NEGATIVE;
+  } else if (result == 0) {
+    status |= FLAG_ZERO;
+    status |= FLAG_CARRY;
+  } else {
+    status |= FLAG_CARRY;
+  }
+}
+void CPU::op_CPY(uint16_t addr) {
+  // C set if Y >= M
+  // Z set if Y == M
+  // N set if Y < M
+  // clear negative, zero, and carry flags
+  status &= ~(FLAG_NEGATIVE | FLAG_ZERO | FLAG_CARRY);
+
+  uint8_t result = y_register - memRead8(addr);
+  if (result & 0x80) {
+    status |= FLAG_NEGATIVE;
+  } else if (result == 0) {
+    status |= FLAG_ZERO;
+    status |= FLAG_CARRY;
+  } else {
+    status |= FLAG_CARRY;
+  }
+}
 void CPU::op_DEC(uint16_t addr) {
   uint8_t value = memRead8(addr);
   value -= 1;
@@ -364,11 +417,25 @@ void CPU::op_DEY(uint16_t /* implied */) {
   y_register -= 1;
   updateZeroAndNegativeFlags(y_register);
 }
-void CPU::op_EOR(uint16_t addr) { /* TO-DO */ }
-void CPU::op_INC(uint16_t addr) { /* TO-DO */ }
-void CPU::op_INX(uint16_t addr) { /* TO-DO */ }
-void CPU::op_INY(uint16_t addr) { /* TO-DO */ }
-void CPU::op_JMP(uint16_t addr) { /* TO-DO */ }
+void CPU::op_EOR(uint16_t addr) {
+  a_register ^= memRead8(addr);
+  updateZeroAndNegativeFlags(a_register);
+}
+void CPU::op_INC(uint16_t addr) {
+  uint8_t mem = memRead8(addr);
+  mem += 1;
+  memWrite8(addr, mem);
+  updateZeroAndNegativeFlags(mem);
+}
+void CPU::op_INX(uint16_t /* implied */) {
+  x_register += 1;
+  updateZeroAndNegativeFlags(x_register);
+}
+void CPU::op_INY(uint16_t /* implied */) {
+  y_register += 1;
+  updateZeroAndNegativeFlags(y_register);
+}
+void CPU::op_JMP(uint16_t addr) { pc = addr; }
 void CPU::op_JSR(uint16_t addr) { /* TO-DO */ }
 void CPU::op_LDA(uint16_t addr) {
   uint8_t value = memRead8(addr);
