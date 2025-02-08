@@ -108,6 +108,13 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0xCE, OpCode(0xCE, "DEC", 3, 6, AddressingMode::Absolute,    &CPU::op_DEC)},
     {0xDE, OpCode(0xDE, "DEC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_DEC)},
 
+    // --- DEX
+    {0xCA, OpCode(0xCA, "DEX", 1, 2, AddressingMode::NoneAddressing, &CPU::op_DEX)},
+
+    // --- DEY
+    {0x88, OpCode(0x88, "DEY", 1, 2, AddressingMode::NoneAddressing, &CPU::op_DEY)},
+
+
     // =====================================================
     // Logical Instructions
     // =====================================================

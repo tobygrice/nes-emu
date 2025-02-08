@@ -198,6 +198,18 @@ void CPU::updateZeroAndNegativeFlags(uint8_t result) {
     status &= ~FLAG_NEGATIVE;  // else clear negative flag
   }
 }
+void CPU::branch(uint16_t addr) {
+  // relative address was already computed by getOperandAddress, set pc to addr
+
+  // +1 cycle if page crossed (high byte changed)
+  if (((pc + 1) & 0xFF00) != (addr & 0xFF00)) {
+    cycleCount += 1;
+  }
+
+  pc = addr;          // update pc
+  pcModified = true;  // set flag for execution loop
+  cycleCount += 1;    // +1 cycle for branch taken
+}
 
 void CPU::op_ADC(uint16_t addr) {
   uint8_t value = memRead8(addr);
@@ -245,28 +257,36 @@ void CPU::op_ASL_ACC(uint16_t /* addr ignored */) {
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_BCC(uint16_t addr) {
-  // relative address is already computed by getOperandAddress
   if (!(status & FLAG_CARRY)) {
-    printf("Branching to instruction %04x: %02x\n", addr, memRead8(addr));
-
-    // carry flag not set
-    uint16_t old_pc = pc + 1;  // address of next instruction
-    pc = addr;                 // update pc
-    pcModified = true;         // set flag for execution loop
-    cycleCount += 1;           // +1 cycle for branch taken
-
-    // +1 cycle if page crossed (high byte changed)
-    if ((old_pc & 0xFF00) != (pc & 0xFF00)) {
-      cycleCount += 1;
-    }
+    branch(addr);  // branch if carry flag clear
   }
 }
-void CPU::op_BCS(uint16_t addr) { /* TO-DO */ }
-void CPU::op_BEQ(uint16_t addr) { /* TO-DO */ }
-void CPU::op_BIT(uint16_t addr) { /* TO-DO */ }
-void CPU::op_BMI(uint16_t addr) { /* TO-DO */ }
-void CPU::op_BNE(uint16_t addr) { /* TO-DO */ }
-void CPU::op_BPL(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BCS(uint16_t addr) {
+  if (status & FLAG_CARRY) {
+    branch(addr);  // branch if carry flag set
+  }
+}
+void CPU::op_BEQ(uint16_t addr) {
+  if (status & FLAG_ZERO) {
+    branch(addr);  // branch if zero flag is set
+  }
+}
+void CPU::op_BIT(uint16_t addr) {}
+void CPU::op_BMI(uint16_t addr) {
+  if (status & FLAG_NEGATIVE) {
+    branch(addr);  // branch if negative flag is set
+  }
+}
+void CPU::op_BNE(uint16_t addr) {
+  if (!(status & FLAG_ZERO)) {
+    branch(addr);  // branch if zero flag is clear
+  }
+}
+void CPU::op_BPL(uint16_t addr) {
+  if (!(status & FLAG_NEGATIVE)) {
+    branch(addr);  // branch if negative flag is clear
+  }
+}
 void CPU::op_BRK(uint16_t /* always implicit */) {
   // push pc-1 onto the stack
   uint16_t returnAddress = pc - 1;
@@ -287,18 +307,53 @@ void CPU::op_BRK(uint16_t /* always implicit */) {
   pc = memRead16(0xFFFE);
   pcModified = true;
 }
-void CPU::op_BVC(uint16_t addr) { /* TO-DO */ }
-void CPU::op_BVS(uint16_t addr) { /* TO-DO */ }
+void CPU::op_BVC(uint16_t addr) {
+  if (!(status & FLAG_OVERLOW)) {
+    branch(addr);  // branch if overflow flag is clear
+  }
+}
+void CPU::op_BVS(uint16_t addr) {
+  if (status & FLAG_OVERLOW) {
+    branch(addr);  // branch if overflow flag is set
+  }
+}
 void CPU::op_CLC(uint16_t addr) { /* TO-DO */ }
 void CPU::op_CLD(uint16_t addr) { /* TO-DO */ }
 void CPU::op_CLI(uint16_t addr) { /* TO-DO */ }
 void CPU::op_CLV(uint16_t addr) { /* TO-DO */ }
 void CPU::op_CMP(uint16_t addr) { /* TO-DO */ }
-void CPU::op_CPX(uint16_t addr) { /* TO-DO */ }
+void CPU::op_CPX(uint16_t addr) {
+  // C set if X >= M
+  // Z set if X == M
+  // N set if X < M
+  uint8_t result = x_register - memRead8(addr);
+  // clear negative, zero, and carry flags
+  status &= ~(FLAG_NEGATIVE | FLAG_ZERO | FLAG_CARRY);
+
+  if (result & 0x80) {
+    status |= FLAG_NEGATIVE;
+  } else if (result == 0) {
+    status |= FLAG_ZERO;
+    status |= FLAG_CARRY;
+  } else {
+    status |= FLAG_CARRY;
+  }
+}
 void CPU::op_CPY(uint16_t addr) { /* TO-DO */ }
-void CPU::op_DEC(uint16_t addr) { /* TO-DO */ }
-void CPU::op_DEX(uint16_t addr) { /* TO-DO */ }
-void CPU::op_DEY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_DEC(uint16_t addr) {
+  uint8_t value = memRead8(addr);
+  value -= 1;
+  memWrite8(addr, value);
+  updateZeroAndNegativeFlags(value);
+}
+void CPU::op_DEX(uint16_t /* implied */) {
+  x_register -= 1;
+  updateZeroAndNegativeFlags(x_register);
+}
+void CPU::op_DEY(uint16_t /* implied */) {
+  y_register -= 1;
+  updateZeroAndNegativeFlags(y_register);
+}
 void CPU::op_EOR(uint16_t addr) { /* TO-DO */ }
 void CPU::op_INC(uint16_t addr) { /* TO-DO */ }
 void CPU::op_INX(uint16_t addr) { /* TO-DO */ }
@@ -335,9 +390,9 @@ void CPU::op_SBC(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SEC(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SED(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SEI(uint16_t addr) { /* TO-DO */ }
-void CPU::op_STA(uint16_t addr) { /* TO-DO */ }
-void CPU::op_STX(uint16_t addr) { /* TO-DO */ }
-void CPU::op_STY(uint16_t addr) { /* TO-DO */ }
+void CPU::op_STA(uint16_t addr) { memWrite8(addr, a_register); }
+void CPU::op_STX(uint16_t addr) { memWrite8(addr, x_register); }
+void CPU::op_STY(uint16_t addr) { memWrite8(addr, y_register); }
 void CPU::op_TAX(uint16_t addr) { /* TO-DO */ }
 void CPU::op_TAY(uint16_t addr) { /* TO-DO */ }
 void CPU::op_TSX(uint16_t addr) { /* TO-DO */ }
@@ -361,7 +416,7 @@ void CPU::executeProgram() {
 
     cycleCount += op->cycles;  // increment cycle count
 
-    if (opcode == 0x00) return; // exit if BRK
+    if (opcode == 0x00) return;  // exit if BRK
 
     // advance PC to consume operand bytes
     if (!pcModified) {

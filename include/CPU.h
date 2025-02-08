@@ -38,15 +38,18 @@ class CPU {
     void setPC(uint16_t value) { pc = value; };
     void setSP(uint8_t value) { sp = value; };
 
-    static constexpr uint8_t FLAG_CARRY     = 0b00000001;
-    static constexpr uint8_t FLAG_ZERO      = 0b00000010;
-    static constexpr uint8_t FLAG_INTERRUPT = 0b00000100;
-    static constexpr uint8_t FLAG_DECIMAL   = 0b00001000;
-    static constexpr uint8_t FLAG_BREAK     = 0b00010000;
-    static constexpr uint8_t FLAG_OVERLOW   = 0b01000000;
-    static constexpr uint8_t FLAG_NEGATIVE  = 0b10000100;
+    static constexpr uint8_t FLAG_CARRY     = 0b00000001; // C
+    static constexpr uint8_t FLAG_ZERO      = 0b00000010; // Z
+    static constexpr uint8_t FLAG_INTERRUPT = 0b00000100; // I
+    static constexpr uint8_t FLAG_DECIMAL   = 0b00001000; // D
+    static constexpr uint8_t FLAG_BREAK     = 0b00010000; // B
+                                                          // 1 (always 1)
+    static constexpr uint8_t FLAG_OVERLOW   = 0b01000000; // V
+    static constexpr uint8_t FLAG_NEGATIVE  = 0b10000000; // N
 
+    // helpers
     void updateZeroAndNegativeFlags(uint8_t result);
+    void branch(uint16_t addr);
 
     // memory handling
     uint8_t memRead8(uint16_t addr) const;
@@ -67,7 +70,7 @@ class CPU {
     void op_ADC(uint16_t addr);
     void op_AND(uint16_t addr);
     void op_ASL(uint16_t addr);
-    void op_ASL_ACC(uint16_t addr);
+    void op_ASL_ACC(uint16_t /* implied */);
     void op_BCC(uint16_t addr);
     void op_BCS(uint16_t addr);
     void op_BEQ(uint16_t addr);
@@ -75,7 +78,7 @@ class CPU {
     void op_BMI(uint16_t addr);
     void op_BNE(uint16_t addr);
     void op_BPL(uint16_t addr);
-    void op_BRK(uint16_t /* addr */);
+    void op_BRK(uint16_t /* none addressing */);
     void op_BVC(uint16_t addr);
     void op_BVS(uint16_t addr);
     void op_CLC(uint16_t addr);
@@ -86,8 +89,8 @@ class CPU {
     void op_CPX(uint16_t addr);
     void op_CPY(uint16_t addr);
     void op_DEC(uint16_t addr);
-    void op_DEX(uint16_t addr);
-    void op_DEY(uint16_t addr);
+    void op_DEX(uint16_t /* implied */);
+    void op_DEY(uint16_t /* implied */);
     void op_EOR(uint16_t addr);
     void op_INC(uint16_t addr);
     void op_INX(uint16_t addr);
