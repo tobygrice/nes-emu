@@ -84,7 +84,8 @@ TEST_F(CPUTest, ResetInterrupt) {
   EXPECT_EQ(cpu.getA(), 0);
   EXPECT_EQ(cpu.getX(), 0);
   EXPECT_EQ(cpu.getY(), 0);
-  EXPECT_EQ(cpu.getStatus(), 0);
+  EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_INTERRUPT);
+  EXPECT_FALSE(cpu.getStatus() & cpu.FLAG_DECIMAL);
 }
 
 // Test the executeProgram loop by loading a simple program

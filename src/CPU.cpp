@@ -88,7 +88,8 @@ void CPU::resetInterrupt() {
   a_register = 0;
   x_register = 0;
   y_register = 0;
-  status = 0;
+  status &= ~FLAG_DECIMAL; // clear D flag
+  status |= FLAG_INTERRUPT; // set interrupt flag
   pc = memRead16(0xFFFC);
 }
 
@@ -134,7 +135,7 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
       uint16_t addr = base + x_register;
       if ((base & 0xFF00) != (addr & 0xFF00)) {
         // MSB of base address and resulting addition address is different
-        this->cycleCount += 1;  // +1 cycle for page crossed
+        this->cycleCount++;  // +1 cycle for page crossed
       }
       return addr;
     }
@@ -144,7 +145,7 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
       uint16_t addr = base + y_register;
       if ((base & 0xFF00) != (addr & 0xFF00)) {
         // MSB of base address and resulting addition address is different
-        this->cycleCount += 1;  // +1 cycle for page crossed
+        this->cycleCount++;  // +1 cycle for page crossed
       }
       return addr;
     }
@@ -189,13 +190,23 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
           (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
       uint16_t addr = deref_base + y_register;
       if ((deref_base & 0xFF00) != (addr & 0xFF00)) {
-        this->cycleCount += 1;  // Extra cycle
+        this->cycleCount++;  // Extra cycle
       }
       return addr;
     }
     default:
       throw std::runtime_error("Addressing mode not supported");
   }
+}
+
+void CPU::push(uint8_t value) {
+  memWrite8(0x0100 + sp, value);
+  sp--;
+}
+
+uint8_t CPU::pop() {
+  sp++;
+  return memRead8(0x100 + sp);
 }
 
 /**
@@ -224,12 +235,12 @@ void CPU::branch(uint16_t addr) {
 
   // +1 cycle if page crossed (high byte changed)
   if (((pc + 1) & 0xFF00) != (addr & 0xFF00)) {
-    cycleCount += 1;
+    cycleCount++;
   }
 
   pc = addr;          // update pc
   pcModified = true;  // set flag for execution loop
-  cycleCount += 1;    // +1 cycle for branch taken
+  cycleCount++;    // +1 cycle for branch taken
 }
 
 void CPU::op_ADC(uint16_t addr) {
@@ -323,8 +334,8 @@ void CPU::op_BRK(uint16_t /* always implicit */) {
   uint16_t returnAddress = pc - 1;
 
   // Push returnAddress onto the stack, high byte first.
-  memWrite8(0x0100 + sp--, (returnAddress >> 8) & 0xFF);
-  memWrite8(0x0100 + sp--, returnAddress & 0xFF);
+  push((returnAddress >> 8) & 0xFF);
+  push(returnAddress & 0xFF);
 
   // Push the status register with the Break flag set.
   // Ensure we do not inadvertently push the Negative flag.
@@ -405,16 +416,16 @@ void CPU::op_CPY(uint16_t addr) {
 }
 void CPU::op_DEC(uint16_t addr) {
   uint8_t value = memRead8(addr);
-  value -= 1;
+  value--;
   memWrite8(addr, value);
   updateZeroAndNegativeFlags(value);
 }
 void CPU::op_DEX(uint16_t /* implied */) {
-  x_register -= 1;
+  x_register--;
   updateZeroAndNegativeFlags(x_register);
 }
 void CPU::op_DEY(uint16_t /* implied */) {
-  y_register -= 1;
+  y_register--;
   updateZeroAndNegativeFlags(y_register);
 }
 void CPU::op_EOR(uint16_t addr) {
@@ -423,20 +434,32 @@ void CPU::op_EOR(uint16_t addr) {
 }
 void CPU::op_INC(uint16_t addr) {
   uint8_t mem = memRead8(addr);
-  mem += 1;
+  mem++;
   memWrite8(addr, mem);
   updateZeroAndNegativeFlags(mem);
 }
 void CPU::op_INX(uint16_t /* implied */) {
-  x_register += 1;
+  x_register++;
   updateZeroAndNegativeFlags(x_register);
 }
 void CPU::op_INY(uint16_t /* implied */) {
-  y_register += 1;
+  y_register++;
   updateZeroAndNegativeFlags(y_register);
 }
-void CPU::op_JMP(uint16_t addr) { pc = addr; }
-void CPU::op_JSR(uint16_t addr) { /* TO-DO */ }
+void CPU::op_JMP(uint16_t addr) { 
+  pc = addr; 
+  pcModified = true;
+}
+void CPU::op_JSR(uint16_t addr) {
+  pc++; // pc + 1 = the address minus one of the next instruction
+
+  // push high byte first, then low byte
+  push((pc >> 8) & 0xFF);  // push MSB
+  push(pc & 0xFF);         // push LSB
+
+  pc = addr;
+  pcModified = true;
+}
 void CPU::op_LDA(uint16_t addr) {
   uint8_t value = memRead8(addr);
   a_register = value;
@@ -462,7 +485,13 @@ void CPU::op_PLP(uint16_t addr) { /* TO-DO */ }
 void CPU::op_ROL(uint16_t addr) { /* TO-DO */ }
 void CPU::op_ROR(uint16_t addr) { /* TO-DO */ }
 void CPU::op_RTI(uint16_t addr) { /* TO-DO */ }
-void CPU::op_RTS(uint16_t addr) { /* TO-DO */ }
+void CPU::op_RTS(uint16_t addr) {
+	uint8_t low = pop();
+	uint8_t high = pop();
+
+	pc = ((high << 8) | low) + 1;
+	pcModified = true;
+}
 void CPU::op_SBC(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SEC(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SED(uint16_t addr) { /* TO-DO */ }

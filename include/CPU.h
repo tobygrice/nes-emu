@@ -50,6 +50,8 @@ class CPU {
   // helpers
   void updateZeroAndNegativeFlags(uint8_t result);
   void branch(uint16_t addr);
+  void push(uint8_t value);
+  uint8_t pop();
 
   // memory handling
   uint8_t memRead8(uint16_t addr) const;
