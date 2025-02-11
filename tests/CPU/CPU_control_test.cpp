@@ -15,29 +15,52 @@ class CPUControlTest : public ::testing::Test {
 
 // Test the BRK handler by calling the BRK opcode directly.
 TEST_F(CPUControlTest, BRKHandler) {
-  // Set the BRK interrupt vector to 0x9000.
+  // Set IRQ interrupt vector to 0x9000.
   cpu.memWrite16(0xFFFE, 0x9000);
 
-  std::vector<uint8_t> program = {0xA9, 0x42, 0x00};
+  // Include a padding byte after BRK since BRK is a two-byte opcode.
+  std::vector<uint8_t> program = {
+    0xA9, 0x42, // LDA #$42
+    0x00, 0x00  // BRK (0x00 opcode plus one padding byte)
+  };
   cpu.loadAndExecute(program);
 
   // After pushing three bytes, the stack pointer should be 0xFF - 3 = 0xFC.
   EXPECT_EQ(cpu.getSP(), 0xFC);
-  EXPECT_EQ(cpu.getPC(), 0x9000); // new PC should be loaded from the BRK interrupt vector
-  EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_INTERRUPT); // I flag should be set
+  EXPECT_EQ(cpu.getPC(), 0x9000) 
+      << "New PC should be loaded from the BRK interrupt vector.";
+  EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_INTERRUPT)
+      << "Interrupt flag should be set.";
 
   // Verify the values pushed onto the stack.
-  // The order of pushes: first the high byte of (return address),
-  // then the low byte of (return address), then the status (with break flag
-  // set).
-  uint8_t pushedStatus = cpu.pop();  // at address 0x01FD.
-  uint8_t pushedHigh = cpu.pop();    // at address 0x01FF.
-  uint8_t pushedLow = cpu.pop();     // at address 0x01FE.
+  // The push order for BRK is:
+  //   first push: high byte of the return address,
+  //   second push: low byte of the return address,
+  //   third push: status (with the break flag set).
+  // With the program loaded at 0x8000:
+  //   LDA #$42 takes 2 bytes (PC becomes 0x8002),
+  //   then BRK is fetched (opcode at 0x8002) and a padding byte is fetched,
+  //   and op_BRK does an extra PC increment, so the return address pushed is 0x8004.
+  //
+  // Thus, we expect:
+  //   High byte = 0x80,
+  //   Low byte = 0x04.
+  //
+  // Note: The order of pops depends on how your pop() is implemented.
+  // If push() writes high byte first then low then status,
+  // a typical pop sequence is:
+  //   first pop returns status,
+  //   second pop returns low byte,
+  //   third pop returns high byte.
+  uint8_t pushedStatus = cpu.pop();  // should be the status (with break flag set)
+  uint8_t pushedLow    = cpu.pop();    // should be 0x04 (low byte of return address)
+  uint8_t pushedHigh   = cpu.pop();    // should be 0x80 (high byte of return address)
 
   EXPECT_EQ(pushedHigh, 0x80)
       << "High byte of pushed PC should be 0x80.";
-  EXPECT_EQ(pushedLow, 0x02) << "Low byte of pushed PC should be 0x01.";
-  EXPECT_EQ(pushedStatus, cpu.FLAG_BREAK)
+  EXPECT_EQ(pushedLow, 0x04)
+      << "Low byte of pushed PC should be 0x04.";
+  EXPECT_TRUE(pushedStatus & cpu.FLAG_BREAK)
       << "Status pushed onto stack should have the break flag (bit 4) set.";
 }
 

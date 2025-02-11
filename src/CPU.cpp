@@ -6,13 +6,13 @@
  * Constructor to initialise registers with starting values.
  */
 CPU::CPU()
-    : a_register(0),  // accumulator starts at 0
-      x_register(0),  // X starts at 0
-      y_register(0),  // Y starts at 0
-      status(0x00),   // status register starts with all flags clear
-      pc(0x8000),     // cartridge ROM is 0x8000-0xFFFF in NES
-      sp(0xFF) {      // stack pointer starts at 0xFF
-  memory.fill(0);     // memory initialised to 0s
+    : a_register(0),       // accumulator starts at 0
+      x_register(0),       // X starts at 0
+      y_register(0),       // Y starts at 0
+      status(0b00100000),  // status register starts with all flags clear
+      pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
+      sp(0xFF) {           // stack pointer starts at 0xFF
+  memory.fill(0);          // memory initialised to 0s
 }
 
 /**
@@ -88,8 +88,8 @@ void CPU::resetInterrupt() {
   a_register = 0;
   x_register = 0;
   y_register = 0;
-  status &= ~FLAG_DECIMAL; // clear D flag
-  status |= FLAG_INTERRUPT; // set interrupt flag
+  status &= ~FLAG_DECIMAL;   // clear D flag
+  status |= FLAG_INTERRUPT;  // set interrupt flag
   pc = memRead16(0xFFFC);
 }
 
@@ -156,15 +156,16 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
       uint8_t lsb = memRead8(pointer);
       uint8_t msb;
       /* https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
-         "An original 6502 has does not correctly fetch the target address if the
-         indirect vector falls on a page boundary (e.g. $xxFF where xx is any
-         value from $00 to $FF). In this case fetches the LSB from $xxFF as
+         "An original 6502 has does not correctly fetch the target address if
+         the indirect vector falls on a page boundary (e.g. $xxFF where xx is
+         any value from $00 to $FF). In this case fetches the LSB from $xxFF as
          expected but takes the MSB from $xx00. This is fixed in some later
          chips like the 65SC02 so for compatibility always ensure the indirect
          vector is not at the end of the page." */
       if ((pointer & 0x00FF) == 0x00FF) {
         // error point: unsure whether to emulate bug or not!
-        msb = memRead8(pointer & 0xFF00);  // emulate bug - wrap to beginning of page
+        msb = memRead8(pointer &
+                       0xFF00);  // emulate bug - wrap to beginning of page
       } else {
         msb = memRead8(pointer + 1);
       }
@@ -240,7 +241,7 @@ void CPU::branch(uint16_t addr) {
 
   pc = addr;          // update pc
   pcModified = true;  // set flag for execution loop
-  cycleCount++;    // +1 cycle for branch taken
+  cycleCount++;       // +1 cycle for branch taken
 }
 
 void CPU::op_ADC(uint16_t addr) {
@@ -330,22 +331,18 @@ void CPU::op_BPL(uint16_t addr) {
   }
 }
 void CPU::op_BRK(uint16_t /* always implicit */) {
-  // push pc-1 onto the stack
-  uint16_t returnAddress = pc - 1;
+  pc++;  // provide an extra byte of spacing for a break mark
 
-  // Push returnAddress onto the stack, high byte first.
-  push((returnAddress >> 8) & 0xFF);
-  push(returnAddress & 0xFF);
+  // push high byte first, then low byte
+  push((pc >> 8) & 0xFF);  // push MSB
+  push(pc & 0xFF);         // push LSB
 
-  // Push the status register with the Break flag set.
-  // Ensure we do not inadvertently push the Negative flag.
-  uint8_t statusToPush = (status & ~0x80) | FLAG_BREAK;
-  memWrite8(0x0100 + sp--, statusToPush);
+  // push the status register with the break flag set.
+  push(status | FLAG_BREAK);
+  
+  status |= FLAG_INTERRUPT;  // set the interrupt flag
 
-  // Set the Interrupt Disable flag (bit 2).
-  status |= FLAG_INTERRUPT;
-
-  // Fetch the new program counter from the interrupt vector.
+  // fetch the new pc from the interrupt vector
   pc = memRead16(0xFFFE);
   pcModified = true;
 }
@@ -446,12 +443,12 @@ void CPU::op_INY(uint16_t /* implied */) {
   y_register++;
   updateZeroAndNegativeFlags(y_register);
 }
-void CPU::op_JMP(uint16_t addr) { 
-  pc = addr; 
+void CPU::op_JMP(uint16_t addr) {
+  pc = addr;
   pcModified = true;
 }
 void CPU::op_JSR(uint16_t addr) {
-  pc++; // pc + 1 = the address minus one of the next instruction
+  pc++;  // pc + 1 = the address minus one of the next instruction
 
   // push high byte first, then low byte
   push((pc >> 8) & 0xFF);  // push MSB
@@ -475,7 +472,20 @@ void CPU::op_LDY(uint16_t addr) {
   y_register = value;
   updateZeroAndNegativeFlags(y_register);
 }
-void CPU::op_LSR(uint16_t addr) { /* TO-DO */ }
+void CPU::op_LSR(uint16_t addr) {
+  uint8_t value = memRead8(addr);
+  // store bit 0 before shift in carry flag
+  status = (status & ~FLAG_CARRY) | ((value & 0x01) ? FLAG_CARRY : 0);
+  value >>= 1;             // shift value right
+  memWrite8(addr, value);  // write new value back to memory
+  updateZeroAndNegativeFlags(value);
+}
+void CPU::op_LSR_ACC(uint16_t /* implied */) {
+  // store bit 0 before shift in carry flag
+  status = (status & ~FLAG_CARRY) | ((a_register & 0x01) ? FLAG_CARRY : 0);
+  a_register >>= 1;  // shift A register right
+  updateZeroAndNegativeFlags(a_register);
+}
 void CPU::op_NOP(uint16_t addr) { /* TO-DO */ }
 void CPU::op_ORA(uint16_t addr) { /* TO-DO */ }
 void CPU::op_PHA(uint16_t addr) { /* TO-DO */ }
@@ -483,14 +493,16 @@ void CPU::op_PHP(uint16_t addr) { /* TO-DO */ }
 void CPU::op_PLA(uint16_t addr) { /* TO-DO */ }
 void CPU::op_PLP(uint16_t addr) { /* TO-DO */ }
 void CPU::op_ROL(uint16_t addr) { /* TO-DO */ }
+void CPU::op_ROL_ACC(uint16_t /* implied */) { /* TO-DO */ }
 void CPU::op_ROR(uint16_t addr) { /* TO-DO */ }
+void CPU::op_ROR_ACC(uint16_t /* implied */) { /* TO-DO */ }
 void CPU::op_RTI(uint16_t addr) { /* TO-DO */ }
 void CPU::op_RTS(uint16_t addr) {
-	uint8_t low = pop();
-	uint8_t high = pop();
+  uint8_t low = pop();
+  uint8_t high = pop();
 
-	pc = ((high << 8) | low) + 1;
-	pcModified = true;
+  pc = ((high << 8) | low) + 1;
+  pcModified = true;
 }
 void CPU::op_SBC(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SEC(uint16_t addr) { /* TO-DO */ }

@@ -51,3 +51,42 @@ TEST_F(CPUShiftRotateTest, ASLAccumulator) {
   EXPECT_FALSE(cpu.getStatus() & 0b00000010) << "Zero flag should not be set.";
   EXPECT_FALSE(cpu.getStatus() & 0b10000000) << "Negative flag should not be set.";
 }
+
+// Test LSR flag cleared
+TEST_F(CPUShiftRotateTest, LSRFlagCleared) {
+  cpu.memWrite8(0x50, 0b01101110);
+  std::vector<uint8_t> program = {0x46, 0x50,  // LSR $50
+                                  0x00};       // BRK
+  cpu.loadAndExecute(program);
+
+  EXPECT_EQ(cpu.memRead8(0x50), 0b00110111);
+  EXPECT_FALSE(cpu.getStatus() & 0b00000001) << "Carry flag should not be set.";
+  EXPECT_FALSE(cpu.getStatus() & 0b00000010) << "Zero flag should not be set.";
+  EXPECT_FALSE(cpu.getStatus() & 0b10000000) << "Negative flag should not be set.";
+}
+
+// Test LSR flag set
+TEST_F(CPUShiftRotateTest, LSRFlagSet) {
+  cpu.memWrite8(0x50, 0b10101101);
+  std::vector<uint8_t> program = {0x46, 0x50,  // LSR $50
+                                  0x00};       // BRK
+  cpu.loadAndExecute(program);
+
+  EXPECT_EQ(cpu.memRead8(0x50), 0b01010110);
+  EXPECT_TRUE(cpu.getStatus() & 0b00000001) << "Carry flag should be set.";
+  EXPECT_FALSE(cpu.getStatus() & 0b00000010) << "Zero flag should not be set.";
+  EXPECT_FALSE(cpu.getStatus() & 0b10000000) << "Negative flag should not be set.";
+}
+
+// Test LSR on accumulator
+TEST_F(CPUShiftRotateTest, LSRAccumulator) {
+  std::vector<uint8_t> program = {0xA9, 0b01101110, // LDA 0b01101110
+                                  0x4A,             // LSR (acc)
+                                  0x00};            // BRK
+  cpu.loadAndExecute(program);
+
+  EXPECT_EQ(cpu.getA(), 0b00110111);
+  EXPECT_FALSE(cpu.getStatus() & 0b00000001) << "Carry flag should not be set.";
+  EXPECT_FALSE(cpu.getStatus() & 0b00000010) << "Zero flag should not be set.";
+  EXPECT_FALSE(cpu.getStatus() & 0b10000000) << "Negative flag should not be set.";
+}

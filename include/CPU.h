@@ -103,6 +103,7 @@ class CPU {
   void op_LDX(uint16_t addr);
   void op_LDY(uint16_t addr);
   void op_LSR(uint16_t addr);
+  void op_LSR_ACC(uint16_t /* implied */);
   void op_NOP(uint16_t addr);
   void op_ORA(uint16_t addr);
   void op_PHA(uint16_t addr);
@@ -110,7 +111,9 @@ class CPU {
   void op_PLA(uint16_t addr);
   void op_PLP(uint16_t addr);
   void op_ROL(uint16_t addr);
+  void op_ROL_ACC(uint16_t /* implied */ );
   void op_ROR(uint16_t addr);
+  void op_ROR_ACC(uint16_t /* implied */ );
   void op_RTI(uint16_t addr);
   void op_RTS(uint16_t addr);
   void op_SBC(uint16_t addr);

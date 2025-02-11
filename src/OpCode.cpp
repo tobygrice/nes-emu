@@ -25,8 +25,8 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // =====================================================
     {0x00, OpCode(0x00, "BRK", 1, 7, AddressingMode::Implied,     &CPU::op_BRK)},
     {0x20, OpCode(0x20, "JSR", 3, 6, AddressingMode::Absolute,    &CPU::op_JSR)},
-    {0x4C, OpCode(0x4C, "JMP", 3, 3, AddressingMode::Absolute,    &CPU::op_JSR)},
-    {0x6C, OpCode(0x6C, "JMP", 3, 5, AddressingMode::Indirect,    &CPU::op_JSR)},
+    {0x4C, OpCode(0x4C, "JMP", 3, 3, AddressingMode::Absolute,    &CPU::op_JMP)},
+    {0x6C, OpCode(0x6C, "JMP", 3, 5, AddressingMode::Indirect,    &CPU::op_JMP)},
     {0x40, OpCode(0x40, "RTI", 1, 6, AddressingMode::Implied,     &CPU::op_RTI)},
     {0x60, OpCode(0x60, "RTS", 1, 6, AddressingMode::Implied,     &CPU::op_RTS)},
     {0xEA, OpCode(0xEA, "NOP", 1, 2, AddressingMode::Implied,     &CPU::op_NOP)},
@@ -171,22 +171,22 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0x1E, OpCode(0x1E, "ASL", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ASL)},
 
     // --- LSR
+    {0x4A, OpCode(0x4A, "LSR", 1, 2, AddressingMode::Accumulator, &CPU::op_LSR_ACC)},
     {0x46, OpCode(0x46, "LSR", 2, 5, AddressingMode::ZeroPage,    &CPU::op_LSR)},
-    {0x4A, OpCode(0x4A, "LSR", 1, 2, AddressingMode::Accumulator, &CPU::op_LSR)},
-    {0x4E, OpCode(0x4E, "LSR", 3, 6, AddressingMode::Absolute,    &CPU::op_LSR)},
     {0x56, OpCode(0x56, "LSR", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_LSR)},
+    {0x4E, OpCode(0x4E, "LSR", 3, 6, AddressingMode::Absolute,    &CPU::op_LSR)},
     {0x5E, OpCode(0x5E, "LSR", 3, 7, AddressingMode::Absolute_X,  &CPU::op_LSR)},
 
     // --- ROL
+    {0x2A, OpCode(0x2A, "ROL", 1, 2, AddressingMode::Accumulator, &CPU::op_ROL_ACC)},
     {0x26, OpCode(0x26, "ROL", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ROL)},
-    {0x2A, OpCode(0x2A, "ROL", 1, 2, AddressingMode::Accumulator, &CPU::op_ROL)},
     {0x2E, OpCode(0x2E, "ROL", 3, 6, AddressingMode::Absolute,    &CPU::op_ROL)},
     {0x36, OpCode(0x36, "ROL", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ROL)},
     {0x3E, OpCode(0x3E, "ROL", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ROL)},
 
     // --- ROR
+    {0x6A, OpCode(0x6A, "ROR", 1, 2, AddressingMode::Accumulator, &CPU::op_ROR_ACC)},
     {0x66, OpCode(0x66, "ROR", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ROR)},
-    {0x6A, OpCode(0x6A, "ROR", 1, 2, AddressingMode::Accumulator, &CPU::op_ROR)},
     {0x6E, OpCode(0x6E, "ROR", 3, 6, AddressingMode::Absolute,    &CPU::op_ROR)},
     {0x76, OpCode(0x76, "ROR", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ROR)},
     {0x7E, OpCode(0x7E, "ROR", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ROR)},
