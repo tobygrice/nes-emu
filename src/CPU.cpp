@@ -339,7 +339,7 @@ void CPU::op_BRK(uint16_t /* always implicit */) {
 
   // push the status register with the break flag set.
   push(status | FLAG_BREAK);
-  
+
   status |= FLAG_INTERRUPT;  // set the interrupt flag
 
   // fetch the new pc from the interrupt vector
@@ -486,16 +486,72 @@ void CPU::op_LSR_ACC(uint16_t /* implied */) {
   a_register >>= 1;  // shift A register right
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_NOP(uint16_t addr) { /* TO-DO */ }
-void CPU::op_ORA(uint16_t addr) { /* TO-DO */ }
-void CPU::op_PHA(uint16_t addr) { /* TO-DO */ }
-void CPU::op_PHP(uint16_t addr) { /* TO-DO */ }
-void CPU::op_PLA(uint16_t addr) { /* TO-DO */ }
-void CPU::op_PLP(uint16_t addr) { /* TO-DO */ }
-void CPU::op_ROL(uint16_t addr) { /* TO-DO */ }
-void CPU::op_ROL_ACC(uint16_t /* implied */) { /* TO-DO */ }
-void CPU::op_ROR(uint16_t addr) { /* TO-DO */ }
-void CPU::op_ROR_ACC(uint16_t /* implied */) { /* TO-DO */ }
+void CPU::op_NOP(uint16_t addr) { return; }
+void CPU::op_ORA(uint16_t addr) {
+  a_register |= memRead8(addr);
+  updateZeroAndNegativeFlags(a_register);
+}
+void CPU::op_PHA(uint16_t /* implied */) { push(a_register); }
+void CPU::op_PHP(uint16_t /* implied */) { push(status); }
+void CPU::op_PLA(uint16_t /* implied */) {
+  a_register = pop();
+  updateZeroAndNegativeFlags(a_register);
+}
+void CPU::op_PLP(uint16_t addr) { status = pop(); }
+void CPU::op_ROL(uint16_t addr) {
+  uint8_t value = memRead8(addr);
+  // shift value left and set LSB to carry bit
+  uint8_t result = (value << 1) | (status & FLAG_CARRY ? 1 : 0);
+
+  if (value & 0x80) {
+    status |= FLAG_CARRY;  // bit 7 of value is set, set carry flag
+  } else {
+    status &= ~FLAG_CARRY;  // else clear carry flag
+  }
+
+  memWrite8(addr, result);
+  updateZeroAndNegativeFlags(result);
+}
+void CPU::op_ROL_ACC(uint16_t /* implied */) {
+  // shift accumulator left and set LSB to carry bit
+  uint8_t result = (a_register << 1) | (status & FLAG_CARRY ? 1 : 0);
+
+  if (a_register & 0x80) {
+    status |= FLAG_CARRY;  // bit 7 of value is set, set carry flag
+  } else {
+    status &= ~FLAG_CARRY;  // else clear carry flag
+  }
+
+  a_register = result;
+  updateZeroAndNegativeFlags(a_register);
+}
+void CPU::op_ROR(uint16_t addr) {
+  uint8_t value = memRead8(addr);
+  // shift value right and set MSB to carry bit
+  uint8_t result = (value >> 1) | (status & FLAG_CARRY ? 0x80 : 0);
+
+  if (value & 0x01) {
+    status |= FLAG_CARRY;  // bit 0 of value is set, set carry flag
+  } else {
+    status &= ~FLAG_CARRY;  // else clear carry flag
+  }
+
+  memWrite8(addr, result);
+  updateZeroAndNegativeFlags(result);
+}
+void CPU::op_ROR_ACC(uint16_t /* implied */) {
+  // shift accumulator right and set MSB to carry bit
+  uint8_t result = (a_register >> 1) | (status & FLAG_CARRY ? 0x80 : 0);
+
+  if (a_register & 0x01) {
+    status |= FLAG_CARRY;  // bit 0 of value is set, set carry flag
+  } else {
+    status &= ~FLAG_CARRY;  // else clear carry flag
+  }
+
+  a_register = result;
+  updateZeroAndNegativeFlags(a_register);
+}
 void CPU::op_RTI(uint16_t addr) { /* TO-DO */ }
 void CPU::op_RTS(uint16_t addr) {
   uint8_t low = pop();
@@ -505,7 +561,7 @@ void CPU::op_RTS(uint16_t addr) {
   pcModified = true;
 }
 void CPU::op_SBC(uint16_t addr) { /* TO-DO */ }
-void CPU::op_SEC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_SEC(uint16_t /* implied */) { status |= FLAG_CARRY; }
 void CPU::op_SED(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SEI(uint16_t addr) { /* TO-DO */ }
 void CPU::op_STA(uint16_t addr) { memWrite8(addr, a_register); }
@@ -515,7 +571,7 @@ void CPU::op_TAX(uint16_t addr) { /* TO-DO */ }
 void CPU::op_TAY(uint16_t addr) { /* TO-DO */ }
 void CPU::op_TSX(uint16_t addr) { /* TO-DO */ }
 void CPU::op_TXA(uint16_t addr) { /* TO-DO */ }
-void CPU::op_TXS(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TXS(uint16_t addr) { push(x_register); }
 void CPU::op_TYA(uint16_t addr) { /* TO-DO */ }
 
 void CPU::executeProgram() {

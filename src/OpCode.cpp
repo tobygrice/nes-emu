@@ -180,15 +180,15 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // --- ROL
     {0x2A, OpCode(0x2A, "ROL", 1, 2, AddressingMode::Accumulator, &CPU::op_ROL_ACC)},
     {0x26, OpCode(0x26, "ROL", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ROL)},
-    {0x2E, OpCode(0x2E, "ROL", 3, 6, AddressingMode::Absolute,    &CPU::op_ROL)},
     {0x36, OpCode(0x36, "ROL", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ROL)},
+    {0x2E, OpCode(0x2E, "ROL", 3, 6, AddressingMode::Absolute,    &CPU::op_ROL)},
     {0x3E, OpCode(0x3E, "ROL", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ROL)},
 
     // --- ROR
     {0x6A, OpCode(0x6A, "ROR", 1, 2, AddressingMode::Accumulator, &CPU::op_ROR_ACC)},
     {0x66, OpCode(0x66, "ROR", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ROR)},
-    {0x6E, OpCode(0x6E, "ROR", 3, 6, AddressingMode::Absolute,    &CPU::op_ROR)},
     {0x76, OpCode(0x76, "ROR", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ROR)},
+    {0x6E, OpCode(0x6E, "ROR", 3, 6, AddressingMode::Absolute,    &CPU::op_ROR)},
     {0x7E, OpCode(0x7E, "ROR", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ROR)},
 
     // =====================================================
@@ -234,8 +234,8 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // =====================================================
     // --- Stack Operations
     {0x48, OpCode(0x48, "PHA", 1, 3, AddressingMode::Implied, &CPU::op_PHA)},
-    {0x68, OpCode(0x68, "PLA", 1, 4, AddressingMode::Implied, &CPU::op_PLA)},
     {0x08, OpCode(0x08, "PHP", 1, 3, AddressingMode::Implied, &CPU::op_PHP)},
+    {0x68, OpCode(0x68, "PLA", 1, 4, AddressingMode::Implied, &CPU::op_PLA)},
     {0x28, OpCode(0x28, "PLP", 1, 4, AddressingMode::Implied, &CPU::op_PLP)},
 
     // --- Register Transfers
