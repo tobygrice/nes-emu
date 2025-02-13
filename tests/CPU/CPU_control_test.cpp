@@ -80,3 +80,33 @@ TEST_F(CPUControlTest, JSRandRTS) {
   cpu.loadAndExecute(program);
   EXPECT_EQ(cpu.getX(), 0x05) << "X should be incremented until it equals 5";
 }
+
+/*
+; --- Main Program at $8000 ---
+$8000: A9 42       ; A9 42    => LDA #$42        (Accumulator becomes $42)
+$8002: 00 00       ; 00 00    => BRK, with a padding byte of $00
+$8004: A9 99       ; A9 99    => LDA #$99        (After RTI, accumulator becomes $99)
+$8006: 4C 00 80    ; 4C 00 80 => JMP $8000       (Jump back to start)
+
+; --- Interrupt Vectors ---
+; These bytes must be located at $FFFC through $FFFF.
+$FFFC: 00 80       ; Reset vector: Low byte $00, High byte $80 → Start at $8000
+$FFFE: 00 90       ; IRQ/BRK vector: Low byte $00, High byte $90 → Interrupt handler at $9000
+
+; --- Interrupt Handler at $9000 ---
+$9000: 40          ; 40       => RTI             (Return from interrupt)
+*/
+// TEST_F(CPUControlTest, BRKandRTI) {
+//   cpu.memWrite16(0xFFFE, 0x9000); // IRQ/BRK vector
+//   cpu.memWrite8(0x9000, 0x40);    // Interrupt Handler at $9000: RTI
+//   std::vector<uint8_t> program = {
+//         0xA9, 0x42,       // LDA #$42
+//         0x00, 0x00,       // BRK
+//         0xA9, 0x99,       // LDA #$99
+//         0x4C, 0x06, 0x80  // JMP $8006 (infinite loop)
+//   };
+//   cpu.loadAndExecute(program);
+//   EXPECT_EQ(cpu.getA(), 0x99) << "LDA #99 should be executed after RTI.";
+//   EXPECT_EQ(cpu.getPC(), 0x8006) << "PC should be inf loop address.";
+//   EXPECT_EQ(cpu.getSP(), 0xFF) << "SP should be reset after BRK then RTI.";
+// }

@@ -20,6 +20,7 @@ class CPU {
 
   uint64_t cycleCount = 0;  // global cycle counter
   bool pcModified = false;  // flag set by handler if it has modified the pc
+  bool executing = false;   // flag to indicate if program is still running
 
  public:
   CPU();
@@ -70,6 +71,7 @@ class CPU {
 
   // instruction implementations - 56 instructions, 151 opcodes
   void op_ADC(uint16_t addr);
+  void op_ADC_CORE(uint8_t operand); // allows SBC to use ADC logic
   void op_AND(uint16_t addr);
   void op_ASL(uint16_t addr);
   void op_ASL_ACC(uint16_t /* implied */);

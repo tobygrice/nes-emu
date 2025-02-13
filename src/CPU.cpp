@@ -2,6 +2,8 @@
 
 #include "../include/OpCode.h"
 
+// https://github.com/SingleStepTests/65x02/tree/main/nes6502
+
 /**
  * Constructor to initialise registers with starting values.
  */
@@ -57,16 +59,6 @@ void CPU::memWrite16(uint16_t addr, uint16_t data) {
 }
 
 /**
- * Loads provided program into memory.
- *
- * @param program The program instruction set.
- */
-void CPU::loadProgram(const std::vector<uint8_t>& program) {
-  std::copy(program.begin(), program.end(), memory.data() + pc);
-  memWrite16(0xFFFC, pc);  // set reset address to start at pc
-}
-
-/**
  * Loads provided program into memory, then executes it.
  *
  * @param program The program instruction set.
@@ -75,6 +67,16 @@ void CPU::loadAndExecute(const std::vector<uint8_t>& program) {
   loadProgram(program);  // Load program into memory
   resetInterrupt();      // Reset CPU (sets PC to reset vector)
   executeProgram();      // Start execution
+}
+
+/**
+ * Loads provided program into memory.
+ *
+ * @param program The program instruction set.
+ */
+void CPU::loadProgram(const std::vector<uint8_t>& program) {
+  std::copy(program.begin(), program.end(), memory.data() + pc);
+  memWrite16(0xFFFC, pc);  // set reset address to start at pc
 }
 
 /**
@@ -204,7 +206,6 @@ void CPU::push(uint8_t value) {
   memWrite8(0x0100 + sp, value);
   sp--;
 }
-
 uint8_t CPU::pop() {
   sp++;
   return memRead8(0x100 + sp);
@@ -244,11 +245,11 @@ void CPU::branch(uint16_t addr) {
   cycleCount++;       // +1 cycle for branch taken
 }
 
-void CPU::op_ADC(uint16_t addr) {
-  uint8_t value = memRead8(addr);
-  uint8_t carry =
-      (status & 0x01);  // extract the carry flag value from status register
-  uint16_t result = a_register + value + carry;  // compute result
+void CPU::op_ADC(uint16_t addr) { op_ADC_CORE(memRead8(addr)); }
+void CPU::op_ADC_CORE(uint8_t operand) {
+  // allows SBC to use ADC logic
+  uint8_t carry = (status & 0x01);  // extract carry flag from status register
+  uint16_t result = a_register + operand + carry;  // compute result
 
   // set carry flag (C) if result > 255
   if (result > 0xFF) {
@@ -259,7 +260,8 @@ void CPU::op_ADC(uint16_t addr) {
 
   // set overflow flag (V) if a signed overflow occurs (adding 2 positive or 2
   // negative numbers results in a different-signed result)
-  bool overflow = (~(a_register ^ value) & (a_register ^ result) & 0b10000000);
+  bool overflow =
+      (~(a_register ^ operand) & (a_register ^ result) & 0b10000000);
   if (overflow) {
     status |= FLAG_OVERFLOW;  // set overflow flag (bit 6)
   } else {
@@ -345,6 +347,8 @@ void CPU::op_BRK(uint16_t /* always implicit */) {
   // fetch the new pc from the interrupt vector
   pc = memRead16(0xFFFE);
   pcModified = true;
+
+  executing = false; // for now, terminate on BRK
 }
 void CPU::op_BVC(uint16_t addr) {
   if (!(status & FLAG_OVERFLOW)) {
@@ -497,7 +501,7 @@ void CPU::op_PLA(uint16_t /* implied */) {
   a_register = pop();
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_PLP(uint16_t addr) { status = pop(); }
+void CPU::op_PLP(uint16_t /* implied */) { status = pop(); }
 void CPU::op_ROL(uint16_t addr) {
   uint8_t value = memRead8(addr);
   // shift value left and set LSB to carry bit
@@ -552,15 +556,22 @@ void CPU::op_ROR_ACC(uint16_t /* implied */) {
   a_register = result;
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_RTI(uint16_t addr) { /* TO-DO */ }
-void CPU::op_RTS(uint16_t addr) {
-  uint8_t low = pop();
-  uint8_t high = pop();
-
-  pc = ((high << 8) | low) + 1;
+void CPU::op_RTI(uint16_t /* implied */) {
+  status = pop();
+  op_RTS(0);  // error point: may be incorrect to add 1 to PC
+}
+void CPU::op_RTS(uint16_t /* implied */) {
+  uint8_t pc_l = pop();
+  uint8_t pc_h = pop();
+  pc = ((pc_h << 8) | pc_l) + 1;
   pcModified = true;
 }
-void CPU::op_SBC(uint16_t addr) { /* TO-DO */ }
+void CPU::op_SBC(uint16_t addr) {
+  // SBC:
+  // A = A – M – (1 – C)
+  //   = A + (~M) + C
+  op_ADC_CORE(~memRead8(addr));
+}
 void CPU::op_SEC(uint16_t /* implied */) { status |= FLAG_CARRY; }
 void CPU::op_SED(uint16_t addr) { /* TO-DO */ }
 void CPU::op_SEI(uint16_t addr) { /* TO-DO */ }
@@ -575,7 +586,8 @@ void CPU::op_TXS(uint16_t addr) { push(x_register); }
 void CPU::op_TYA(uint16_t addr) { /* TO-DO */ }
 
 void CPU::executeProgram() {
-  while (true) {
+  executing = true;
+  while (executing) {
     uint8_t opcode = memRead8(pc);  // fetch opcode
 
     const OpCode* op = getOpCode(opcode);  // look up opcode
@@ -589,8 +601,6 @@ void CPU::executeProgram() {
     (this->*(op->handler))(addr);  // execute appropriate handler function
 
     cycleCount += op->cycles;  // increment cycle count
-
-    if (opcode == 0x00) return;  // exit if BRK
 
     // advance PC to consume operand bytes
     if (!pcModified) {
