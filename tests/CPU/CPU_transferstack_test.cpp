@@ -27,11 +27,12 @@ TEST_F(CPUTransferStackTest, PHATest) {
 
 
 TEST_F(CPUTransferStackTest, PLATest) {
-  std::vector<uint8_t> program = {0xA2, 0b01101110,  // LDX 0b01101110
-                                  0x9A,              // TXS
-                                  0x68,              // PLA
+  std::vector<uint8_t> program = {0x68,              // PLA
                                   0x00, 0x00};       // BRK
-  cpu.loadAndExecute(program);
+  cpu.loadProgram(program);
+  cpu.resetInterrupt();
+  cpu.push(0b01101110);
+  cpu.executeProgram();
 
   EXPECT_EQ(cpu.getSP(), 0xFF - 3); // BRK pushes 3 bytes to stack
   EXPECT_EQ(cpu.getA(), 0b01101110) << "A register should be loaded from stack";

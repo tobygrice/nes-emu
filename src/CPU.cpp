@@ -285,7 +285,7 @@ void CPU::op_ASL(uint16_t addr) {
   memWrite8(addr, value);  // write new value back to memory
   updateZeroAndNegativeFlags(value);
 }
-void CPU::op_ASL_ACC(uint16_t /* addr ignored */) {
+void CPU::op_ASL_ACC(uint16_t /* implied */) {
   // store bit 7 before shift in carry flag
   status = (status & ~FLAG_CARRY) | ((a_register & 0x80) ? 0x01 : 0);
   a_register <<= 1;  // shift accumulator left
@@ -332,7 +332,7 @@ void CPU::op_BPL(uint16_t addr) {
     branch(addr);  // branch if negative flag is clear
   }
 }
-void CPU::op_BRK(uint16_t /* always implicit */) {
+void CPU::op_BRK(uint16_t /* implied */) {
   pc++;  // provide an extra byte of spacing for a break mark
 
   // push high byte first, then low byte
@@ -348,7 +348,7 @@ void CPU::op_BRK(uint16_t /* always implicit */) {
   pc = memRead16(0xFFFE);
   pcModified = true;
 
-  executing = false; // for now, terminate on BRK
+  executing = false;  // for now, terminate on BRK
 }
 void CPU::op_BVC(uint16_t addr) {
   if (!(status & FLAG_OVERFLOW)) {
@@ -360,10 +360,10 @@ void CPU::op_BVS(uint16_t addr) {
     branch(addr);  // branch if overflow flag is set
   }
 }
-void CPU::op_CLC(uint16_t addr) { status &= ~FLAG_CARRY; }
-void CPU::op_CLD(uint16_t addr) { status &= ~FLAG_DECIMAL; }
-void CPU::op_CLI(uint16_t addr) { status &= ~FLAG_INTERRUPT; }
-void CPU::op_CLV(uint16_t addr) { status &= ~FLAG_OVERFLOW; }
+void CPU::op_CLC(uint16_t /* implied */) { status &= ~FLAG_CARRY; }
+void CPU::op_CLD(uint16_t /* implied */) { status &= ~FLAG_DECIMAL; }
+void CPU::op_CLI(uint16_t /* implied */) { status &= ~FLAG_INTERRUPT; }
+void CPU::op_CLV(uint16_t /* implied */) { status &= ~FLAG_OVERFLOW; }
 void CPU::op_CMP(uint16_t addr) {
   // C set if A >= M
   // Z set if A == M
@@ -490,7 +490,7 @@ void CPU::op_LSR_ACC(uint16_t /* implied */) {
   a_register >>= 1;  // shift A register right
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_NOP(uint16_t addr) { return; }
+void CPU::op_NOP(uint16_t /* implied */) { return; }
 void CPU::op_ORA(uint16_t addr) {
   a_register |= memRead8(addr);
   updateZeroAndNegativeFlags(a_register);
@@ -573,17 +573,32 @@ void CPU::op_SBC(uint16_t addr) {
   op_ADC_CORE(~memRead8(addr));
 }
 void CPU::op_SEC(uint16_t /* implied */) { status |= FLAG_CARRY; }
-void CPU::op_SED(uint16_t addr) { /* TO-DO */ }
-void CPU::op_SEI(uint16_t addr) { /* TO-DO */ }
+void CPU::op_SED(uint16_t /* implied */) { status |= FLAG_DECIMAL; }
+void CPU::op_SEI(uint16_t /* implied */) { status |= FLAG_INTERRUPT; }
 void CPU::op_STA(uint16_t addr) { memWrite8(addr, a_register); }
 void CPU::op_STX(uint16_t addr) { memWrite8(addr, x_register); }
 void CPU::op_STY(uint16_t addr) { memWrite8(addr, y_register); }
-void CPU::op_TAX(uint16_t addr) { /* TO-DO */ }
-void CPU::op_TAY(uint16_t addr) { /* TO-DO */ }
-void CPU::op_TSX(uint16_t addr) { /* TO-DO */ }
-void CPU::op_TXA(uint16_t addr) { /* TO-DO */ }
-void CPU::op_TXS(uint16_t addr) { push(x_register); }
-void CPU::op_TYA(uint16_t addr) { /* TO-DO */ }
+void CPU::op_TAX(uint16_t /* implied */) {
+  x_register = a_register;
+  updateZeroAndNegativeFlags(x_register);
+}
+void CPU::op_TAY(uint16_t /* implied */) {
+  y_register = a_register;
+  updateZeroAndNegativeFlags(y_register);
+}
+void CPU::op_TSX(uint16_t /* implied */) {
+  x_register = sp;
+  updateZeroAndNegativeFlags(x_register);
+}
+void CPU::op_TXA(uint16_t /* implied */) {
+  a_register = x_register;
+  updateZeroAndNegativeFlags(a_register);
+}
+void CPU::op_TXS(uint16_t /* implied */) { sp = x_register; }
+void CPU::op_TYA(uint16_t /* implied */) {
+  a_register = y_register;
+  updateZeroAndNegativeFlags(a_register);
+}
 
 void CPU::executeProgram() {
   executing = true;
