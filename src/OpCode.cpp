@@ -23,7 +23,7 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // =====================================================
     // Control and Subroutine Instructions
     // =====================================================
-    {0x00, OpCode(0x00, "BRK", 1, 7, AddressingMode::Implied,     &CPU::op_BRK)},
+    {0x00, OpCode(0x00, "BRK", 2, 7, AddressingMode::Implied,     &CPU::op_BRK)},
     {0x20, OpCode(0x20, "JSR", 3, 6, AddressingMode::Absolute,    &CPU::op_JSR)},
     {0x4C, OpCode(0x4C, "JMP", 3, 3, AddressingMode::Absolute,    &CPU::op_JMP)},
     {0x6C, OpCode(0x6C, "JMP", 3, 5, AddressingMode::Indirect,    &CPU::op_JMP)},

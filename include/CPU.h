@@ -20,7 +20,7 @@ class CPU {
 
   uint64_t cycleCount = 0;  // global cycle counter
   bool pcModified = false;  // flag set by handler if it has modified the pc
-  bool executing = false;   // flag to indicate if program is still running
+  bool executionActive = false; // flag to indicate if program is still running
 
  public:
   CPU();
@@ -65,6 +65,7 @@ class CPU {
   void loadAndExecute(const std::vector<uint8_t>& program);
   void loadProgram(const std::vector<uint8_t>& program);
   void executeProgram();
+  void executeInstruction();
 
   // addressing mode handling
   uint16_t getOperandAddress(AddressingMode mode);

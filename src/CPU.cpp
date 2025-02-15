@@ -1,5 +1,11 @@
 #include "../include/CPU.h"
 
+#include <cstdint>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include "../include/OpCode.h"
 
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
@@ -93,6 +99,41 @@ void CPU::resetInterrupt() {
   status &= ~FLAG_DECIMAL;   // clear D flag
   status |= FLAG_INTERRUPT;  // set interrupt flag
   pc = memRead16(0xFFFC);
+}
+
+void CPU::executeProgram() {
+  executionActive = true;
+  while (executionActive) {
+    executeInstruction();
+  }
+}
+
+void CPU::executeInstruction() {
+  uint8_t opcode = memRead8(pc);  // fetch opcode
+
+  const OpCode* op = getOpCode(opcode);  // look up opcode
+  if (!op) {
+    op = getOpCode(0xEA);  // op = NOP
+  }
+
+  pc++;  // increment PC to point to first operand byte
+
+  uint16_t addr = getOperandAddress(op->mode);
+
+  std::cout << "PC " << pc << " = " << std::format("{:#04x} ", op->code)
+            << op->name << " with address " << std::format("{:#08x}", addr)
+            << std::endl;
+  (this->*(op->handler))(addr);  // execute appropriate handler function
+
+  cycleCount += op->cycles;  // increment cycle count
+
+  // advance PC to consume operand bytes
+  if (!pcModified) {
+    pc += (op->bytes - 1);
+  } else {
+    pcModified = false;
+  }
+
 }
 
 /**
@@ -348,7 +389,7 @@ void CPU::op_BRK(uint16_t /* implied */) {
   pc = memRead16(0xFFFE);
   pcModified = true;
 
-  executing = false;  // for now, terminate on BRK
+  executionActive = false;  // for now, terminate on BRK
 }
 void CPU::op_BVC(uint16_t addr) {
   if (!(status & FLAG_OVERFLOW)) {
@@ -598,30 +639,4 @@ void CPU::op_TXS(uint16_t /* implied */) { sp = x_register; }
 void CPU::op_TYA(uint16_t /* implied */) {
   a_register = y_register;
   updateZeroAndNegativeFlags(a_register);
-}
-
-void CPU::executeProgram() {
-  executing = true;
-  while (executing) {
-    uint8_t opcode = memRead8(pc);  // fetch opcode
-
-    const OpCode* op = getOpCode(opcode);  // look up opcode
-    if (!op) {
-      throw std::runtime_error("Unknown opcode: " + std::to_string(opcode));
-    }
-
-    pc++;  // increment PC to point to first operand byte
-
-    uint16_t addr = getOperandAddress(op->mode);
-    (this->*(op->handler))(addr);  // execute appropriate handler function
-
-    cycleCount += op->cycles;  // increment cycle count
-
-    // advance PC to consume operand bytes
-    if (!pcModified) {
-      pc += (op->bytes - 1);
-    } else {
-      pcModified = false;
-    }
-  }
 }
