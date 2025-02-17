@@ -7,13 +7,14 @@
 #include <vector>
 
 #include "../include/OpCode.h"
+#include "../include/BusInterface.h"
 
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
 /**
  * Constructor to initialise registers with starting values.
  */
-CPU::CPU(MMU* bus)
+CPU::CPU(BusInterface* bus)
     : a_register(0),       // accumulator starts at 0
       x_register(0),       // X starts at 0
       y_register(0),       // Y starts at 0

@@ -6,11 +6,15 @@
 
 #include "../../include/CPU.h"
 #include "../../include/OpCode.h"
+#include "../../include/MMU.h"
 
 // Define a test fixture for CPU tests.
 class CPULoadStoreTest : public ::testing::Test {
  protected:
-  CPU cpu;
+  MMU bus;  // create a shared bus
+  CPU cpu;  // CPU instance that uses the shared bus
+
+  CPULoadStoreTest() : bus(), cpu(&bus) {}
 };
 
 /* ========================= LDA ========================= */

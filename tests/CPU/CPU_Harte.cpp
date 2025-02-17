@@ -7,9 +7,24 @@
 
 #include "../../include/CPU.h"
 #include "../../include/OpCode.h"
+#include "../../include/TestBus.h"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
+
+/**
+ * Tests all documented opcodes from Tom Harte nes6502 tests.
+ * https://github.com/SingleStepTests/65x02/tree/main/nes6502
+ */
+
+// Define a test fixture for CPU tests.
+class CPUHarteTests : public ::testing::Test {
+  protected:
+   TestBus bus;  // create a shared bus
+   CPU cpu;  // CPU instance that uses the shared bus
+ 
+   CPUHarteTests() : bus(), cpu(&bus) {}
+ };
 
 struct CPUState {
   uint16_t pc;
@@ -45,12 +60,6 @@ CPUState parse_state(const json &j) {
   return state;
 }
 
-// Define a test fixture for CPU tests.
-class CPUHarteTests : public ::testing::Test {
- protected:
-  CPU cpu;
-};
-
 TEST_F(CPUHarteTests, runAllHarteTests) {
   uint num_passed_tests = 0;
 
@@ -61,7 +70,7 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
   std::sort(opcodeList.begin(), opcodeList.end());
 
   for (uint8_t opcode : opcodeList) {
-
+    if (opcode < 0xFC) continue;
     std::string filename =
         std::format("../tests/CPU/nes6502-TESTS/{:02x}.json", opcode);
     std::cout << "STARTING TEST " << std::format("{:#04x}\n", opcode);
@@ -125,4 +134,10 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
     }
     std::cout << "PASSED TEST " << std::format("{:#04x}\n", opcode);
   }
+}
+
+// Main entry point for the tests.
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

@@ -5,25 +5,25 @@
 #include <cstdint>
 #include <vector>
 
+#include "BusInterface.h"
 #include "OpCode.h"
-#include "MMU.h"
 
 class CPU {
  private:
   // registers http://www.6502.org/users/obelisk/6502/registers.html
-  uint8_t a_register;                   // accumulator
-  uint8_t x_register;                   // index X
-  uint8_t y_register;                   // index Y
-  uint8_t status;                       // processor status
-  uint16_t pc;                          // program counter
-  uint8_t sp;                           // stack pointer
-  MMU* bus;
+  uint8_t a_register;  // accumulator
+  uint8_t x_register;  // index X
+  uint8_t y_register;  // index Y
+  uint8_t status;      // processor status
+  uint16_t pc;         // program counter
+  uint8_t sp;          // stack pointer
+  BusInterface* bus;   // bus
 
   bool pcModified = false;  // flag set by handler if it has modified the pc
-  bool executionActive = false; // flag to indicate if program is still running
+  bool executionActive = false;  // flag to indicate if program is still running
 
  public:
-  CPU(MMU* bus);
+  CPU(BusInterface* bus);
 
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };
@@ -39,15 +39,16 @@ class CPU {
   void setPC(uint16_t value) { pc = value; };
   void setSP(uint8_t value) { sp = value; };
 
-  static constexpr uint8_t FLAG_CARRY     = 0b00000001; // C
-  static constexpr uint8_t FLAG_ZERO      = 0b00000010; // Z
-  static constexpr uint8_t FLAG_INTERRUPT = 0b00000100; // I
-  static constexpr uint8_t FLAG_DECIMAL   = 0b00001000; // D
-  static constexpr uint8_t FLAG_BREAK     = 0b00010000; // B
-  static constexpr uint8_t FLAG_CONSTANT  = 0b00100000; // 1 (constant, always 1)                                                      // 1 (always 1)
-  static constexpr uint8_t FLAG_OVERFLOW  = 0b01000000; // V
-  static constexpr uint8_t FLAG_NEGATIVE  = 0b10000000; // N
-  
+  static constexpr uint8_t FLAG_CARRY = 0b00000001;      // C
+  static constexpr uint8_t FLAG_ZERO = 0b00000010;       // Z
+  static constexpr uint8_t FLAG_INTERRUPT = 0b00000100;  // I
+  static constexpr uint8_t FLAG_DECIMAL = 0b00001000;    // D
+  static constexpr uint8_t FLAG_BREAK = 0b00010000;      // B
+  static constexpr uint8_t FLAG_CONSTANT =
+      0b00100000;  // 1 (constant, always 1) // 1 (always 1)
+  static constexpr uint8_t FLAG_OVERFLOW = 0b01000000;  // V
+  static constexpr uint8_t FLAG_NEGATIVE = 0b10000000;  // N
+
   // helpers
   void updateZeroAndNegativeFlags(uint8_t result);
   void branch(uint16_t addr);
@@ -72,7 +73,7 @@ class CPU {
 
   // instruction implementations - 56 instructions, 151 opcodes
   void op_ADC(uint16_t addr);
-  void op_ADC_CORE(uint8_t operand); // allows SBC to use ADC logic
+  void op_ADC_CORE(uint8_t operand);  // allows SBC to use ADC logic
   void op_AND(uint16_t addr);
   void op_ASL(uint16_t addr);
   void op_ASL_ACC(uint16_t /* implied */);
@@ -114,9 +115,9 @@ class CPU {
   void op_PLA(uint16_t addr);
   void op_PLP(uint16_t addr);
   void op_ROL(uint16_t addr);
-  void op_ROL_ACC(uint16_t /* implied */ );
+  void op_ROL_ACC(uint16_t /* implied */);
   void op_ROR(uint16_t addr);
-  void op_ROR_ACC(uint16_t /* implied */ );
+  void op_ROR_ACC(uint16_t /* implied */);
   void op_RTI(uint16_t addr);
   void op_RTS(uint16_t addr);
   void op_SBC(uint16_t addr);

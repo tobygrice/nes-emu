@@ -3,10 +3,11 @@
 
 #include <array>
 #include <cstdint>
-#include <vector>
+
+#include "BusInterface.h"
 
 // Memory Management Unit (Bus)
-class MMU {
+class MMU : public BusInterface {
  private:
   // https://fceux.com/web/help/NESRAMMappingFindingValues.html
   std::array<uint8_t, 0x0800> cpu_ram;  // $0000 – $07FF: CPU RAM
@@ -18,13 +19,59 @@ class MMU {
   std::array<uint8_t, 0x2000> s_ram;    // $6000 – $7FFF: save RAM
   std::array<uint8_t, 0x8000> cart;     // $8000 - $FFFF: cartridge ROM
 
-  uint64_t cycles;  // global cycle counter
+  uint64_t cycles = 0;  // global cycle counter
 
  public:
-  MMU();
-  uint64_t getCycleCount();
-  inline uint8_t read(uint16_t addr);
-  inline void write(uint16_t addr, uint8_t value);
+  MMU() {
+    cycles = 0;
+    cpu_ram.fill(0);
+    ppu_reg.fill(0);
+    apu_io.fill(0);
+    exp_rom.fill(0);
+    s_ram.fill(0);
+    cart.fill(0);
+  }
+
+  inline uint64_t getCycleCount() const override { return cycles; }
+
+  inline uint8_t read(uint16_t addr) override {
+    cycles++;
+    switch (addr & 0xE000) {
+      case 0x0000:
+        return cpu_ram[addr & 0x07FF];  // mirror RAM
+      case 0x2000:
+        return ppu_reg[(addr - 0x2000) & 0x0007];  // mirror PPU reg
+      case 0x4000:
+        if (addr < 0x4020) return apu_io[addr - 0x4000];  // APU and I/O
+        return exp_rom[addr - 0x4020];  // cartridge expansion ROM
+      case 0x6000:
+        return s_ram[addr - 0x6000];  // save RAM
+      default:
+        return cart[addr - 0x8000];  // cartridge rom
+    }
+  }
+
+  inline void write(uint16_t addr, uint8_t value) override {
+    cycles++;
+    switch (addr & 0xE000) {
+      case 0x0000:
+        cpu_ram[addr & 0x07FF] = value;
+        break;
+      case 0x2000:
+        ppu_reg[(addr - 0x2000) & 0x0007] = value;
+        break;
+      case 0x4000:
+        if (addr < 0x4020) apu_io[addr - 0x4000] = value;  // APU and I/O
+        // ignore writes to CE-ROM (read-only)
+        break;
+      case 0x6000:
+        s_ram[addr - 0x6000] = value;
+        break;
+      default:
+        cart[addr - 0x8000] = value;
+        break;  // should ignore writes to ROM: allowed for testing
+    }
+  }
 };
 
 #endif
