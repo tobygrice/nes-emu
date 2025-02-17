@@ -13,15 +13,14 @@
 /**
  * Constructor to initialise registers with starting values.
  */
-CPU::CPU()
+CPU::CPU(MMU* bus)
     : a_register(0),       // accumulator starts at 0
       x_register(0),       // X starts at 0
       y_register(0),       // Y starts at 0
       status(0b00100000),  // status register starts with all flags clear
       pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
-      sp(0xFF) {           // stack pointer starts at 0xFF
-  memory.fill(0);          // memory initialised to 0s
-}
+      sp(0xFF),            // stack pointer starts at 0xFF
+      bus(bus) {}          // shared bus object
 
 /**
  * Fetches value at given address.
@@ -29,7 +28,7 @@ CPU::CPU()
  * @param addr The address from which to retrieve data.
  * @return Single byte of memory at provided addr.
  */
-uint8_t CPU::memRead8(uint16_t addr) const { return memory[addr]; }
+uint8_t CPU::memRead8(uint16_t addr) { return bus->read(addr); }
 
 /**
  * Writes given data at given address.
@@ -37,7 +36,7 @@ uint8_t CPU::memRead8(uint16_t addr) const { return memory[addr]; }
  * @param addr The address to write the data.
  * @param data The data to be written.
  */
-void CPU::memWrite8(uint16_t addr, uint8_t data) { memory[addr] = data; }
+void CPU::memWrite8(uint16_t addr, uint8_t data) { bus->write(addr, data); }
 
 /**
  * Reads 2 bytes of data from the given address, accounting for little endian.
@@ -45,7 +44,7 @@ void CPU::memWrite8(uint16_t addr, uint8_t data) { memory[addr] = data; }
  * @param addr The address from which to retrieve data.
  * @return Two bytes of memory at provided addr.
  */
-uint16_t CPU::memRead16(uint16_t addr) const {
+uint16_t CPU::memRead16(uint16_t addr) {
   uint16_t low = memRead8(addr);       // read low byte
   uint16_t high = memRead8(addr + 1);  // read high byte
   return (high << 8) | low;            // combine bytes (little-endian)
@@ -81,8 +80,12 @@ void CPU::loadAndExecute(const std::vector<uint8_t>& program) {
  * @param program The program instruction set.
  */
 void CPU::loadProgram(const std::vector<uint8_t>& program) {
-  std::copy(program.begin(), program.end(), memory.data() + pc);
-  memWrite16(0xFFFC, pc);  // set reset address to start at pc
+  for (size_t i = 0; i < program.size(); i++) {
+    memWrite8(pc + i, program[i]);
+  }
+
+  // Set the reset vector at 0xFFFC to point to the start address (pc).
+  memWrite16(0xFFFC, pc);
 }
 
 /**
@@ -125,7 +128,7 @@ void CPU::executeInstruction() {
             << std::endl; */
   (this->*(op->handler))(addr);  // execute appropriate handler function
 
-  cycleCount += op->cycles;  // increment cycle count
+  // cycleCount += op->cycles;  // increment cycle count
 
   // advance PC to consume operand bytes
   if (!pcModified) {
@@ -177,7 +180,7 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
       uint16_t addr = base + x_register;
       if ((base & 0xFF00) != (addr & 0xFF00)) {
         // MSB of base address and resulting addition address is different
-        this->cycleCount++;  // +1 cycle for page crossed
+        // this->cycleCount++;  // +1 cycle for page crossed
       }
       return addr;
     }
@@ -187,7 +190,7 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
       uint16_t addr = base + y_register;
       if ((base & 0xFF00) != (addr & 0xFF00)) {
         // MSB of base address and resulting addition address is different
-        this->cycleCount++;  // +1 cycle for page crossed
+        // this->cycleCount++;  // +1 cycle for page crossed
       }
       return addr;
     }
@@ -233,7 +236,7 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
           (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
       uint16_t addr = deref_base + y_register;
       if ((deref_base & 0xFF00) != (addr & 0xFF00)) {
-        this->cycleCount++;  // Extra cycle
+        // this->cycleCount++;  // Extra cycle
       }
       return addr;
     }
@@ -277,12 +280,12 @@ void CPU::branch(uint16_t addr) {
 
   // +1 cycle if page crossed (high byte changed)
   if (((pc + 1) & 0xFF00) != (addr & 0xFF00)) {
-    cycleCount++;
+    // cycleCount++;
   }
 
   pc = addr;          // update pc
   pcModified = true;  // set flag for execution loop
-  cycleCount++;       // +1 cycle for branch taken
+  // cycleCount++;       // +1 cycle for branch taken
 }
 
 void CPU::op_ADC(uint16_t addr) { op_ADC_CORE(memRead8(addr)); }

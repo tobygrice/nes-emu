@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "OpCode.h"
+#include "MMU.h"
 
 class CPU {
  private:
@@ -16,14 +17,13 @@ class CPU {
   uint8_t status;                       // processor status
   uint16_t pc;                          // program counter
   uint8_t sp;                           // stack pointer
-  std::array<uint8_t, 0x10000> memory;  // system memory (2^16 addresses)
+  MMU* bus;
 
-  uint64_t cycleCount = 0;  // global cycle counter
   bool pcModified = false;  // flag set by handler if it has modified the pc
   bool executionActive = false; // flag to indicate if program is still running
 
  public:
-  CPU();
+  CPU(MMU* bus);
 
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };
@@ -31,7 +31,7 @@ class CPU {
   uint8_t getStatus() { return status; };
   uint16_t getPC() { return pc; };
   uint8_t getSP() { return sp; };
-  uint8_t getCycleCount() { return cycleCount; };
+  uint8_t getCycleCount() { return bus->getCycleCount(); };
   void setA(uint8_t value) { a_register = value; };
   void setX(uint8_t value) { x_register = value; };
   void setY(uint8_t value) { y_register = value; };
@@ -55,8 +55,8 @@ class CPU {
   uint8_t pop();
 
   // memory handling
-  uint8_t memRead8(uint16_t addr) const;
-  uint16_t memRead16(uint16_t addr) const;
+  uint8_t memRead8(uint16_t addr);
+  uint16_t memRead16(uint16_t addr);
   void memWrite8(uint16_t addr, uint8_t data);
   void memWrite16(uint16_t addr, uint16_t data);
 

@@ -1,7 +1,7 @@
 # NES Emulator
 Cycle-accurate NES emulator. Under development:
 - [x] CPU
-- [ ] BUS + Cartridges
+- [ ] MMU (bus) + cycle counting
 - [ ] PPU
 - [ ] Input
 - [ ] PPU Scrolling
