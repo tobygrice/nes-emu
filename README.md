@@ -1,5 +1,11 @@
 # NES Emulator
-Placeholder
+Cycle-accurate NES emulator. Under development:
+- [x] CPU
+- [ ] BUS + Cartridges
+- [ ] PPU
+- [ ] Input
+- [ ] PPU Scrolling
+- [ ] APU
 
 ## Building & Testing
 ```bash

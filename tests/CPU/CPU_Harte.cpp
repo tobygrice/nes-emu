@@ -61,6 +61,7 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
   std::sort(opcodeList.begin(), opcodeList.end());
 
   for (uint8_t opcode : opcodeList) {
+
     std::string filename =
         std::format("../tests/CPU/nes6502-TESTS/{:02x}.json", opcode);
     std::cout << "STARTING TEST " << std::format("{:#04x}\n", opcode);
@@ -115,9 +116,10 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
       for (const auto &[addr, val] : expected.ram) {
         // Compare the single byte at 'addr'
         ASSERT_EQ(cpu.memRead8(addr), val)
-            << "Mismatch at memory address " << std::format("{:#06x}\n", addr)
-            << " @ instruction " << test["name"] << " after passing "
-            << num_passed_tests << " tests.";
+            << "Mismatch at mem addr " << std::uppercase
+            << std::format("{:#06x} (", addr) << addr << ") @ instruction "
+            << test["name"] << " after passing " << num_passed_tests
+            << " tests.";
       }
       num_passed_tests++;
     }

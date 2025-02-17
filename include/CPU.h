@@ -44,10 +44,10 @@ class CPU {
   static constexpr uint8_t FLAG_INTERRUPT = 0b00000100; // I
   static constexpr uint8_t FLAG_DECIMAL   = 0b00001000; // D
   static constexpr uint8_t FLAG_BREAK     = 0b00010000; // B
-                                                        // 1 (always 1)
+  static constexpr uint8_t FLAG_CONSTANT  = 0b00100000; // 1 (constant, always 1)                                                      // 1 (always 1)
   static constexpr uint8_t FLAG_OVERFLOW  = 0b01000000; // V
   static constexpr uint8_t FLAG_NEGATIVE  = 0b10000000; // N
-
+  
   // helpers
   void updateZeroAndNegativeFlags(uint8_t result);
   void branch(uint16_t addr);

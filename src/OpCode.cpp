@@ -69,10 +69,12 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
 
     // --- STX (Store X Register)
     {0x86, OpCode(0x86, "STX", 2, 3, AddressingMode::ZeroPage,    &CPU::op_STX)},
+    {0x96, OpCode(0x96, "STX", 2, 4, AddressingMode::ZeroPage_Y,  &CPU::op_STX)},
     {0x8E, OpCode(0x8E, "STX", 3, 4, AddressingMode::Absolute,    &CPU::op_STX)},
 
     // --- STY (Store Y Register)
     {0x84, OpCode(0x84, "STY", 2, 3, AddressingMode::ZeroPage,    &CPU::op_STY)},
+    {0x94, OpCode(0x94, "STY", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_STY)},
     {0x8C, OpCode(0x8C, "STY", 3, 4, AddressingMode::Absolute,    &CPU::op_STY)},
 
     // =====================================================

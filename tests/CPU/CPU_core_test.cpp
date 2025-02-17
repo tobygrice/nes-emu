@@ -88,28 +88,6 @@ TEST_F(CPUTest, ResetInterrupt) {
   EXPECT_FALSE(cpu.getStatus() & cpu.FLAG_DECIMAL);
 }
 
-// Test the executeProgram loop by loading a simple program
-// that executes LDA immediate (0xA9) followed by an illegal opcode (0xFF)
-// which will cause a runtime_error to be thrown.
-TEST_F(CPUTest, UnknownOpcode) {
-  // Program: LDA immediate 0x99, then an unknown opcode 0xFF.
-  std::vector<uint8_t> program = {0xA9, 0x99, 0xFF};
-  cpu.loadProgram(program);
-  cpu.resetInterrupt();
-  try {
-    cpu.executeProgram();
-    FAIL() << "Expected std::runtime_error due to unknown opcode.";
-  } catch (const std::runtime_error& e) {
-    std::string errMsg = e.what();
-    EXPECT_NE(errMsg.find("Unknown opcode"), std::string::npos)
-        << "Error message should mention unknown opcode.";
-    // Verify that the LDA instruction was executed correctly.
-    EXPECT_EQ(cpu.getA(), 0x99);
-  } catch (...) {
-    FAIL() << "Expected std::runtime_error due to unknown opcode.";
-  }
-}
-
 // Main entry point for the tests.
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);

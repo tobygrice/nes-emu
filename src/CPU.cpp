@@ -120,9 +120,9 @@ void CPU::executeInstruction() {
 
   uint16_t addr = getOperandAddress(op->mode);
 
-  std::cout << "PC " << pc << " = " << std::format("{:#04x} ", op->code)
+  /* std::cout << "PC " << pc << " = " << std::format("{:#04x} ", op->code)
             << op->name << " with address " << std::format("{:#08x}", addr)
-            << std::endl;
+            << std::endl; */
   (this->*(op->handler))(addr);  // execute appropriate handler function
 
   cycleCount += op->cycles;  // increment cycle count
@@ -133,7 +133,6 @@ void CPU::executeInstruction() {
   } else {
     pcModified = false;
   }
-
 }
 
 /**
@@ -411,16 +410,12 @@ void CPU::op_CMP(uint16_t addr) {
   // N set if A < M
   // clear negative, zero, and carry flags
   status &= ~(FLAG_NEGATIVE | FLAG_ZERO | FLAG_CARRY);
+  uint8_t value = memRead8(addr);
+  uint8_t result = a_register - value;
 
-  uint8_t result = a_register - memRead8(addr);
-  if (result & 0x80) {
-    status |= FLAG_NEGATIVE;
-  } else if (result == 0) {
-    status |= FLAG_ZERO;
-    status |= FLAG_CARRY;
-  } else {
-    status |= FLAG_CARRY;
-  }
+  if (a_register == value) status |= FLAG_ZERO;   // set zero if Y == M
+  if (a_register >= value) status |= FLAG_CARRY;  // set carry if Y >= M
+  if (result & 0x80) status |= FLAG_NEGATIVE;  // set neg if result is negative
 }
 void CPU::op_CPX(uint16_t addr) {
   // C set if X >= M
@@ -428,16 +423,12 @@ void CPU::op_CPX(uint16_t addr) {
   // N set if X < M
   // clear negative, zero, and carry flags
   status &= ~(FLAG_NEGATIVE | FLAG_ZERO | FLAG_CARRY);
+  uint8_t value = memRead8(addr);
+  uint8_t result = x_register - value;
 
-  uint8_t result = x_register - memRead8(addr);
-  if (result & 0x80) {
-    status |= FLAG_NEGATIVE;
-  } else if (result == 0) {
-    status |= FLAG_ZERO;
-    status |= FLAG_CARRY;
-  } else {
-    status |= FLAG_CARRY;
-  }
+  if (x_register == value) status |= FLAG_ZERO;   // set zero if Y == M
+  if (x_register >= value) status |= FLAG_CARRY;  // set carry if Y >= M
+  if (result & 0x80) status |= FLAG_NEGATIVE;  // set neg if result is negative
 }
 void CPU::op_CPY(uint16_t addr) {
   // C set if Y >= M
@@ -445,16 +436,12 @@ void CPU::op_CPY(uint16_t addr) {
   // N set if Y < M
   // clear negative, zero, and carry flags
   status &= ~(FLAG_NEGATIVE | FLAG_ZERO | FLAG_CARRY);
+  uint8_t value = memRead8(addr);
+  uint8_t result = y_register - value;
 
-  uint8_t result = y_register - memRead8(addr);
-  if (result & 0x80) {
-    status |= FLAG_NEGATIVE;
-  } else if (result == 0) {
-    status |= FLAG_ZERO;
-    status |= FLAG_CARRY;
-  } else {
-    status |= FLAG_CARRY;
-  }
+  if (y_register == value) status |= FLAG_ZERO;   // set zero if Y == M
+  if (y_register >= value) status |= FLAG_CARRY;  // set carry if Y >= M
+  if (result & 0x80) status |= FLAG_NEGATIVE;  // set neg if result is negative
 }
 void CPU::op_DEC(uint16_t addr) {
   uint8_t value = memRead8(addr);
@@ -537,12 +524,16 @@ void CPU::op_ORA(uint16_t addr) {
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_PHA(uint16_t /* implied */) { push(a_register); }
-void CPU::op_PHP(uint16_t /* implied */) { push(status); }
+void CPU::op_PHP(uint16_t /* implied */) {
+  push(status | FLAG_BREAK | FLAG_CONSTANT);
+}
 void CPU::op_PLA(uint16_t /* implied */) {
   a_register = pop();
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_PLP(uint16_t /* implied */) { status = pop(); }
+void CPU::op_PLP(uint16_t /* implied */) {
+  status = (pop() | FLAG_CONSTANT) & ~FLAG_BREAK;
+}
 void CPU::op_ROL(uint16_t addr) {
   uint8_t value = memRead8(addr);
   // shift value left and set LSB to carry bit
@@ -598,8 +589,12 @@ void CPU::op_ROR_ACC(uint16_t /* implied */) {
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_RTI(uint16_t /* implied */) {
-  status = pop();
-  op_RTS(0);  // error point: may be incorrect to add 1 to PC
+  status = (pop() | FLAG_CONSTANT) & ~FLAG_BREAK;
+  // op_RTS(0);  // error point: may be incorrect to add 1 to PC
+  uint8_t pc_l = pop();
+  uint8_t pc_h = pop();
+  pc = ((pc_h << 8) | pc_l);
+  pcModified = true;
 }
 void CPU::op_RTS(uint16_t /* implied */) {
   uint8_t pc_l = pop();
