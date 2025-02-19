@@ -53,12 +53,14 @@ endfunction()
 add_nes_test(runHarteCPUTests
     src/CPU.cpp
     src/OpCode.cpp
+    src/Logger.cpp
     tests/CPU/CPU_Harte.cpp
 )
 
 add_nes_test(runCustomCPUTests
     src/CPU.cpp
     src/OpCode.cpp
+    src/Logger.cpp
     tests/CPU/CPU_arithmetic_test.cpp
     tests/CPU/CPU_branching_test.cpp
     tests/CPU/CPU_compare_test.cpp

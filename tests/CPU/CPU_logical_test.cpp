@@ -7,13 +7,15 @@
 #include "../../include/CPU.h"
 #include "../../include/OpCode.h"
 #include "../../include/TestBus.h"
+#include "../../include/Logger.h"
 
 class CPULogicalTest : public ::testing::Test {
  protected:
   TestBus bus;  // create a shared bus
   CPU cpu;      // CPU instance that uses the shared bus
+  Logger logger;
 
-  CPULogicalTest() : bus(), cpu(&bus) {}
+  CPULogicalTest() : bus(), cpu(&bus, &logger) {}
 };
 
 // Test AND with Immediate addressing and zero/neg false

@@ -607,3 +607,13 @@ build/CMakeFiles/runHarteCPUTests.dir/src/MMU.cpp.o.d
 build/Testing/20250217-0603/Test.xml
 build/Testing/Temporary/LastTest_20250217-0603.log
 build/Testing/Temporary/LastTest.log.tmp
+build/.cmake/api/v1/reply/codemodel-v2-446ee2a9b422e4e7fb23.json
+build/.cmake/api/v1/reply/index-2025-02-19T10-37-49-0027.json
+build/.cmake/api/v1/reply/target-runCustomCPUTests-b4b0cb50770541c45f15.json
+build/.cmake/api/v1/reply/target-runHarteCPUTests-eba5448cc9bb7cda9afc.json
+build/CMakeFiles/runCustomCPUTests.dir/src/Logger.cpp.o
+build/CMakeFiles/runCustomCPUTests.dir/src/Logger.cpp.o.d
+build/CMakeFiles/runHarteCPUTests.dir/src/Logger.cpp.o
+build/CMakeFiles/runHarteCPUTests.dir/src/Logger.cpp.o.d
+build/Testing/20250219-1037/Test.xml
+build/Testing/Temporary/LastTest_20250219-1037.log

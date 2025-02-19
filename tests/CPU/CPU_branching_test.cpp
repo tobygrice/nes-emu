@@ -7,6 +7,7 @@
 #include "../../include/CPU.h"
 #include "../../include/OpCode.h"
 #include "../../include/TestBus.h"
+#include "../../include/Logger.h"
 
 // tests assisted by a LLM
 
@@ -14,8 +15,9 @@ class CPUBranchingTest : public ::testing::Test {
  protected:
   TestBus bus;  // create a shared bus
   CPU cpu;  // CPU instance that uses the shared bus
+  Logger logger;
 
-  CPUBranchingTest() : bus(), cpu(&bus) {}
+  CPUBranchingTest() : bus(), cpu(&bus, &logger) {}
 };
 
 //

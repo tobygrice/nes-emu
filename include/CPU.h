@@ -6,7 +6,9 @@
 #include <vector>
 
 #include "BusInterface.h"
+#include "Logger.h"
 #include "OpCode.h"
+#include "AddressResolveInfo.h"
 
 class CPU {
  private:
@@ -18,12 +20,13 @@ class CPU {
   uint16_t pc;         // program counter
   uint8_t sp;          // stack pointer
   BusInterface* bus;   // bus
+  Logger* logger;      // logger
 
   bool pcModified = false;  // flag set by handler if it has modified the pc
   bool executionActive = false;  // flag to indicate if program is still running
 
  public:
-  CPU(BusInterface* bus);
+  CPU(BusInterface* bus, Logger* logger);
 
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };
@@ -39,15 +42,14 @@ class CPU {
   void setPC(uint16_t value) { pc = value; };
   void setSP(uint8_t value) { sp = value; };
 
-  static constexpr uint8_t FLAG_CARRY = 0b00000001;      // C
-  static constexpr uint8_t FLAG_ZERO = 0b00000010;       // Z
-  static constexpr uint8_t FLAG_INTERRUPT = 0b00000100;  // I
-  static constexpr uint8_t FLAG_DECIMAL = 0b00001000;    // D
-  static constexpr uint8_t FLAG_BREAK = 0b00010000;      // B
-  static constexpr uint8_t FLAG_CONSTANT =
-      0b00100000;  // 1 (constant, always 1) // 1 (always 1)
-  static constexpr uint8_t FLAG_OVERFLOW = 0b01000000;  // V
-  static constexpr uint8_t FLAG_NEGATIVE = 0b10000000;  // N
+  static constexpr uint8_t FLAG_CARRY     = 0b00000001;   // C
+  static constexpr uint8_t FLAG_ZERO      = 0b00000010;   // Z
+  static constexpr uint8_t FLAG_INTERRUPT = 0b00000100;   // I
+  static constexpr uint8_t FLAG_DECIMAL   = 0b00001000;   // D
+  static constexpr uint8_t FLAG_BREAK     = 0b00010000;   // B
+  static constexpr uint8_t FLAG_CONSTANT  = 0b00100000;   // 1 (constant)
+  static constexpr uint8_t FLAG_OVERFLOW  = 0b01000000;   // V
+  static constexpr uint8_t FLAG_NEGATIVE  = 0b10000000;   // N
 
   // helpers
   void updateZeroAndNegativeFlags(uint8_t result);
@@ -69,7 +71,7 @@ class CPU {
   void executeInstruction();
 
   // addressing mode handling
-  uint16_t getOperandAddress(AddressingMode mode);
+  AddressResolveInfo getOperandAddress(AddressingMode mode);
 
   // instruction implementations - 56 instructions, 151 opcodes
   void op_ADC(uint16_t addr);

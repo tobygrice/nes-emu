@@ -6,22 +6,23 @@
 #include <string>
 #include <vector>
 
-#include "../include/OpCode.h"
 #include "../include/BusInterface.h"
+#include "../include/OpCode.h"
 
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
 /**
  * Constructor to initialise registers with starting values.
  */
-CPU::CPU(BusInterface* bus)
+CPU::CPU(BusInterface* bus, Logger* logger)
     : a_register(0),       // accumulator starts at 0
       x_register(0),       // X starts at 0
       y_register(0),       // Y starts at 0
       status(0b00100000),  // status register starts with all flags clear
       pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
       sp(0xFF),            // stack pointer starts at 0xFF
-      bus(bus) {}          // shared bus object
+      bus(bus),            // shared bus object
+      logger(logger) {}    // log class
 
 /**
  * Fetches value at given address.
@@ -113,25 +114,43 @@ void CPU::executeProgram() {
 }
 
 void CPU::executeInstruction() {
-  uint8_t opcode = memRead8(pc);  // fetch opcode
+  // 1) Capture the PC for logging
+  uint16_t initPC = pc;
 
+  // 2) Fetch opcode
+  uint8_t opcode = memRead8(pc);
+
+  // 3) Look up opcode table entry
   const OpCode* op = getOpCode(opcode);  // look up opcode
   if (!op) {
     op = getOpCode(0xEA);  // op = NOP
   }
 
-  pc++;  // increment PC to point to first operand byte
+  // 4) Read operand bytes for logger
+  std::vector<uint8_t> opBytes;
+  for (int i = 0; i < op->bytes; i++) {
+    opBytes.push_back(memRead8(pc + i));
+  }
 
-  uint16_t addr = getOperandAddress(op->mode);
+  // 5) Increment PC so that getOperandAddress() sees the operand bytes at pc
+  pc++;
 
-  /* std::cout << "PC " << pc << " = " << std::format("{:#04x} ", op->code)
-            << op->name << " with address " << std::format("{:#08x}", addr)
-            << std::endl; */
-  (this->*(op->handler))(addr);  // execute appropriate handler function
+  // 6) Compute final addressing
+  AddressResolveInfo addressInfo = getOperandAddress(op->mode);
 
-  // cycleCount += op->cycles;  // increment cycle count
+  // 7) Log
+  uint8_t valueAtFinalAddr = memRead8(addressInfo.address);
+  logger->log(initPC, op, &opBytes, &addressInfo, valueAtFinalAddr,
+              a_register, x_register, y_register, status, sp,
+              0,  // ppu X
+              0,  // ppu Y
+              0   // CPU cycle
+  );
 
-  // advance PC to consume operand bytes
+  // 8) Execute appropriate handler function
+  (this->*(op->handler))(addressInfo.address);
+
+  // 10) Advance PC to consume operand bytes
   if (!pcModified) {
     pc += (op->bytes - 1);
   } else {
@@ -145,57 +164,50 @@ void CPU::executeInstruction() {
  * @param mode The addressing mode specified by the opcode
  * @return A 16-bit memory address
  */
-uint16_t CPU::getOperandAddress(AddressingMode mode) {
+AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
+  AddressResolveInfo info;
+  info.address = 0;
+  info.pointerAddress = 0;
+  info.pointerUsed = false;
+
   switch (mode) {
     case AddressingMode::Implied:
     case AddressingMode::Accumulator:
-      return 0;  // accumulator and implicit opcodes do not require an address
-
+      // accumulator and implicit opcodes do not require an address
+      info.address = 0;
+      break;
     case AddressingMode::Relative:
-      return pc + 1 + static_cast<int8_t>(memRead8(pc));
-
+      // error point: uint8_t?
+      info.address = pc + 1 + static_cast<int8_t>(memRead8(pc));
+      break;
     case AddressingMode::Immediate:
-      return pc;
-
+      info.address = pc;
+      break;
     case AddressingMode::ZeroPage:
-      return static_cast<uint16_t>(memRead8(pc));
-
+      info.address = static_cast<uint16_t>(memRead8(pc));
+      break;
     case AddressingMode::Absolute:
-      return memRead16(pc);
-
+      info.address = memRead16(pc);
+      break;
     case AddressingMode::ZeroPage_X: {
-      uint8_t pos = memRead8(pc);
-      // Wrap-around addition on 8-bit values:
-      uint8_t addr = static_cast<uint8_t>(pos + x_register);
-      return static_cast<uint16_t>(addr);
+      // wrap-around addition on 8-bit values:
+      uint8_t addr = static_cast<uint8_t>(memRead8(pc) + x_register);
+      info.address = static_cast<uint16_t>(addr);
+      break;
     }
-
     case AddressingMode::ZeroPage_Y: {
-      uint8_t pos = memRead8(pc);
-      uint8_t addr = static_cast<uint8_t>(pos + y_register);
-      return static_cast<uint16_t>(addr);
+      uint8_t addr = static_cast<uint8_t>(memRead8(pc) + y_register);
+      info.address = static_cast<uint16_t>(addr);
+      break;
     }
-
     case AddressingMode::Absolute_X: {
-      uint16_t base = memRead16(pc);
-      uint16_t addr = base + x_register;
-      if ((base & 0xFF00) != (addr & 0xFF00)) {
-        // MSB of base address and resulting addition address is different
-        // this->cycleCount++;  // +1 cycle for page crossed
-      }
-      return addr;
+      info.address = memRead16(pc) + x_register;
+      break;
     }
-
     case AddressingMode::Absolute_Y: {
-      uint16_t base = memRead16(pc);
-      uint16_t addr = base + y_register;
-      if ((base & 0xFF00) != (addr & 0xFF00)) {
-        // MSB of base address and resulting addition address is different
-        // this->cycleCount++;  // +1 cycle for page crossed
-      }
-      return addr;
+      info.address = memRead16(pc) + y_register;
+      break;
     }
-
     case AddressingMode::Indirect: {
       // For JMP ($xxxx): the 16-bit pointer is fetched from PC.
       uint16_t pointer = memRead16(pc);
@@ -209,41 +221,43 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
          chips like the 65SC02 so for compatibility always ensure the indirect
          vector is not at the end of the page." */
       if ((pointer & 0x00FF) == 0x00FF) {
-        // error point: unsure whether to emulate bug or not!
-        msb = memRead8(pointer &
-                       0xFF00);  // emulate bug - wrap to beginning of page
+        // emulate bug - wrap to beginning of page
+        msb = memRead8(pointer & 0xFF00);
       } else {
         msb = memRead8(pointer + 1);
       }
-      return (static_cast<uint16_t>(msb) << 8) | lsb;
+      info.address = (static_cast<uint16_t>(msb) << 8) | lsb;
+      break;
     }
 
     case AddressingMode::Indirect_X: {
-      uint8_t base = memRead8(pc);
-      uint8_t ptr =
-          static_cast<uint8_t>(base + x_register);  // wrapping add on 8-bit
-      uint8_t low = memRead8(static_cast<uint16_t>(ptr));
+      uint8_t ptr = memRead8(pc) + x_register;  // wrapping add on 8-bit
+      info.pointerUsed = true;
+      info.pointerAddress = static_cast<uint16_t>(ptr);
+
+      uint8_t low = memRead8(info.pointerAddress);
       uint8_t high =
           memRead8(static_cast<uint16_t>(static_cast<uint8_t>(ptr + 1)));
-      return (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
+      info.address =
+          (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
+      break;
     }
 
     case AddressingMode::Indirect_Y: {
       uint8_t base = memRead8(pc);
+      info.pointerUsed = true;
+      info.pointerAddress = base;
+
       uint8_t low = memRead8(static_cast<uint16_t>(base));
-      uint8_t high =
-          memRead8(static_cast<uint16_t>(static_cast<uint8_t>(base + 1)));
-      uint16_t deref_base =
-          (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
-      uint16_t addr = deref_base + y_register;
-      if ((deref_base & 0xFF00) != (addr & 0xFF00)) {
-        // this->cycleCount++;  // Extra cycle
-      }
-      return addr;
+      uint8_t high = memRead8(static_cast<uint8_t>(base + 1));
+      uint16_t deref_base = (static_cast<uint16_t>(high) << 8) | low;
+      info.address = deref_base + y_register;
+      break;
     }
     default:
       throw std::runtime_error("Addressing mode not supported");
   }
+  return info;
 }
 
 void CPU::push(uint8_t value) {

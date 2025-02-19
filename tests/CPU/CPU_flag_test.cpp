@@ -7,13 +7,15 @@
 #include "../../include/CPU.h"
 #include "../../include/TestBus.h"
 #include "../../include/OpCode.h"
+#include "../../include/Logger.h"
 
 class CPUFlagTest : public ::testing::Test {
  protected:
   TestBus bus;  // create a shared bus
   CPU cpu;      // CPU instance that uses the shared bus
+  Logger logger;
 
-  CPUFlagTest() : bus(), cpu(&bus) {}
+  CPUFlagTest() : bus(), cpu(&bus, &logger) {}
 };
 
 #include <gtest/gtest.h>

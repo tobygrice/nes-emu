@@ -8,6 +8,7 @@
 #include "../../include/CPU.h"
 #include "../../include/OpCode.h"
 #include "../../include/TestBus.h"
+#include "../../include/Logger.h"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -22,8 +23,9 @@ class CPUHarteTests : public ::testing::Test {
   protected:
    TestBus bus;  // create a shared bus
    CPU cpu;  // CPU instance that uses the shared bus
+  Logger logger;
  
-   CPUHarteTests() : bus(), cpu(&bus) {}
+   CPUHarteTests() : bus(), cpu(&bus, &logger) {}
  };
 
 struct CPUState {
