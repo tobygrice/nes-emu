@@ -13,7 +13,7 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 /**
- * Tests all documented opcodes from Tom Harte nes6502 tests.
+ * Tests all documented opcodes from Tom Harte nes6502 tests:
  * https://github.com/SingleStepTests/65x02/tree/main/nes6502
  */
 
@@ -70,7 +70,7 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
   std::sort(opcodeList.begin(), opcodeList.end());
 
   for (uint8_t opcode : opcodeList) {
-    if (opcode < 0xFC) continue;
+
     std::string filename =
         std::format("../tests/CPU/nes6502-TESTS/{:02x}.json", opcode);
     std::cout << "STARTING TEST " << std::format("{:#04x}\n", opcode);

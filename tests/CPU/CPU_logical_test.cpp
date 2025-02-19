@@ -6,12 +6,12 @@
 
 #include "../../include/CPU.h"
 #include "../../include/OpCode.h"
-#include "../../include/MMU.h"
+#include "../../include/TestBus.h"
 
 class CPULogicalTest : public ::testing::Test {
  protected:
-  MMU bus;  // create a shared bus
-  CPU cpu;  // CPU instance that uses the shared bus
+  TestBus bus;  // create a shared bus
+  CPU cpu;      // CPU instance that uses the shared bus
 
   CPULogicalTest() : bus(), cpu(&bus) {}
 };
@@ -89,8 +89,8 @@ TEST_F(CPULogicalTest, BITAbsolute_NonZeroResult) {
       << "Negative flag should be set.";
   EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_OVERFLOW)
       << "Overflow flag should be set.";
-//   EXPECT_EQ(cpu.getCycleCount(), 13)
-//       << "Cycle count should be 13 (2+4+7) for BIT absolute.";
+  //   EXPECT_EQ(cpu.getCycleCount(), 13)
+  //       << "Cycle count should be 13 (2+4+7) for BIT absolute.";
 }
 
 // Test BIT Absolute with a zero AND result.
@@ -116,8 +116,8 @@ TEST_F(CPULogicalTest, BITAbsolute_ZeroResult) {
       << "Negative flag should be set.";
   EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_OVERFLOW)
       << "Overflow flag should be set.";
-//   EXPECT_EQ(cpu.getCycleCount(), 13)
-//       << "Cycle count should be 13 (2+4+7) for BIT absolute.";
+  //   EXPECT_EQ(cpu.getCycleCount(), 13)
+  //       << "Cycle count should be 13 (2+4+7) for BIT absolute.";
 }
 
 // Test BIT Absolute with an operand that has only bit 6 set (overflow flag) but
@@ -141,8 +141,8 @@ TEST_F(CPULogicalTest, BITAbsolute_OverflowOnly) {
       << "Negative flag should be clear.";
   EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_OVERFLOW)
       << "Overflow flag should be set.";
-//   EXPECT_EQ(cpu.getCycleCount(), 13)
-//       << "Cycle count should be 13 (2+4+7) for BIT absolute.";
+  //   EXPECT_EQ(cpu.getCycleCount(), 13)
+  //       << "Cycle count should be 13 (2+4+7) for BIT absolute.";
 }
 
 // Test BIT Zero Page with a nonzero AND result.
@@ -165,8 +165,8 @@ TEST_F(CPULogicalTest, BITZeroPage_NonZeroResult) {
       << "Negative flag should be clear.";
   EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_OVERFLOW)
       << "Overflow flag should be set.";
-//   EXPECT_EQ(cpu.getCycleCount(), 12)
-//       << "Cycle count should be 12 (2+3+7) for BIT zero page.";
+  //   EXPECT_EQ(cpu.getCycleCount(), 12)
+  //       << "Cycle count should be 12 (2+3+7) for BIT zero page.";
 }
 
 // Test BIT Zero Page with a zero AND result.
@@ -189,6 +189,6 @@ TEST_F(CPULogicalTest, BITZeroPage_ZeroResult) {
       << "Negative flag should be clear.";
   EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_OVERFLOW)
       << "Overflow flag should be set.";
-//   EXPECT_EQ(cpu.getCycleCount(), 12)
-//       << "Cycle count should be 12 (2+3+7) for BIT zero page.";
+  //   EXPECT_EQ(cpu.getCycleCount(), 12)
+  //       << "Cycle count should be 12 (2+3+7) for BIT zero page.";
 }

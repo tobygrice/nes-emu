@@ -6,13 +6,13 @@
 
 #include "../../include/CPU.h"
 #include "../../include/OpCode.h"
-#include "../../include/MMU.h"
+#include "../../include/TestBus.h"
 
 // Define a test fixture for CPU tests.
 class CPUShiftRotateTest : public ::testing::Test {
  protected:
-  MMU bus;  // create a shared bus
-  CPU cpu;  // CPU instance that uses the shared bus
+  TestBus bus;  // create a shared bus
+  CPU cpu;      // CPU instance that uses the shared bus
 
   CPUShiftRotateTest() : bus(), cpu(&bus) {}
 };

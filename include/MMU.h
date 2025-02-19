@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "BusInterface.h"
+#include "Cartridge.h"
 
 // Memory Management Unit (Bus)
 class MMU : public BusInterface {
@@ -17,19 +18,19 @@ class MMU : public BusInterface {
   std::array<uint8_t, 0x0020> apu_io;   // $4000 – $401F: APU & I/O registers
   std::array<uint8_t, 0x1FE0> exp_rom;  // $4020 – $5FFF: cart expansion ROM
   std::array<uint8_t, 0x2000> s_ram;    // $6000 – $7FFF: save RAM
-  std::array<uint8_t, 0x8000> cart;     // $8000 - $FFFF: cartridge ROM
+  Cartridge cart;     // $8000 - $FFFF: cartridge ROM
 
   uint64_t cycles = 0;  // global cycle counter
 
  public:
-  MMU() {
+  MMU(const std::vector<uint8_t>& romDump) {
     cycles = 0;
     cpu_ram.fill(0);
     ppu_reg.fill(0);
     apu_io.fill(0);
     exp_rom.fill(0);
     s_ram.fill(0);
-    cart.fill(0);
+    cart = Cartridge(romDump);
   }
 
   inline uint64_t getCycleCount() const override { return cycles; }
@@ -47,7 +48,7 @@ class MMU : public BusInterface {
       case 0x6000:
         return s_ram[addr - 0x6000];  // save RAM
       default:
-        return cart[addr - 0x8000];  // cartridge rom
+        return cart.read_prg_rom(addr - 0x8000);  // cartridge rom
     }
   }
 
@@ -62,14 +63,12 @@ class MMU : public BusInterface {
         break;
       case 0x4000:
         if (addr < 0x4020) apu_io[addr - 0x4000] = value;  // APU and I/O
-        // ignore writes to CE-ROM (read-only)
-        break;
+        break; // ignore writes to CE-ROM
       case 0x6000:
         s_ram[addr - 0x6000] = value;
         break;
       default:
-        cart[addr - 0x8000] = value;
-        break;  // should ignore writes to ROM: allowed for testing
+        break;  // ignore writes to ROM
     }
   }
 };

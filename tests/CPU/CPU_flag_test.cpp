@@ -5,13 +5,13 @@
 #include <vector>
 
 #include "../../include/CPU.h"
+#include "../../include/TestBus.h"
 #include "../../include/OpCode.h"
-#include "../../include/MMU.h"
 
 class CPUFlagTest : public ::testing::Test {
  protected:
-  MMU bus;  // create a shared bus
-  CPU cpu;  // CPU instance that uses the shared bus
+  TestBus bus;  // create a shared bus
+  CPU cpu;      // CPU instance that uses the shared bus
 
   CPUFlagTest() : bus(), cpu(&bus) {}
 };

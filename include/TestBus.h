@@ -2,8 +2,8 @@
 #define TESTBUS_H
 
 /**
- * A "dumb bus" for use with Harte CPU tests. Tests do not consider NES
- * memory mapping.
+ * A "dumb bus" for use in testing. Does not consider NES memory mapping and
+ * allows writing to ROM.
  */
 
 #include <array>
