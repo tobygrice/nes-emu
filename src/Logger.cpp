@@ -23,6 +23,12 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
 
     // Start building the disassembly string: "name "
     std::ostringstream out;
+
+    if (op->isDocumented) {
+      out << " ";
+    } else {
+      out << "*";
+    }
     out << std::uppercase << op->name << " ";
 
     // For the addressing modes, build the operand string in nestest style.
@@ -32,7 +38,7 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
         // out << "" (nothing)
         break;
 
-      case AddressingMode::Accumulator:
+      case AddressingMode::Acc:
         // e.g. "ROL A"
         out << "A";
         break;
@@ -54,14 +60,14 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
         out << " = " << hex2(valueAtAddr);
         break;
 
-      case AddressingMode::ZeroPage_X:
+      case AddressingMode::ZeroPageX:
         // e.g. "LDA $03,X = AB"
         out << "$" << hex2((*opBytes)[1]) << ",X";
         out << " @ " << hex2(addrInfo.address);  // Include computed address
         out << " = " << hex2(valueAtAddr);
         break;
 
-      case AddressingMode::ZeroPage_Y:
+      case AddressingMode::ZeroPageY:
         // e.g. "LDA $03,Y = AB"
         out << "$" << hex2((*opBytes)[1]) << ",Y";
         out << " @ " << hex2(addrInfo.address);  // Include computed address
@@ -76,13 +82,13 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
         }
         break;
 
-      case AddressingMode::Absolute_X:
+      case AddressingMode::AbsoluteX:
         out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ",X";
         out << " @ " << hex4(addrInfo.address);  // Include computed address
         out << " = " << hex2(valueAtAddr);
         break;
 
-      case AddressingMode::Absolute_Y:
+      case AddressingMode::AbsoluteY:
         out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ",Y";
         out << " @ " << hex4(addrInfo.address);  // Include computed address
         out << " = " << hex2(valueAtAddr);
@@ -94,7 +100,7 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
             << hex4(addrInfo.address);  // Show final resolved address, no = XX
         break;
 
-      case AddressingMode::Indirect_X:
+      case AddressingMode::IndirectX:
         out << "($" << hex2((*opBytes)[1]) << ",X)";
         out << " @ "
             << hex2(addrInfo.pointerAddress);  // Intermediate zero-page pointer
@@ -102,7 +108,7 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
         out << " = " << hex2(valueAtAddr);       // Value at final address
         break;
 
-      case AddressingMode::Indirect_Y:
+      case AddressingMode::IndirectY:
         // Expected format: "LDA ($89),Y = 0300 @ 0300 = 89"
         out << "($" << hex2((*opBytes)[1]) << "),Y";
         out << " = " << hex4(addrInfo.pointerAddress);  // Show base pointer
@@ -156,12 +162,12 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
   // Field 3: Disassembly at index 17 (28 characters wide)
   {
     std::string dis = disassembleInstr(pc, op, opBytes, *addrInfo, valueAtAddr);
-    if (dis.size() < 30) {
-      dis.append(30 - dis.size(), ' ');
-    } else if (dis.size() > 30) {
-      dis = dis.substr(0, 30);
+    if (dis.size() < 31) {
+      dis.append(31 - dis.size(), ' ');
+    } else if (dis.size() > 31) {
+      dis = dis.substr(0, 31);
     }
-    line.replace(16, 30, dis);
+    line.replace(15, 31, dis);
   }
 
   // Field 4: Registers at index 49 (25 characters wide)

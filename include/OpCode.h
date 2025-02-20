@@ -2,42 +2,44 @@
 #define OPCODE_H
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <unordered_map>
-#include <functional>
 
-class CPU; // forward declare CPU so we can use it in function pointers
+class CPU;  // forward declare CPU so we can use it in function pointers
 
 // enum class for addressing modes
 enum class AddressingMode {
   Implied,
   Relative,
-  Accumulator,
+  Acc,
   Immediate,
   ZeroPage,
-  ZeroPage_X,
-  ZeroPage_Y,
+  ZeroPageX,
+  ZeroPageY,
   Absolute,
-  Absolute_X,
-  Absolute_Y,
+  AbsoluteX,
+  AbsoluteY,
   Indirect,
-  Indirect_X,
-  Indirect_Y
+  IndirectX,
+  IndirectY
 };
 
 using InstructionHandler = void (CPU::*)(uint16_t);
 
 struct OpCode {
   uint8_t code;
+  bool isDocumented;
   std::string name;
   uint8_t bytes;
   uint8_t cycles;
   AddressingMode mode;
   InstructionHandler handler;
 
-  OpCode(uint8_t code, std::string name, uint8_t bytes, uint8_t cycles,
-         AddressingMode mode, InstructionHandler handler)
+  OpCode(uint8_t code, bool isDocumented, std::string name, uint8_t bytes,
+         uint8_t cycles, AddressingMode mode, InstructionHandler handler)
       : code(code),
+        isDocumented(isDocumented),
         name(std::move(name)),
         bytes(bytes),
         cycles(cycles),

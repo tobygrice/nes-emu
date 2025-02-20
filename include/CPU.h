@@ -135,6 +135,31 @@ class CPU {
   void op_TXA(uint16_t addr);
   void op_TXS(uint16_t addr);
   void op_TYA(uint16_t addr);
+
+  // remaining 21 instructions / 105 unofficial opcodes:
+  void opi_ALR(uint16_t addr);
+  void opi_ANC(uint16_t addr);
+  void opi_ANC2(uint16_t addr);
+  void opi_ANE(uint16_t addr);
+  void opi_ARR(uint16_t addr);
+  void opi_DCP(uint16_t addr);
+  void opi_ISC(uint16_t addr);
+  void opi_LAS(uint16_t addr);
+  void opi_LAX(uint16_t addr);
+  void opi_LXA(uint16_t addr);
+  void opi_RLA(uint16_t addr);
+  void opi_RRA(uint16_t addr);
+  void opi_SAX(uint16_t addr);
+  void opi_SBX(uint16_t addr);
+  void opi_SHA(uint16_t addr);
+  void opi_SHX(uint16_t addr);
+  void opi_SHY(uint16_t addr);
+  void opi_SLO(uint16_t addr);
+  void opi_SRE(uint16_t addr);
+  void opi_TAS(uint16_t addr);
+  void opi_SBC(uint16_t addr);
+  void opi_NOP(uint16_t addr);
+  void opi_KIL(uint16_t addr);
 };
 
 #endif  // CPU_H

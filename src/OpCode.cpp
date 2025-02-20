@@ -1,4 +1,5 @@
 #include "../include/OpCode.h"
+
 #include "../include/CPU.h"
 
 /**
@@ -15,248 +16,418 @@ const OpCode* getOpCode(uint8_t opcode) {
   return nullptr;  // not found
 }
 
-/** 
+/**
  * Opcode lookup table
- */ 
+ */
 const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
-    // 151 opcodes (CHECK WHEN FINISHED)
+    // 151 official opcodes
     // =====================================================
     // Control and Subroutine Instructions
     // =====================================================
-    {0x00, OpCode(0x00, "BRK", 2, 7, AddressingMode::Implied,     &CPU::op_BRK)},
-    {0x20, OpCode(0x20, "JSR", 3, 6, AddressingMode::Absolute,    &CPU::op_JSR)},
-    {0x4C, OpCode(0x4C, "JMP", 3, 3, AddressingMode::Absolute,    &CPU::op_JMP)},
-    {0x6C, OpCode(0x6C, "JMP", 3, 5, AddressingMode::Indirect,    &CPU::op_JMP)},
-    {0x40, OpCode(0x40, "RTI", 1, 6, AddressingMode::Implied,     &CPU::op_RTI)},
-    {0x60, OpCode(0x60, "RTS", 1, 6, AddressingMode::Implied,     &CPU::op_RTS)},
-    {0xEA, OpCode(0xEA, "NOP", 1, 2, AddressingMode::Implied,     &CPU::op_NOP)},
+    {0x00, OpCode(0x00, true, "BRK", 2, 7, AddressingMode::Implied, &CPU::op_BRK)},
+    {0x20, OpCode(0x20, true, "JSR", 3, 6, AddressingMode::Absolute, &CPU::op_JSR)},
+    {0x4C, OpCode(0x4C, true, "JMP", 3, 3, AddressingMode::Absolute, &CPU::op_JMP)},
+    {0x6C, OpCode(0x6C, true, "JMP", 3, 5, AddressingMode::Indirect, &CPU::op_JMP)},
+    {0x40, OpCode(0x40, true, "RTI", 1, 6, AddressingMode::Implied, &CPU::op_RTI)},
+    {0x60, OpCode(0x60, true, "RTS", 1, 6, AddressingMode::Implied, &CPU::op_RTS)},
+    {0xEA, OpCode(0xEA, true, "NOP", 1, 2, AddressingMode::Implied, &CPU::op_NOP)},
 
     // =====================================================
     // Load/Store Instructions
     // =====================================================
     // --- LDA (Load Accumulator)
-    {0xA9, OpCode(0xA9, "LDA", 2, 2, AddressingMode::Immediate,   &CPU::op_LDA)},
-    {0xA5, OpCode(0xA5, "LDA", 2, 3, AddressingMode::ZeroPage,    &CPU::op_LDA)},
-    {0xB5, OpCode(0xB5, "LDA", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_LDA)},
-    {0xAD, OpCode(0xAD, "LDA", 3, 4, AddressingMode::Absolute,    &CPU::op_LDA)},
-    {0xBD, OpCode(0xBD, "LDA", 3, 4, AddressingMode::Absolute_X,  &CPU::op_LDA)}, // +1 cycle if page crossed
-    {0xB9, OpCode(0xB9, "LDA", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_LDA)}, // +1 cycle if page crossed
-    {0xA1, OpCode(0xA1, "LDA", 2, 6, AddressingMode::Indirect_X,  &CPU::op_LDA)},
-    {0xB1, OpCode(0xB1, "LDA", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_LDA)},
+    {0xA9, OpCode(0xA9, true, "LDA", 2, 2, AddressingMode::Immediate, &CPU::op_LDA)},
+    {0xA5, OpCode(0xA5, true, "LDA", 2, 3, AddressingMode::ZeroPage, &CPU::op_LDA)},
+    {0xB5, OpCode(0xB5, true, "LDA", 2, 4, AddressingMode::ZeroPageX, &CPU::op_LDA)},
+    {0xAD, OpCode(0xAD, true, "LDA", 3, 4, AddressingMode::Absolute, &CPU::op_LDA)},
+    {0xBD, OpCode(0xBD, true, "LDA", 3, 4, AddressingMode::AbsoluteX,
+                  &CPU::op_LDA)},  // +1 cycle if page crossed
+    {0xB9, OpCode(0xB9, true, "LDA", 3, 4, AddressingMode::AbsoluteY,
+                  &CPU::op_LDA)},  // +1 cycle if page crossed
+    {0xA1, OpCode(0xA1, true, "LDA", 2, 6, AddressingMode::IndirectX, &CPU::op_LDA)},
+    {0xB1, OpCode(0xB1, true, "LDA", 2, 5, AddressingMode::IndirectY, &CPU::op_LDA)},
 
     // --- LDX (Load X Register)
-    {0xA2, OpCode(0xA2, "LDX", 2, 2, AddressingMode::Immediate,   &CPU::op_LDX)},
-    {0xA6, OpCode(0xA6, "LDX", 2, 3, AddressingMode::ZeroPage,    &CPU::op_LDX)},
-    {0xB6, OpCode(0xB6, "LDX", 2, 4, AddressingMode::ZeroPage_Y,  &CPU::op_LDX)},
-    {0xAE, OpCode(0xAE, "LDX", 3, 4, AddressingMode::Absolute,    &CPU::op_LDX)},
-    {0xBE, OpCode(0xBE, "LDX", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_LDX)}, // +1 cycle if page crossed
+    {0xA2, OpCode(0xA2, true, "LDX", 2, 2, AddressingMode::Immediate, &CPU::op_LDX)},
+    {0xA6, OpCode(0xA6, true, "LDX", 2, 3, AddressingMode::ZeroPage, &CPU::op_LDX)},
+    {0xB6, OpCode(0xB6, true, "LDX", 2, 4, AddressingMode::ZeroPageY, &CPU::op_LDX)},
+    {0xAE, OpCode(0xAE, true, "LDX", 3, 4, AddressingMode::Absolute, &CPU::op_LDX)},
+    {0xBE, OpCode(0xBE, true, "LDX", 3, 4, AddressingMode::AbsoluteY,
+                  &CPU::op_LDX)},  // +1 cycle if page crossed
 
     // --- LDY (Load Y Register)
-    {0xA0, OpCode(0xA0, "LDY", 2, 2, AddressingMode::Immediate,   &CPU::op_LDY)},
-    {0xA4, OpCode(0xA4, "LDY", 2, 3, AddressingMode::ZeroPage,    &CPU::op_LDY)},
-    {0xB4, OpCode(0xB4, "LDY", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_LDY)},
-    {0xAC, OpCode(0xAC, "LDY", 3, 4, AddressingMode::Absolute,    &CPU::op_LDY)},
-    {0xBC, OpCode(0xBC, "LDY", 3, 4, AddressingMode::Absolute_X,  &CPU::op_LDY)}, // +1 cycle if page crossed
+    {0xA0, OpCode(0xA0, true, "LDY", 2, 2, AddressingMode::Immediate, &CPU::op_LDY)},
+    {0xA4, OpCode(0xA4, true, "LDY", 2, 3, AddressingMode::ZeroPage, &CPU::op_LDY)},
+    {0xB4, OpCode(0xB4, true, "LDY", 2, 4, AddressingMode::ZeroPageX, &CPU::op_LDY)},
+    {0xAC, OpCode(0xAC, true, "LDY", 3, 4, AddressingMode::Absolute, &CPU::op_LDY)},
+    {0xBC, OpCode(0xBC, true, "LDY", 3, 4, AddressingMode::AbsoluteX,
+                  &CPU::op_LDY)},  // +1 cycle if page crossed
 
     // --- STA (Store Accumulator)
-    {0x85, OpCode(0x85, "STA", 2, 3, AddressingMode::ZeroPage,    &CPU::op_STA)},
-    {0x95, OpCode(0x95, "STA", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_STA)},
-    {0x8D, OpCode(0x8D, "STA", 3, 4, AddressingMode::Absolute,    &CPU::op_STA)},
-    {0x9D, OpCode(0x9D, "STA", 3, 5, AddressingMode::Absolute_X,  &CPU::op_STA)},
-    {0x99, OpCode(0x99, "STA", 3, 5, AddressingMode::Absolute_Y,  &CPU::op_STA)},
-    {0x81, OpCode(0x81, "STA", 2, 6, AddressingMode::Indirect_X,  &CPU::op_STA)},
-    {0x91, OpCode(0x91, "STA", 2, 6, AddressingMode::Indirect_Y,  &CPU::op_STA)},
+    {0x85, OpCode(0x85, true, "STA", 2, 3, AddressingMode::ZeroPage, &CPU::op_STA)},
+    {0x95, OpCode(0x95, true, "STA", 2, 4, AddressingMode::ZeroPageX, &CPU::op_STA)},
+    {0x8D, OpCode(0x8D, true, "STA", 3, 4, AddressingMode::Absolute, &CPU::op_STA)},
+    {0x9D, OpCode(0x9D, true, "STA", 3, 5, AddressingMode::AbsoluteX, &CPU::op_STA)},
+    {0x99, OpCode(0x99, true, "STA", 3, 5, AddressingMode::AbsoluteY, &CPU::op_STA)},
+    {0x81, OpCode(0x81, true, "STA", 2, 6, AddressingMode::IndirectX, &CPU::op_STA)},
+    {0x91, OpCode(0x91, true, "STA", 2, 6, AddressingMode::IndirectY, &CPU::op_STA)},
 
     // --- STX (Store X Register)
-    {0x86, OpCode(0x86, "STX", 2, 3, AddressingMode::ZeroPage,    &CPU::op_STX)},
-    {0x96, OpCode(0x96, "STX", 2, 4, AddressingMode::ZeroPage_Y,  &CPU::op_STX)},
-    {0x8E, OpCode(0x8E, "STX", 3, 4, AddressingMode::Absolute,    &CPU::op_STX)},
+    {0x86, OpCode(0x86, true, "STX", 2, 3, AddressingMode::ZeroPage, &CPU::op_STX)},
+    {0x96, OpCode(0x96, true, "STX", 2, 4, AddressingMode::ZeroPageY, &CPU::op_STX)},
+    {0x8E, OpCode(0x8E, true, "STX", 3, 4, AddressingMode::Absolute, &CPU::op_STX)},
 
     // --- STY (Store Y Register)
-    {0x84, OpCode(0x84, "STY", 2, 3, AddressingMode::ZeroPage,    &CPU::op_STY)},
-    {0x94, OpCode(0x94, "STY", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_STY)},
-    {0x8C, OpCode(0x8C, "STY", 3, 4, AddressingMode::Absolute,    &CPU::op_STY)},
+    {0x84, OpCode(0x84, true, "STY", 2, 3, AddressingMode::ZeroPage, &CPU::op_STY)},
+    {0x94, OpCode(0x94, true, "STY", 2, 4, AddressingMode::ZeroPageX, &CPU::op_STY)},
+    {0x8C, OpCode(0x8C, true, "STY", 3, 4, AddressingMode::Absolute, &CPU::op_STY)},
 
     // =====================================================
     // Arithmetic Instructions
     // =====================================================
     // --- ADC (Add with Carry)
-    {0x69, OpCode(0x69, "ADC", 2, 2, AddressingMode::Immediate,   &CPU::op_ADC)},
-    {0x65, OpCode(0x65, "ADC", 2, 3, AddressingMode::ZeroPage,    &CPU::op_ADC)},
-    {0x75, OpCode(0x75, "ADC", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_ADC)},
-    {0x6D, OpCode(0x6D, "ADC", 3, 4, AddressingMode::Absolute,    &CPU::op_ADC)},
-    {0x7D, OpCode(0x7D, "ADC", 3, 4, AddressingMode::Absolute_X,  &CPU::op_ADC)}, // +1 cycle if page crossed
-    {0x79, OpCode(0x79, "ADC", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_ADC)}, // +1 cycle if page crossed
-    {0x61, OpCode(0x61, "ADC", 2, 6, AddressingMode::Indirect_X,  &CPU::op_ADC)},
-    {0x71, OpCode(0x71, "ADC", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_ADC)}, // +1 cycle if page crossed
+    {0x69, OpCode(0x69, true, "ADC", 2, 2, AddressingMode::Immediate, &CPU::op_ADC)},
+    {0x65, OpCode(0x65, true, "ADC", 2, 3, AddressingMode::ZeroPage, &CPU::op_ADC)},
+    {0x75, OpCode(0x75, true, "ADC", 2, 4, AddressingMode::ZeroPageX, &CPU::op_ADC)},
+    {0x6D, OpCode(0x6D, true, "ADC", 3, 4, AddressingMode::Absolute, &CPU::op_ADC)},
+    {0x7D, OpCode(0x7D, true, "ADC", 3, 4, AddressingMode::AbsoluteX,
+                  &CPU::op_ADC)},  // +1 cycle if page crossed
+    {0x79, OpCode(0x79, true, "ADC", 3, 4, AddressingMode::AbsoluteY,
+                  &CPU::op_ADC)},  // +1 cycle if page crossed
+    {0x61, OpCode(0x61, true, "ADC", 2, 6, AddressingMode::IndirectX, &CPU::op_ADC)},
+    {0x71, OpCode(0x71, true, "ADC", 2, 5, AddressingMode::IndirectY,
+                  &CPU::op_ADC)},  // +1 cycle if page crossed
 
     // --- SBC (Subtract with Carry)
-    {0xE9, OpCode(0xE9, "SBC", 2, 2, AddressingMode::Immediate,   &CPU::op_SBC)},
-    {0xE5, OpCode(0xE5, "SBC", 2, 3, AddressingMode::ZeroPage,    &CPU::op_SBC)},
-    {0xF5, OpCode(0xF5, "SBC", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_SBC)},
-    {0xED, OpCode(0xED, "SBC", 3, 4, AddressingMode::Absolute,    &CPU::op_SBC)},
-    {0xFD, OpCode(0xFD, "SBC", 3, 4, AddressingMode::Absolute_X,  &CPU::op_SBC)},
-    {0xF9, OpCode(0xF9, "SBC", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_SBC)},
-    {0xE1, OpCode(0xE1, "SBC", 2, 6, AddressingMode::Indirect_X,  &CPU::op_SBC)},
-    {0xF1, OpCode(0xF1, "SBC", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_SBC)},
+    {0xE9, OpCode(0xE9, true, "SBC", 2, 2, AddressingMode::Immediate, &CPU::op_SBC)},
+    {0xE5, OpCode(0xE5, true, "SBC", 2, 3, AddressingMode::ZeroPage, &CPU::op_SBC)},
+    {0xF5, OpCode(0xF5, true, "SBC", 2, 4, AddressingMode::ZeroPageX, &CPU::op_SBC)},
+    {0xED, OpCode(0xED, true, "SBC", 3, 4, AddressingMode::Absolute, &CPU::op_SBC)},
+    {0xFD, OpCode(0xFD, true, "SBC", 3, 4, AddressingMode::AbsoluteX, &CPU::op_SBC)},
+    {0xF9, OpCode(0xF9, true, "SBC", 3, 4, AddressingMode::AbsoluteY, &CPU::op_SBC)},
+    {0xE1, OpCode(0xE1, true, "SBC", 2, 6, AddressingMode::IndirectX, &CPU::op_SBC)},
+    {0xF1, OpCode(0xF1, true, "SBC", 2, 5, AddressingMode::IndirectY, &CPU::op_SBC)},
 
     // --- INC
-    {0xE6, OpCode(0xE6, "INC", 2, 5, AddressingMode::ZeroPage,    &CPU::op_INC)},
-    {0xF6, OpCode(0xF6, "INC", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_INC)},
-    {0xEE, OpCode(0xEE, "INC", 3, 6, AddressingMode::Absolute,    &CPU::op_INC)},
-    {0xFE, OpCode(0xFE, "INC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_INC)},
+    {0xE6, OpCode(0xE6, true, "INC", 2, 5, AddressingMode::ZeroPage, &CPU::op_INC)},
+    {0xF6, OpCode(0xF6, true, "INC", 2, 6, AddressingMode::ZeroPageX, &CPU::op_INC)},
+    {0xEE, OpCode(0xEE, true, "INC", 3, 6, AddressingMode::Absolute, &CPU::op_INC)},
+    {0xFE, OpCode(0xFE, true, "INC", 3, 7, AddressingMode::AbsoluteX, &CPU::op_INC)},
 
     // --- INX
-    {0xE8, OpCode(0xE8, "INX", 1, 2, AddressingMode::Implied,     &CPU::op_INX)},
+    {0xE8, OpCode(0xE8, true, "INX", 1, 2, AddressingMode::Implied, &CPU::op_INX)},
 
     // --- INY
-    {0xC8, OpCode(0xC8, "INY", 1, 2, AddressingMode::Implied,     &CPU::op_INY)},
+    {0xC8, OpCode(0xC8, true, "INY", 1, 2, AddressingMode::Implied, &CPU::op_INY)},
 
     // --- DEC
-    {0xC6, OpCode(0xC6, "DEC", 2, 5, AddressingMode::ZeroPage,    &CPU::op_DEC)},
-    {0xD6, OpCode(0xD6, "DEC", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_DEC)},
-    {0xCE, OpCode(0xCE, "DEC", 3, 6, AddressingMode::Absolute,    &CPU::op_DEC)},
-    {0xDE, OpCode(0xDE, "DEC", 3, 7, AddressingMode::Absolute_X,  &CPU::op_DEC)},
+    {0xC6, OpCode(0xC6, true, "DEC", 2, 5, AddressingMode::ZeroPage, &CPU::op_DEC)},
+    {0xD6, OpCode(0xD6, true, "DEC", 2, 6, AddressingMode::ZeroPageX, &CPU::op_DEC)},
+    {0xCE, OpCode(0xCE, true, "DEC", 3, 6, AddressingMode::Absolute, &CPU::op_DEC)},
+    {0xDE, OpCode(0xDE, true, "DEC", 3, 7, AddressingMode::AbsoluteX, &CPU::op_DEC)},
 
     // --- DEX
-    {0xCA, OpCode(0xCA, "DEX", 1, 2, AddressingMode::Implied, &CPU::op_DEX)},
+    {0xCA, OpCode(0xCA, true, "DEX", 1, 2, AddressingMode::Implied, &CPU::op_DEX)},
 
     // --- DEY
-    {0x88, OpCode(0x88, "DEY", 1, 2, AddressingMode::Implied, &CPU::op_DEY)},
-
+    {0x88, OpCode(0x88, true, "DEY", 1, 2, AddressingMode::Implied, &CPU::op_DEY)},
 
     // =====================================================
     // Logical Instructions
     // =====================================================
     // --- AND
-    {0x29, OpCode(0x29, "AND", 2, 2, AddressingMode::Immediate,   &CPU::op_AND)},
-    {0x25, OpCode(0x25, "AND", 2, 3, AddressingMode::ZeroPage,    &CPU::op_AND)},
-    {0x35, OpCode(0x35, "AND", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_AND)},
-    {0x2D, OpCode(0x2D, "AND", 3, 4, AddressingMode::Absolute,    &CPU::op_AND)},
-    {0x3D, OpCode(0x3D, "AND", 3, 4, AddressingMode::Absolute_X,  &CPU::op_AND)}, // +1 cycle if page crossed
-    {0x39, OpCode(0x39, "AND", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_AND)}, // +1 cycle if page crossed
-    {0x21, OpCode(0x21, "AND", 2, 6, AddressingMode::Indirect_X,  &CPU::op_AND)},
-    {0x31, OpCode(0x31, "AND", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_AND)}, // +1 cycle if page crossed
+    {0x29, OpCode(0x29, true, "AND", 2, 2, AddressingMode::Immediate, &CPU::op_AND)},
+    {0x25, OpCode(0x25, true, "AND", 2, 3, AddressingMode::ZeroPage, &CPU::op_AND)},
+    {0x35, OpCode(0x35, true, "AND", 2, 4, AddressingMode::ZeroPageX, &CPU::op_AND)},
+    {0x2D, OpCode(0x2D, true, "AND", 3, 4, AddressingMode::Absolute, &CPU::op_AND)},
+    {0x3D, OpCode(0x3D, true, "AND", 3, 4, AddressingMode::AbsoluteX,
+                  &CPU::op_AND)},  // +1 cycle if page crossed
+    {0x39, OpCode(0x39, true, "AND", 3, 4, AddressingMode::AbsoluteY,
+                  &CPU::op_AND)},  // +1 cycle if page crossed
+    {0x21, OpCode(0x21, true, "AND", 2, 6, AddressingMode::IndirectX, &CPU::op_AND)},
+    {0x31, OpCode(0x31, true, "AND", 2, 5, AddressingMode::IndirectY,
+                  &CPU::op_AND)},  // +1 cycle if page crossed
 
     // --- ORA
-    {0x09, OpCode(0x09, "ORA", 2, 2, AddressingMode::Immediate,   &CPU::op_ORA)},
-    {0x05, OpCode(0x05, "ORA", 2, 3, AddressingMode::ZeroPage,    &CPU::op_ORA)},
-    {0x15, OpCode(0x15, "ORA", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_ORA)},
-    {0x0D, OpCode(0x0D, "ORA", 3, 4, AddressingMode::Absolute,    &CPU::op_ORA)},
-    {0x1D, OpCode(0x1D, "ORA", 3, 4, AddressingMode::Absolute_X,  &CPU::op_ORA)},
-    {0x19, OpCode(0x19, "ORA", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_ORA)},
-    {0x01, OpCode(0x01, "ORA", 2, 6, AddressingMode::Indirect_X,  &CPU::op_ORA)},
-    {0x11, OpCode(0x11, "ORA", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_ORA)},
+    {0x09, OpCode(0x09, true, "ORA", 2, 2, AddressingMode::Immediate, &CPU::op_ORA)},
+    {0x05, OpCode(0x05, true, "ORA", 2, 3, AddressingMode::ZeroPage, &CPU::op_ORA)},
+    {0x15, OpCode(0x15, true, "ORA", 2, 4, AddressingMode::ZeroPageX, &CPU::op_ORA)},
+    {0x0D, OpCode(0x0D, true, "ORA", 3, 4, AddressingMode::Absolute, &CPU::op_ORA)},
+    {0x1D, OpCode(0x1D, true, "ORA", 3, 4, AddressingMode::AbsoluteX, &CPU::op_ORA)},
+    {0x19, OpCode(0x19, true, "ORA", 3, 4, AddressingMode::AbsoluteY, &CPU::op_ORA)},
+    {0x01, OpCode(0x01, true, "ORA", 2, 6, AddressingMode::IndirectX, &CPU::op_ORA)},
+    {0x11, OpCode(0x11, true, "ORA", 2, 5, AddressingMode::IndirectY, &CPU::op_ORA)},
 
     // --- EOR
-    {0x49, OpCode(0x49, "EOR", 2, 2, AddressingMode::Immediate,   &CPU::op_EOR)},
-    {0x45, OpCode(0x45, "EOR", 2, 3, AddressingMode::ZeroPage,    &CPU::op_EOR)},
-    {0x55, OpCode(0x55, "EOR", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_EOR)},
-    {0x4D, OpCode(0x4D, "EOR", 3, 4, AddressingMode::Absolute,    &CPU::op_EOR)},
-    {0x5D, OpCode(0x5D, "EOR", 3, 4, AddressingMode::Absolute_X,  &CPU::op_EOR)},
-    {0x59, OpCode(0x59, "EOR", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_EOR)},
-    {0x41, OpCode(0x41, "EOR", 2, 6, AddressingMode::Indirect_X,  &CPU::op_EOR)},
-    {0x51, OpCode(0x51, "EOR", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_EOR)},
+    {0x49, OpCode(0x49, true, "EOR", 2, 2, AddressingMode::Immediate, &CPU::op_EOR)},
+    {0x45, OpCode(0x45, true, "EOR", 2, 3, AddressingMode::ZeroPage, &CPU::op_EOR)},
+    {0x55, OpCode(0x55, true, "EOR", 2, 4, AddressingMode::ZeroPageX, &CPU::op_EOR)},
+    {0x4D, OpCode(0x4D, true, "EOR", 3, 4, AddressingMode::Absolute, &CPU::op_EOR)},
+    {0x5D, OpCode(0x5D, true, "EOR", 3, 4, AddressingMode::AbsoluteX, &CPU::op_EOR)},
+    {0x59, OpCode(0x59, true, "EOR", 3, 4, AddressingMode::AbsoluteY, &CPU::op_EOR)},
+    {0x41, OpCode(0x41, true, "EOR", 2, 6, AddressingMode::IndirectX, &CPU::op_EOR)},
+    {0x51, OpCode(0x51, true, "EOR", 2, 5, AddressingMode::IndirectY, &CPU::op_EOR)},
 
     // --- BIT
-    {0x24, OpCode(0x24, "BIT", 2, 3, AddressingMode::ZeroPage,    &CPU::op_BIT)},
-    {0x2C, OpCode(0x2C, "BIT", 3, 4, AddressingMode::Absolute,    &CPU::op_BIT)},
+    {0x24, OpCode(0x24, true, "BIT", 2, 3, AddressingMode::ZeroPage, &CPU::op_BIT)},
+    {0x2C, OpCode(0x2C, true, "BIT", 3, 4, AddressingMode::Absolute, &CPU::op_BIT)},
 
     // =====================================================
     // Shift and Rotate Instructions
     // =====================================================
     // --- ASL
-    {0x0A, OpCode(0x0A, "ASL", 1, 2, AddressingMode::Accumulator, &CPU::op_ASL_ACC)},
-    {0x06, OpCode(0x06, "ASL", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ASL)},
-    {0x16, OpCode(0x16, "ASL", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ASL)},
-    {0x0E, OpCode(0x0E, "ASL", 3, 6, AddressingMode::Absolute,    &CPU::op_ASL)},
-    {0x1E, OpCode(0x1E, "ASL", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ASL)},
+    {0x0A, OpCode(0x0A, true, "ASL", 1, 2, AddressingMode::Acc, &CPU::op_ASL_ACC)},
+    {0x06, OpCode(0x06, true, "ASL", 2, 5, AddressingMode::ZeroPage, &CPU::op_ASL)},
+    {0x16, OpCode(0x16, true, "ASL", 2, 6, AddressingMode::ZeroPageX, &CPU::op_ASL)},
+    {0x0E, OpCode(0x0E, true, "ASL", 3, 6, AddressingMode::Absolute, &CPU::op_ASL)},
+    {0x1E, OpCode(0x1E, true, "ASL", 3, 7, AddressingMode::AbsoluteX, &CPU::op_ASL)},
 
     // --- LSR
-    {0x4A, OpCode(0x4A, "LSR", 1, 2, AddressingMode::Accumulator, &CPU::op_LSR_ACC)},
-    {0x46, OpCode(0x46, "LSR", 2, 5, AddressingMode::ZeroPage,    &CPU::op_LSR)},
-    {0x56, OpCode(0x56, "LSR", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_LSR)},
-    {0x4E, OpCode(0x4E, "LSR", 3, 6, AddressingMode::Absolute,    &CPU::op_LSR)},
-    {0x5E, OpCode(0x5E, "LSR", 3, 7, AddressingMode::Absolute_X,  &CPU::op_LSR)},
+    {0x4A, OpCode(0x4A, true, "LSR", 1, 2, AddressingMode::Acc, &CPU::op_LSR_ACC)},
+    {0x46, OpCode(0x46, true, "LSR", 2, 5, AddressingMode::ZeroPage, &CPU::op_LSR)},
+    {0x56, OpCode(0x56, true, "LSR", 2, 6, AddressingMode::ZeroPageX, &CPU::op_LSR)},
+    {0x4E, OpCode(0x4E, true, "LSR", 3, 6, AddressingMode::Absolute, &CPU::op_LSR)},
+    {0x5E, OpCode(0x5E, true, "LSR", 3, 7, AddressingMode::AbsoluteX, &CPU::op_LSR)},
 
     // --- ROL
-    {0x2A, OpCode(0x2A, "ROL", 1, 2, AddressingMode::Accumulator, &CPU::op_ROL_ACC)},
-    {0x26, OpCode(0x26, "ROL", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ROL)},
-    {0x36, OpCode(0x36, "ROL", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ROL)},
-    {0x2E, OpCode(0x2E, "ROL", 3, 6, AddressingMode::Absolute,    &CPU::op_ROL)},
-    {0x3E, OpCode(0x3E, "ROL", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ROL)},
+    {0x2A, OpCode(0x2A, true, "ROL", 1, 2, AddressingMode::Acc, &CPU::op_ROL_ACC)},
+    {0x26, OpCode(0x26, true, "ROL", 2, 5, AddressingMode::ZeroPage, &CPU::op_ROL)},
+    {0x36, OpCode(0x36, true, "ROL", 2, 6, AddressingMode::ZeroPageX, &CPU::op_ROL)},
+    {0x2E, OpCode(0x2E, true, "ROL", 3, 6, AddressingMode::Absolute, &CPU::op_ROL)},
+    {0x3E, OpCode(0x3E, true, "ROL", 3, 7, AddressingMode::AbsoluteX, &CPU::op_ROL)},
 
     // --- ROR
-    {0x6A, OpCode(0x6A, "ROR", 1, 2, AddressingMode::Accumulator, &CPU::op_ROR_ACC)},
-    {0x66, OpCode(0x66, "ROR", 2, 5, AddressingMode::ZeroPage,    &CPU::op_ROR)},
-    {0x76, OpCode(0x76, "ROR", 2, 6, AddressingMode::ZeroPage_X,  &CPU::op_ROR)},
-    {0x6E, OpCode(0x6E, "ROR", 3, 6, AddressingMode::Absolute,    &CPU::op_ROR)},
-    {0x7E, OpCode(0x7E, "ROR", 3, 7, AddressingMode::Absolute_X,  &CPU::op_ROR)},
+    {0x6A, OpCode(0x6A, true, "ROR", 1, 2, AddressingMode::Acc, &CPU::op_ROR_ACC)},
+    {0x66, OpCode(0x66, true, "ROR", 2, 5, AddressingMode::ZeroPage, &CPU::op_ROR)},
+    {0x76, OpCode(0x76, true, "ROR", 2, 6, AddressingMode::ZeroPageX, &CPU::op_ROR)},
+    {0x6E, OpCode(0x6E, true, "ROR", 3, 6, AddressingMode::Absolute, &CPU::op_ROR)},
+    {0x7E, OpCode(0x7E, true, "ROR", 3, 7, AddressingMode::AbsoluteX, &CPU::op_ROR)},
 
     // =====================================================
     // Branch Instructions
     // =====================================================
     // 2 cycles if not taken (base, added by execution loop)
-	  // +1 cycles if taken (total 3)
-	  // +2 cycles if taken and crossing a page (total 4) 
-    {0x10, OpCode(0x10, "BPL", 2, 2, AddressingMode::Relative, &CPU::op_BPL)},
-    {0x30, OpCode(0x30, "BMI", 2, 2, AddressingMode::Relative, &CPU::op_BMI)},
-    {0x50, OpCode(0x50, "BVC", 2, 2, AddressingMode::Relative, &CPU::op_BVC)},
-    {0x70, OpCode(0x70, "BVS", 2, 2, AddressingMode::Relative, &CPU::op_BVS)},
-    {0x90, OpCode(0x90, "BCC", 2, 2, AddressingMode::Relative, &CPU::op_BCC)},
-    {0xB0, OpCode(0xB0, "BCS", 2, 2, AddressingMode::Relative, &CPU::op_BCS)},
-    {0xD0, OpCode(0xD0, "BNE", 2, 2, AddressingMode::Relative, &CPU::op_BNE)},
-    {0xF0, OpCode(0xF0, "BEQ", 2, 2, AddressingMode::Relative, &CPU::op_BEQ)},
+    // +1 cycles if taken (total 3)
+    // +2 cycles if taken and crossing a page (total 4)
+    {0x10, OpCode(0x10, true, "BPL", 2, 2, AddressingMode::Relative, &CPU::op_BPL)},
+    {0x30, OpCode(0x30, true, "BMI", 2, 2, AddressingMode::Relative, &CPU::op_BMI)},
+    {0x50, OpCode(0x50, true, "BVC", 2, 2, AddressingMode::Relative, &CPU::op_BVC)},
+    {0x70, OpCode(0x70, true, "BVS", 2, 2, AddressingMode::Relative, &CPU::op_BVS)},
+    {0x90, OpCode(0x90, true, "BCC", 2, 2, AddressingMode::Relative, &CPU::op_BCC)},
+    {0xB0, OpCode(0xB0, true, "BCS", 2, 2, AddressingMode::Relative, &CPU::op_BCS)},
+    {0xD0, OpCode(0xD0, true, "BNE", 2, 2, AddressingMode::Relative, &CPU::op_BNE)},
+    {0xF0, OpCode(0xF0, true, "BEQ", 2, 2, AddressingMode::Relative, &CPU::op_BEQ)},
 
     // =====================================================
     // Compare Instructions
     // =====================================================
     // --- CMP
-    {0xC9, OpCode(0xC9, "CMP", 2, 2, AddressingMode::Immediate,   &CPU::op_CMP)},
-    {0xC5, OpCode(0xC5, "CMP", 2, 3, AddressingMode::ZeroPage,    &CPU::op_CMP)},
-    {0xD5, OpCode(0xD5, "CMP", 2, 4, AddressingMode::ZeroPage_X,  &CPU::op_CMP)},
-    {0xCD, OpCode(0xCD, "CMP", 3, 4, AddressingMode::Absolute,    &CPU::op_CMP)},
-    {0xDD, OpCode(0xDD, "CMP", 3, 4, AddressingMode::Absolute_X,  &CPU::op_CMP)},
-    {0xD9, OpCode(0xD9, "CMP", 3, 4, AddressingMode::Absolute_Y,  &CPU::op_CMP)},
-    {0xC1, OpCode(0xC1, "CMP", 2, 6, AddressingMode::Indirect_X,  &CPU::op_CMP)},
-    {0xD1, OpCode(0xD1, "CMP", 2, 5, AddressingMode::Indirect_Y,  &CPU::op_CMP)},
+    {0xC9, OpCode(0xC9, true, "CMP", 2, 2, AddressingMode::Immediate, &CPU::op_CMP)},
+    {0xC5, OpCode(0xC5, true, "CMP", 2, 3, AddressingMode::ZeroPage, &CPU::op_CMP)},
+    {0xD5, OpCode(0xD5, true, "CMP", 2, 4, AddressingMode::ZeroPageX, &CPU::op_CMP)},
+    {0xCD, OpCode(0xCD, true, "CMP", 3, 4, AddressingMode::Absolute, &CPU::op_CMP)},
+    {0xDD, OpCode(0xDD, true, "CMP", 3, 4, AddressingMode::AbsoluteX, &CPU::op_CMP)},
+    {0xD9, OpCode(0xD9, true, "CMP", 3, 4, AddressingMode::AbsoluteY, &CPU::op_CMP)},
+    {0xC1, OpCode(0xC1, true, "CMP", 2, 6, AddressingMode::IndirectX, &CPU::op_CMP)},
+    {0xD1, OpCode(0xD1, true, "CMP", 2, 5, AddressingMode::IndirectY, &CPU::op_CMP)},
 
     // --- CPX
-    {0xE0, OpCode(0xE0, "CPX", 2, 2, AddressingMode::Immediate,   &CPU::op_CPX)},
-    {0xE4, OpCode(0xE4, "CPX", 2, 3, AddressingMode::ZeroPage,    &CPU::op_CPX)},
-    {0xEC, OpCode(0xEC, "CPX", 3, 4, AddressingMode::Absolute,    &CPU::op_CPX)},
+    {0xE0, OpCode(0xE0, true, "CPX", 2, 2, AddressingMode::Immediate, &CPU::op_CPX)},
+    {0xE4, OpCode(0xE4, true, "CPX", 2, 3, AddressingMode::ZeroPage, &CPU::op_CPX)},
+    {0xEC, OpCode(0xEC, true, "CPX", 3, 4, AddressingMode::Absolute, &CPU::op_CPX)},
 
     // --- CPY
-    {0xC0, OpCode(0xC0, "CPY", 2, 2, AddressingMode::Immediate,   &CPU::op_CPY)},
-    {0xC4, OpCode(0xC4, "CPY", 2, 3, AddressingMode::ZeroPage,    &CPU::op_CPY)},
-    {0xCC, OpCode(0xCC, "CPY", 3, 4, AddressingMode::Absolute,    &CPU::op_CPY)},
+    {0xC0, OpCode(0xC0, true, "CPY", 2, 2, AddressingMode::Immediate, &CPU::op_CPY)},
+    {0xC4, OpCode(0xC4, true, "CPY", 2, 3, AddressingMode::ZeroPage, &CPU::op_CPY)},
+    {0xCC, OpCode(0xCC, true, "CPY", 3, 4, AddressingMode::Absolute, &CPU::op_CPY)},
 
     // =====================================================
     // Stack and Register Transfer Instructions
     // =====================================================
     // --- Stack Operations
-    {0x48, OpCode(0x48, "PHA", 1, 3, AddressingMode::Implied, &CPU::op_PHA)},
-    {0x08, OpCode(0x08, "PHP", 1, 3, AddressingMode::Implied, &CPU::op_PHP)},
-    {0x68, OpCode(0x68, "PLA", 1, 4, AddressingMode::Implied, &CPU::op_PLA)},
-    {0x28, OpCode(0x28, "PLP", 1, 4, AddressingMode::Implied, &CPU::op_PLP)},
+    {0x48, OpCode(0x48, true, "PHA", 1, 3, AddressingMode::Implied, &CPU::op_PHA)},
+    {0x08, OpCode(0x08, true, "PHP", 1, 3, AddressingMode::Implied, &CPU::op_PHP)},
+    {0x68, OpCode(0x68, true, "PLA", 1, 4, AddressingMode::Implied, &CPU::op_PLA)},
+    {0x28, OpCode(0x28, true, "PLP", 1, 4, AddressingMode::Implied, &CPU::op_PLP)},
 
     // --- Register Transfers
-    {0xAA, OpCode(0xAA, "TAX", 1, 2, AddressingMode::Implied, &CPU::op_TAX)},
-    {0xA8, OpCode(0xA8, "TAY", 1, 2, AddressingMode::Implied, &CPU::op_TAY)},
-    {0xBA, OpCode(0xBA, "TSX", 1, 2, AddressingMode::Implied, &CPU::op_TSX)},
-    {0x8A, OpCode(0x8A, "TXA", 1, 2, AddressingMode::Implied, &CPU::op_TXA)},
-    {0x9A, OpCode(0x9A, "TXS", 1, 2, AddressingMode::Implied, &CPU::op_TXS)},
-    {0x98, OpCode(0x98, "TYA", 1, 2, AddressingMode::Implied, &CPU::op_TYA)},
+    {0xAA, OpCode(0xAA, true, "TAX", 1, 2, AddressingMode::Implied, &CPU::op_TAX)},
+    {0xA8, OpCode(0xA8, true, "TAY", 1, 2, AddressingMode::Implied, &CPU::op_TAY)},
+    {0xBA, OpCode(0xBA, true, "TSX", 1, 2, AddressingMode::Implied, &CPU::op_TSX)},
+    {0x8A, OpCode(0x8A, true, "TXA", 1, 2, AddressingMode::Implied, &CPU::op_TXA)},
+    {0x9A, OpCode(0x9A, true, "TXS", 1, 2, AddressingMode::Implied, &CPU::op_TXS)},
+    {0x98, OpCode(0x98, true, "TYA", 1, 2, AddressingMode::Implied, &CPU::op_TYA)},
 
     // =====================================================
     // Flag Instructions
     // =====================================================
-    {0x18, OpCode(0x18, "CLC", 1, 2, AddressingMode::Implied, &CPU::op_CLC)},
-    {0x38, OpCode(0x38, "SEC", 1, 2, AddressingMode::Implied, &CPU::op_SEC)},
-    {0x58, OpCode(0x58, "CLI", 1, 2, AddressingMode::Implied, &CPU::op_CLI)},
-    {0x78, OpCode(0x78, "SEI", 1, 2, AddressingMode::Implied, &CPU::op_SEI)},
-    {0xB8, OpCode(0xB8, "CLV", 1, 2, AddressingMode::Implied, &CPU::op_CLV)},
-    {0xD8, OpCode(0xD8, "CLD", 1, 2, AddressingMode::Implied, &CPU::op_CLD)},
-    {0xF8, OpCode(0xF8, "SED", 1, 2, AddressingMode::Implied, &CPU::op_SED)},
+    {0x18, OpCode(0x18, true, "CLC", 1, 2, AddressingMode::Implied, &CPU::op_CLC)},
+    {0x38, OpCode(0x38, true, "SEC", 1, 2, AddressingMode::Implied, &CPU::op_SEC)},
+    {0x58, OpCode(0x58, true, "CLI", 1, 2, AddressingMode::Implied, &CPU::op_CLI)},
+    {0x78, OpCode(0x78, true, "SEI", 1, 2, AddressingMode::Implied, &CPU::op_SEI)},
+    {0xB8, OpCode(0xB8, true, "CLV", 1, 2, AddressingMode::Implied, &CPU::op_CLV)},
+    {0xD8, OpCode(0xD8, true, "CLD", 1, 2, AddressingMode::Implied, &CPU::op_CLD)},
+    {0xF8, OpCode(0xF8, true, "SED", 1, 2, AddressingMode::Implied, &CPU::op_SED)},
 
-};
+
+
+
+
+		
+
+    // 105 unofficial opcodes
+    // =====================================================
+    // UNOFFICIAL/ILLEGAL OPCODES
+    // =====================================================
+    // --- SLO – (ASL then ORA) (7 entries) ---
+    {0x07, OpCode(0x07, false, "SLO", 2, 5, AddressingMode::ZeroPage, &CPU::opi_SLO)},
+    {0x17, OpCode(0x17, false, "SLO", 2, 6, AddressingMode::ZeroPageX, &CPU::opi_SLO)},
+    {0x0F, OpCode(0x0F, false, "SLO", 3, 6, AddressingMode::Absolute, &CPU::opi_SLO)},
+    {0x1F, OpCode(0x1F, false, "SLO", 3, 7, AddressingMode::AbsoluteX, &CPU::opi_SLO)},
+    {0x1B, OpCode(0x1B, false, "SLO", 3, 7, AddressingMode::AbsoluteY, &CPU::opi_SLO)},
+    {0x03, OpCode(0x03, false, "SLO", 2, 8, AddressingMode::IndirectX, &CPU::opi_SLO)},
+    {0x13, OpCode(0x13, false, "SLO", 2, 8, AddressingMode::IndirectY, &CPU::opi_SLO)},
+
+    // --- RLA – (ROL then AND) (7 entries) ---
+    {0x27, OpCode(0x27, false, "RLA", 2, 5, AddressingMode::ZeroPage, &CPU::opi_RLA)},
+    {0x37, OpCode(0x37, false, "RLA", 2, 6, AddressingMode::ZeroPageX, &CPU::opi_RLA)},
+    {0x2F, OpCode(0x2F, false, "RLA", 3, 6, AddressingMode::Absolute, &CPU::opi_RLA)},
+    {0x3F, OpCode(0x3F, false, "RLA", 3, 7, AddressingMode::AbsoluteX, &CPU::opi_RLA)},
+    {0x3B, OpCode(0x3B, false, "RLA", 3, 7, AddressingMode::AbsoluteY, &CPU::opi_RLA)},
+    {0x23, OpCode(0x23, false, "RLA", 2, 8, AddressingMode::IndirectX, &CPU::opi_RLA)},
+    {0x33, OpCode(0x33, false, "RLA", 2, 8, AddressingMode::IndirectY, &CPU::opi_RLA)},
+
+    // --- SRE – (LSR then EOR) (7 entries) ---
+    {0x47, OpCode(0x47, false, "SRE", 2, 5, AddressingMode::ZeroPage, &CPU::opi_SRE)},
+    {0x57, OpCode(0x57, false, "SRE", 2, 6, AddressingMode::ZeroPageX, &CPU::opi_SRE)},
+    {0x4F, OpCode(0x4F, false, "SRE", 3, 6, AddressingMode::Absolute, &CPU::opi_SRE)},
+    {0x5F, OpCode(0x5F, false, "SRE", 3, 7, AddressingMode::AbsoluteX, &CPU::opi_SRE)},
+    {0x5B, OpCode(0x5B, false, "SRE", 3, 7, AddressingMode::AbsoluteY, &CPU::opi_SRE)},
+    {0x43, OpCode(0x43, false, "SRE", 2, 8, AddressingMode::IndirectX, &CPU::opi_SRE)},
+    {0x53, OpCode(0x53, false, "SRE", 2, 8, AddressingMode::IndirectY, &CPU::opi_SRE)},
+
+    // --- RRA – (ROR then ADC) (7 entries) ---
+    {0x67, OpCode(0x67, false, "RRA", 2, 5, AddressingMode::ZeroPage, &CPU::opi_RRA)},
+    {0x77, OpCode(0x77, false, "RRA", 2, 6, AddressingMode::ZeroPageX, &CPU::opi_RRA)},
+    {0x6F, OpCode(0x6F, false, "RRA", 3, 6, AddressingMode::Absolute, &CPU::opi_RRA)},
+    {0x7F, OpCode(0x7F, false, "RRA", 3, 7, AddressingMode::AbsoluteX, &CPU::opi_RRA)},
+    {0x7B, OpCode(0x7B, false, "RRA", 3, 7, AddressingMode::AbsoluteY, &CPU::opi_RRA)},
+    {0x63, OpCode(0x63, false, "RRA", 2, 8, AddressingMode::IndirectX, &CPU::opi_RRA)},
+    {0x73, OpCode(0x73, false, "RRA", 2, 8, AddressingMode::IndirectY, &CPU::opi_RRA)},
+
+    // --- LAX – (LDA then LDX simultaneously) (6 entries) ---
+    {0xA7, OpCode(0xA7, false, "LAX", 2, 3, AddressingMode::ZeroPage, &CPU::opi_LAX)},
+    {0xB7, OpCode(0xB7, false, "LAX", 2, 4, AddressingMode::ZeroPageY, &CPU::opi_LAX)},
+    {0xAF, OpCode(0xAF, false, "LAX", 3, 4, AddressingMode::Absolute, &CPU::opi_LAX)},
+    {0xBF, OpCode(0xBF, false, "LAX", 3, 4, AddressingMode::AbsoluteY, &CPU::opi_LAX)},
+    {0xA3, OpCode(0xA3, false, "LAX", 2, 6, AddressingMode::IndirectX, &CPU::opi_LAX)},
+    {0xB3, OpCode(0xB3, false, "LAX", 2, 5, AddressingMode::IndirectY, &CPU::opi_LAX)},
+
+    // --- DCP – (DEC then CMP) (7 entries) ---
+    {0xC7, OpCode(0xC7, false, "DCP", 2, 5, AddressingMode::ZeroPage, &CPU::opi_DCP)},
+    {0xD7, OpCode(0xD7, false, "DCP", 2, 6, AddressingMode::ZeroPageX, &CPU::opi_DCP)},
+    {0xCF, OpCode(0xCF, false, "DCP", 3, 6, AddressingMode::Absolute, &CPU::opi_DCP)},
+    {0xDF, OpCode(0xDF, false, "DCP", 3, 7, AddressingMode::AbsoluteX, &CPU::opi_DCP)},
+    {0xDB, OpCode(0xDB, false, "DCP", 3, 7, AddressingMode::AbsoluteY, &CPU::opi_DCP)},
+    {0xC3, OpCode(0xC3, false, "DCP", 2, 8, AddressingMode::IndirectX, &CPU::opi_DCP)},
+    {0xD3, OpCode(0xD3, false, "DCP", 2, 8, AddressingMode::IndirectY, &CPU::opi_DCP)},
+
+    // --- ISC – (INC then SBC) (7 entries) ---
+    {0xE7, OpCode(0xE7, false, "ISC", 2, 5, AddressingMode::ZeroPage, &CPU::opi_ISC)},
+    {0xF7, OpCode(0xF7, false, "ISC", 2, 6, AddressingMode::ZeroPageX, &CPU::opi_ISC)},
+    {0xEF, OpCode(0xEF, false, "ISC", 3, 6, AddressingMode::Absolute, &CPU::opi_ISC)},
+    {0xFF, OpCode(0xFF, false, "ISC", 3, 7, AddressingMode::AbsoluteX, &CPU::opi_ISC)},
+    {0xFB, OpCode(0xFB, false, "ISC", 3, 7, AddressingMode::AbsoluteY, &CPU::opi_ISC)},
+    {0xE3, OpCode(0xE3, false, "ISC", 2, 8, AddressingMode::IndirectX, &CPU::opi_ISC)},
+    {0xF3, OpCode(0xF3, false, "ISC", 2, 8, AddressingMode::IndirectY, &CPU::opi_ISC)},
+
+    // --- SAX – (STA and STX simultaneously) (4 entries) ---
+    {0x87, OpCode(0x87, false, "SAX", 2, 3, AddressingMode::ZeroPage, &CPU::opi_SAX)},
+    {0x97, OpCode(0x97, false, "SAX", 2, 4, AddressingMode::ZeroPageY, &CPU::opi_SAX)},
+    {0x8F, OpCode(0x8F, false, "SAX", 3, 4, AddressingMode::Absolute, &CPU::opi_SAX)},
+    {0x83, OpCode(0x83, false, "SAX", 2, 2, AddressingMode::IndirectX, &CPU::opi_SAX)},
+
+    // --- ANC / XAA – (AND then update Carry and Negative) (2+1 entries) ---
+    // Here we choose to treat 0x0B and 0x2B as ANC and 0x8B as XAA.
+    {0x0B, OpCode(0x0B, false, "ANC", 2, 2, AddressingMode::Immediate, &CPU::opi_ANC)},
+    {0x2B,
+     OpCode(0x2B, false, "ANC", 2, 2, AddressingMode::Immediate, &CPU::opi_ANC2)},
+    {0x8B, OpCode(0x8B, false, "ANE", 2, 2, AddressingMode::Immediate, &CPU::opi_ANE)},
+
+    // --- ALR – (AND then LSR) (1 entry) ---
+    {0x4B, OpCode(0x4B, false, "ALR", 2, 2, AddressingMode::Immediate, &CPU::opi_ALR)},
+
+    // --- ARR – (AND then ROR) (1 entry) ---
+    {0x6B, OpCode(0x6B, false, "ARR", 2, 2, AddressingMode::Immediate, &CPU::opi_ARR)},
+
+    // --- AXS – (A & X then subtract) (1 entry) ---
+    {0xCB, OpCode(0xCB, false, "SAX", 2, 2, AddressingMode::Immediate, &CPU::opi_SAX)},
+
+    // --- Illegal SBC variant – (undocumented SBC) (1 entry) ---
+    {0xEB, OpCode(0xEB, false, "SBC", 2, 2, AddressingMode::Immediate, &CPU::opi_SBC)},
+
+    // --- LAS (or LAR) – (load A, X, and SP from memory) (1 entry) ---
+    {0xBB, OpCode(0xBB, false, "LAS", 3, 4, AddressingMode::AbsoluteY, &CPU::opi_LAS)},
+
+		// --- Undocumented Store/Transfer opcodes (4 entries) ---
+    // SHS (TAS) – stores (A & X) into memory and sets SP (Absolute,Y)
+    {0x9B, OpCode(0x9B, false, "TAS", 3, 5, AddressingMode::AbsoluteY, &CPU::opi_TAS)},
+    // AHX – stores (A & X) into memory under restrictions (Absolute,Y)
+    {0x9F, OpCode(0x9F, false, "SHA", 3, 5, AddressingMode::AbsoluteY, &CPU::opi_SHA)},
+    // SHY – undocumented variant related to Y (Absolute,X)
+    {0x9C, OpCode(0x9C, false, "SHY", 3, 5, AddressingMode::AbsoluteX, &CPU::opi_SHY)},
+    // SHX – undocumented variant related to X (Absolute,Y)
+    {0x9E, OpCode(0x9E, false, "SHX", 3, 5, AddressingMode::AbsoluteY, &CPU::opi_SHX)},
+
+
+    // --- Undocumented NOPs – these do nothing but consume cycles (20 entries)
+    // ---
+		// Implied NOPs:
+    {0x1A, OpCode(0x1A, false, "NOP", 1, 2, AddressingMode::Implied, &CPU::opi_NOP)},
+    {0x3A, OpCode(0x3A, false, "NOP", 1, 2, AddressingMode::Implied, &CPU::opi_NOP)},
+    {0x5A, OpCode(0x5A, false, "NOP", 1, 2, AddressingMode::Implied, &CPU::opi_NOP)},
+    {0x7A, OpCode(0x7A, false, "NOP", 1, 2, AddressingMode::Implied, &CPU::opi_NOP)},
+    {0xDA, OpCode(0xDA, false, "NOP", 1, 2, AddressingMode::Implied, &CPU::opi_NOP)},
+    {0xFA, OpCode(0xFA, false, "NOP", 1, 2, AddressingMode::Implied, &CPU::opi_NOP)},
+    // Immediate-mode NOPs:
+    {0x80, OpCode(0x80, false, "NOP", 2, 2, AddressingMode::Immediate, &CPU::opi_NOP)},
+    {0x82, OpCode(0x82, false, "NOP", 2, 2, AddressingMode::Immediate, &CPU::opi_NOP)},
+		{0x89, OpCode(0x82, false, "NOP", 2, 2, AddressingMode::Immediate, &CPU::opi_NOP)},
+    {0xC2, OpCode(0xC2, false, "NOP", 2, 2, AddressingMode::Immediate, &CPU::opi_NOP)},
+    {0xE2, OpCode(0xE2, false, "NOP", 2, 2, AddressingMode::Immediate, &CPU::opi_NOP)},
+    // Zero Page NOPs:
+    {0x04, OpCode(0x04, false, "NOP", 2, 3, AddressingMode::ZeroPage, &CPU::opi_NOP)},
+    {0x44, OpCode(0x44, false, "NOP", 2, 3, AddressingMode::ZeroPage, &CPU::opi_NOP)},
+    {0x64, OpCode(0x64, false, "NOP", 2, 3, AddressingMode::ZeroPage, &CPU::opi_NOP)},
+    // Zero Page,X NOPs:
+    {0x14, OpCode(0x14, false, "NOP", 2, 4, AddressingMode::ZeroPageX, &CPU::opi_NOP)},
+    {0x34, OpCode(0x34, false, "NOP", 2, 4, AddressingMode::ZeroPageX, &CPU::opi_NOP)},
+    {0x54, OpCode(0x54, false, "NOP", 2, 4, AddressingMode::ZeroPageX, &CPU::opi_NOP)},
+    {0x74, OpCode(0x74, false, "NOP", 2, 4, AddressingMode::ZeroPageX, &CPU::opi_NOP)},
+    {0xD4, OpCode(0xD4, false, "NOP", 2, 4, AddressingMode::ZeroPageX, &CPU::opi_NOP)},
+    {0xF4, OpCode(0xF4, false, "NOP", 2, 4, AddressingMode::ZeroPageX, &CPU::opi_NOP)},
+    // Absolute NOP:
+    {0x0C, OpCode(0x0C, false, "NOP", 3, 4, AddressingMode::Absolute, &CPU::opi_NOP)},
+		// Absolute,X NOPs:
+		{0x1C, OpCode(0x1C, false, "NOP", 3, 4, AddressingMode::AbsoluteX, &CPU::opi_NOP)}, // +1 cycle if page crossed
+		{0x3C, OpCode(0x3C, false, "NOP", 3, 4, AddressingMode::AbsoluteX, &CPU::opi_NOP)}, // +1 cycle if page crossed
+		{0x5C, OpCode(0x5C, false, "NOP", 3, 4, AddressingMode::AbsoluteX, &CPU::opi_NOP)}, // +1 cycle if page crossed
+		{0x7C, OpCode(0x7C, false, "NOP", 3, 4, AddressingMode::AbsoluteX, &CPU::opi_NOP)}, // +1 cycle if page crossed
+		{0xDC, OpCode(0xDC, false, "NOP", 3, 4, AddressingMode::AbsoluteX, &CPU::opi_NOP)}, // +1 cycle if page crossed
+		{0xFC, OpCode(0xFC, false, "NOP", 3, 4, AddressingMode::AbsoluteX, &CPU::opi_NOP)}, // +1 cycle if page crossed
+
+		// --- Undocumented KILs – These instructions freeze the CPU
+		// Kill (KIL/JAM)
+		{0x02, OpCode(0x02, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x12, OpCode(0x12, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x22, OpCode(0x22, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x32, OpCode(0x32, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x42, OpCode(0x42, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x52, OpCode(0x52, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x62, OpCode(0x62, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x72, OpCode(0x72, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0x92, OpCode(0x92, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0xB2, OpCode(0xB2, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0xD2, OpCode(0xD2, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+		{0xF2, OpCode(0xF2, false, "KIL", 1, 2, AddressingMode::Implied, &CPU::opi_KIL)},
+	};

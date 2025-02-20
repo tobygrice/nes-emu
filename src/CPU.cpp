@@ -142,16 +142,19 @@ void CPU::executeProgram() {
 }
 
 void CPU::executeInstruction() {
-  // 1) Capture the PC for logging
+  // 1) capture PC for logging
   uint16_t initPC = pc;
 
-  // 2) Fetch opcode
+  // 2) fetch opcode from pc
   uint8_t opcode = memRead8(pc);
 
-  // 3) Look up opcode table entry
+  // 3) lookup opcode table entry
   const OpCode* op = getOpCode(opcode);  // look up opcode
   if (!op) {
-    throw std::runtime_error("OpCode not implemented");
+    std::ostringstream err;
+    err << "OpCode not implemented: " << std::uppercase << std::hex
+        << std::setfill('0') << std::setw(2) << static_cast<int>(opcode);
+    throw std::runtime_error(err.str());
     // op = getOpCode(0xEA);  // op = NOP
   }
 
@@ -201,7 +204,7 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
 
   switch (mode) {
     case AddressingMode::Implied:
-    case AddressingMode::Accumulator:
+    case AddressingMode::Acc:
       // accumulator and implicit opcodes do not require an address
       info.address = 0;
       break;
@@ -218,22 +221,22 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
     case AddressingMode::Absolute:
       info.address = memRead16(pc);
       break;
-    case AddressingMode::ZeroPage_X: {
+    case AddressingMode::ZeroPageX: {
       // wrap-around addition on 8-bit values:
       uint8_t addr = static_cast<uint8_t>(memRead8(pc) + x_register);
       info.address = static_cast<uint16_t>(addr);
       break;
     }
-    case AddressingMode::ZeroPage_Y: {
+    case AddressingMode::ZeroPageY: {
       uint8_t addr = static_cast<uint8_t>(memRead8(pc) + y_register);
       info.address = static_cast<uint16_t>(addr);
       break;
     }
-    case AddressingMode::Absolute_X: {
+    case AddressingMode::AbsoluteX: {
       info.address = memRead16(pc) + x_register;
       break;
     }
-    case AddressingMode::Absolute_Y: {
+    case AddressingMode::AbsoluteY: {
       info.address = memRead16(pc) + y_register;
       break;
     }
@@ -259,7 +262,7 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
       break;
     }
 
-    case AddressingMode::Indirect_X: {
+    case AddressingMode::IndirectX: {
       uint8_t ptr = memRead8(pc) + x_register;  // wrapping add on 8-bit
       info.pointerUsed = true;
       info.pointerAddress = static_cast<uint16_t>(ptr);
@@ -272,7 +275,7 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
       break;
     }
 
-    case AddressingMode::Indirect_Y: {
+    case AddressingMode::IndirectY: {
       uint8_t base = memRead8(pc);
       uint8_t low = memRead8(static_cast<uint16_t>(base));
       uint8_t high = memRead8(static_cast<uint8_t>(base + 1));
@@ -682,3 +685,33 @@ void CPU::op_TYA(uint16_t /* implied */) {
   a_register = y_register;
   updateZeroAndNegativeFlags(a_register);
 }
+
+// =====================================================
+// UNDOCUMENTED INSTRUCTIONS
+// =====================================================
+// https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
+// http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes
+
+void CPU::opi_ALR(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_ANC(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_ANC2(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_ANE(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_ARR(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_DCP(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_ISC(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_LAS(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_LAX(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_LXA(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_RLA(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_RRA(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SAX(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SBX(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SHA(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SHX(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SHY(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SLO(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SRE(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_TAS(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_SBC(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_NOP(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_KIL(uint16_t addr) { /* TO-DO */ }
