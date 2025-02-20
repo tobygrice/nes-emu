@@ -13,6 +13,7 @@
 
 /**
  * Constructor to initialise registers with starting values.
+ * https://www.nesdev.org/wiki/CPU_power_up_state
  */
 CPU::CPU(BusInterface* bus, Logger* logger)
     : a_register(0),       // accumulator starts at 0
@@ -20,7 +21,7 @@ CPU::CPU(BusInterface* bus, Logger* logger)
       y_register(0),       // Y starts at 0
       status(0b00100000),  // status register starts with all flags clear
       pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
-      sp(0xFF),            // stack pointer starts at 0xFF
+      sp(0xFD),            // stack pointer starts at 0xFD (error point 0xFF?)
       bus(bus),            // shared bus object
       logger(logger) {}    // log class
 
@@ -108,7 +109,34 @@ void CPU::resetInterrupt() {
 
 void CPU::executeProgram() {
   executionActive = true;
+  std::deque<uint16_t> lastPCs;
+  const int maxHistory = 8;    // only remember the last 8 PCs
+  const int hitThreshold = 4;  // if the current PC appears this many times in
+                               // the history, assume infinite loop
+
   while (executionActive) {
+    // Record the current PC in our history.
+    lastPCs.push_back(pc);
+    if (lastPCs.size() > maxHistory) {
+      lastPCs.pop_front();  // remove the oldest PC to maintain the size
+    }
+
+    // Count how many times the current PC appears in the last 10.
+    int count = 0;
+    for (auto p : lastPCs) {
+      if (p == pc) {
+        count++;
+      }
+    }
+
+    if (count >= hitThreshold) {
+      std::cerr << "Infinite loop detected at PC 0x" << std::uppercase
+                << std::hex << pc << std::dec << " (" << count
+                << " hits in the last " << maxHistory
+                << " instructions). Exiting execution." << std::endl;
+      break;
+    }
+
     executeInstruction();
   }
 }
@@ -123,7 +151,8 @@ void CPU::executeInstruction() {
   // 3) Look up opcode table entry
   const OpCode* op = getOpCode(opcode);  // look up opcode
   if (!op) {
-    op = getOpCode(0xEA);  // op = NOP
+    throw std::runtime_error("OpCode not implemented");
+    // op = getOpCode(0xEA);  // op = NOP
   }
 
   // 4) Read operand bytes for logger
@@ -140,8 +169,8 @@ void CPU::executeInstruction() {
 
   // 7) Log
   uint8_t valueAtFinalAddr = memRead8(addressInfo.address);
-  logger->log(initPC, op, &opBytes, &addressInfo, valueAtFinalAddr,
-              a_register, x_register, y_register, status, sp,
+  logger->log(initPC, op, &opBytes, &addressInfo, valueAtFinalAddr, a_register,
+              x_register, y_register, status, sp,
               0,  // ppu X
               0,  // ppu Y
               0   // CPU cycle
@@ -245,13 +274,13 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
 
     case AddressingMode::Indirect_Y: {
       uint8_t base = memRead8(pc);
-      info.pointerUsed = true;
-      info.pointerAddress = base;
-
       uint8_t low = memRead8(static_cast<uint16_t>(base));
       uint8_t high = memRead8(static_cast<uint8_t>(base + 1));
       uint16_t deref_base = (static_cast<uint16_t>(high) << 8) | low;
       info.address = deref_base + y_register;
+      info.pointerAddress = deref_base;
+      info.pointerUsed = true;
+
       break;
     }
     default:

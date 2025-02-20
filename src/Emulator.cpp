@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "../include/CPU.h"
+#include "../include/Logger.h"
 #include "../include/MMU.h"
 
 int main(int argc, char** argv) {
@@ -22,10 +23,12 @@ int main(int argc, char** argv) {
   std::vector<uint8_t> raw((std::istreambuf_iterator<char>(file)),
                            std::istreambuf_iterator<char>());
 
-  MMU mmu = MMU(raw);   // instantiate memory management unit (bus)
-  CPU cpu = CPU(&mmu);  // instantiate CPU and provide bus
+  Logger logger = Logger();
+  MMU mmu = MMU(raw);            // instantiate memory management unit (bus)
+  CPU cpu = CPU(&mmu, &logger);  // instantiate CPU and provide bus
 
   cpu.resetInterrupt();
+  cpu.setPC(0xC000);  // overwrite reset vector for incomplete emulators
   cpu.executeProgram();
 
   return 0;

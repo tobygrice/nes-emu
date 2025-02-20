@@ -1,9 +1,9 @@
 #include "../include/Logger.h"
 
 std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
-                             std::vector<uint8_t>* opBytes,
-                             AddressResolveInfo& addrInfo,
-                             uint8_t valueAtAddr) {
+                                     std::vector<uint8_t>* opBytes,
+                                     AddressResolveInfo& addrInfo,
+                                     uint8_t valueAtAddr) {
   {
     // A small helper to print 2-digit hex (uppercase) with leading zeros.
     auto hex2 = [&](uint8_t v) {
@@ -57,54 +57,57 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
       case AddressingMode::ZeroPage_X:
         // e.g. "LDA $03,X = AB"
         out << "$" << hex2((*opBytes)[1]) << ",X";
+        out << " @ " << hex2(addrInfo.address);  // Include computed address
         out << " = " << hex2(valueAtAddr);
         break;
 
       case AddressingMode::ZeroPage_Y:
         // e.g. "LDA $03,Y = AB"
         out << "$" << hex2((*opBytes)[1]) << ",Y";
+        out << " @ " << hex2(addrInfo.address);  // Include computed address
         out << " = " << hex2(valueAtAddr);
         break;
 
       case AddressingMode::Absolute:
-        // e.g. "LDA $0300 = AB"
         out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]);
-        out << " = " << hex2(valueAtAddr);
+        if (op->name != "JSR" &&
+            op->name != "JMP") {  // Skip = XX for JSR and JMP
+          out << " = " << hex2(valueAtAddr);
+        }
         break;
 
       case AddressingMode::Absolute_X:
-        // e.g. "LDA $0300,X = AB"
         out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ",X";
+        out << " @ " << hex4(addrInfo.address);  // Include computed address
         out << " = " << hex2(valueAtAddr);
         break;
 
       case AddressingMode::Absolute_Y:
-        // e.g. "LDA $0300,Y = AB"
         out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ",Y";
+        out << " @ " << hex4(addrInfo.address);  // Include computed address
         out << " = " << hex2(valueAtAddr);
         break;
 
       case AddressingMode::Indirect:
-        // e.g. "JMP ($0300) = 1234"
-        // nestest typically shows the final pointer: "($0300) = FCE2"
         out << "($" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ")";
-        out << " = " << hex4(addrInfo.address);
+        out << " = "
+            << hex4(addrInfo.address);  // Show final resolved address, no = XX
         break;
 
       case AddressingMode::Indirect_X:
-        // e.g. "STA ($FF,X) @ FF = 0400 = 5D"
         out << "($" << hex2((*opBytes)[1]) << ",X)";
-        out << " @ " << hex2(addrInfo.pointerAddress);
-        out << " = " << hex4(addrInfo.address);
-        out << " = " << hex2(valueAtAddr);
+        out << " @ "
+            << hex2(addrInfo.pointerAddress);  // Intermediate zero-page pointer
+        out << " = " << hex4(addrInfo.address);  // Final resolved address
+        out << " = " << hex2(valueAtAddr);       // Value at final address
         break;
 
       case AddressingMode::Indirect_Y:
-        // e.g. "STA ($FF),Y @ FF = 0400 = 5D"
+        // Expected format: "LDA ($89),Y = 0300 @ 0300 = 89"
         out << "($" << hex2((*opBytes)[1]) << "),Y";
-        out << " @ " << hex2(addrInfo.pointerAddress);
-        out << " = " << hex4(addrInfo.address);
-        out << " = " << hex2(valueAtAddr);
+        out << " = " << hex4(addrInfo.pointerAddress);  // Show base pointer
+        out << " @ " << hex4(addrInfo.address);  // Show final computed address
+        out << " = " << hex2(valueAtAddr);       // Show value at final address
         break;
 
       default:
@@ -117,49 +120,100 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
 }
 
 void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
-         AddressResolveInfo* addrInfo, uint8_t valueAtAddr, uint8_t A,
-         uint8_t X, uint8_t Y, uint8_t P, uint8_t SP, int ppuX, int ppuY,
-         uint64_t cycles) {
-  std::ostringstream oss;
+                 AddressResolveInfo* addrInfo, uint8_t valueAtAddr, uint8_t A,
+                 uint8_t X, uint8_t Y, uint8_t P, uint8_t SP, int ppuX,
+                 int ppuY, uint64_t cycles) {
+  // std::string line(94, ' ');  // allocate 94 char string
+  std::string line(73, ' ');  // allocate 73 char string (no ppu + cycle)
 
-  // We want uppercase hex with zero padding for PC and opBytes.
-  oss << std::uppercase << std::setfill('0');
-
-  // Print the 4-digit PC (hex).
-  oss << std::hex << std::setw(4) << pc << "  ";
-
-  // Print up to 3 opcode bytes (2-digit hex each). If fewer than 3,
-  // pad with spaces so columns line up.
-  for (size_t i = 0; i < 3; i++) {
-    if (i < opBytes->size()) {
-      oss << std::setw(2) << static_cast<int>((*opBytes)[i]) << " ";
-    } else {
-      oss << "   ";
-    }
+  // Field 1: PC at index 0 (4 characters)
+  {
+    std::ostringstream oss;
+    oss << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
+        << pc;
+    line.replace(0, 4, oss.str());
   }
 
-  // Leave some space, then print the disassembly in a left-justified field
-  // so the registers line up in the same columns every time.
-  std::string disassembly =
-      disassembleInstr(pc, op, opBytes, *addrInfo, valueAtAddr);
-  oss << "  " << std::left << std::setw(28) << disassembly;
+  // Field 2: Opcode bytes at index 6 (9 characters wide)
+  {
+    std::ostringstream oss;
+    oss << std::uppercase << std::hex << std::setfill('0');
+    // Print up to 3 opcode bytes separated by spaces.
+    for (size_t i = 0; i < opBytes->size() && i < 3; i++) {
+      oss << std::setw(2) << static_cast<int>((*opBytes)[i]);
+      if (i < 2) {
+        oss << " ";
+      }
+    }
+    std::string opStr = oss.str();
+    // Pad the opcode field to exactly 9 characters.
+    if (opStr.size() < 9) {
+      opStr.append(9 - opStr.size(), ' ');
+    }
+    line.replace(6, 9, opStr);
+  }
 
-  // Switch to hex for registers (A, X, Y, P, SP).
-  // Each register is 2 hex digits.
-  oss << "  A:" << std::setw(2) << static_cast<int>(A) << " X:" << std::setw(2)
-      << static_cast<int>(X) << " Y:" << std::setw(2) << static_cast<int>(Y)
-      << " P:" << std::setw(2) << static_cast<int>(P) << " SP:" << std::setw(2)
-      << static_cast<int>(SP);
+  // Field 3: Disassembly at index 17 (28 characters wide)
+  {
+    std::string dis = disassembleInstr(pc, op, opBytes, *addrInfo, valueAtAddr);
+    if (dis.size() < 30) {
+      dis.append(30 - dis.size(), ' ');
+    } else if (dis.size() > 30) {
+      dis = dis.substr(0, 30);
+    }
+    line.replace(16, 30, dis);
+  }
 
-  // Switch to decimal for PPU coordinates and cycle count.
-  oss << std::dec << std::setfill(' ');
+  // Field 4: Registers at index 49 (25 characters wide)
+  // Format: "A:XX X:XX Y:XX P:XX SP:XX"
+  {
+    std::ostringstream oss;
+    oss << std::uppercase << std::hex << std::setfill('0')
+        << "A:" << std::setw(2) << static_cast<int>(A) << " "
+        << "X:" << std::setw(2) << static_cast<int>(X) << " "
+        << "Y:" << std::setw(2) << static_cast<int>(Y) << " "
+        << "P:" << std::setw(2) << static_cast<int>(P) << " "
+        << "SP:" << std::setw(2) << static_cast<int>(SP);
+    std::string regStr = oss.str();
+    if (regStr.size() < 25) {
+      regStr.append(25 - regStr.size(), ' ');
+    } else if (regStr.size() > 25) {
+      regStr = regStr.substr(0, 25);
+    }
+    line.replace(48, 25, regStr);
+  }
 
-  // PPU: X,Y
-  oss << " PPU: " << std::setw(2) << ppuX << "," << std::setw(3) << ppuY;
+  // Field 5: PPU at index 75 (11 characters wide)
+  // Format: "PPU: XX, YYY" where ppuX is printed in a 2-digit field
+  // and ppuY in a 3-digit field (right aligned)
+  /*
+  {
+    std::ostringstream oss;
+    oss << "PPU: " << std::setw(2) << std::setfill(' ') << std::right << ppuX
+        << "," << std::setw(3) << std::setfill(' ') << std::right << ppuY;
+    std::string ppuStr = oss.str();
+    if (ppuStr.size() < 11) {
+      ppuStr.append(11 - ppuStr.size(), ' ');
+    } else if (ppuStr.size() > 11) {
+      ppuStr = ppuStr.substr(0, 11);
+    }
+    line.replace(74, 11, ppuStr);
+  }
+  */
 
-  // CPU cycle count
-  oss << " CYC:" << cycles;
+  // Field 6: Cycles at index 86 (8 characters wide)
+  // Format: "CYC:XXXX" (no extra preceding space)
+  /*
+  {
+    std::ostringstream oss;
+    oss << "CYC:" << cycles;
+    line.replace(86, 8, oss.str());
+  }
+  */
 
-  // Print the final line to stdout.
-  std::cout << oss.str() << std::endl;
+  std::cout << line << std::endl;
 }
+
+// C936  01 55     ORA ($55,X) @ EA = FF22 = 9F    A:DA X:95 Y:B9 P:63 SP:69
+// PPU:  0,  0 CYC:0000 D053  01 80     ORA ($80,X) @ 80 = 0200 = AA    A:55
+// X:00 Y:5A P:64 SP:FB PPU: 24,  6 CYC:2730

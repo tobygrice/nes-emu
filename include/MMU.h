@@ -27,6 +27,7 @@ class MMU : public BusInterface {
     cycles = 0;
     cpu_ram.fill(0);
     ppu_reg.fill(0);
+    // ppu_reg[2] = 0x80;
     apu_io.fill(0);
     exp_rom.fill(0);
     s_ram.fill(0);

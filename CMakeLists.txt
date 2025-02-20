@@ -31,46 +31,61 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ------------------------------------------------
+# Main executable target
+# ------------------------------------------------
+add_executable(nesemu
+  src/Emulator.cpp
+  src/CPU.cpp
+  src/Cartridge.cpp
+  src/OpCode.cpp
+  src/Logger.cpp
+)
+target_include_directories(nesemu PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(nesemu PRIVATE -g -Wall)
+target_link_libraries(nesemu PRIVATE nlohmann_json::nlohmann_json)
+
+
+# ------------------------------------------------
 # Define a helper function to create tests
 # ------------------------------------------------
 function(add_nes_test TEST_NAME TEST_SRC)
-    add_executable(${TEST_NAME} ${TEST_SRC} ${ARGN})
-    
-    # Link with gtest and nlohmann_json.
-    # This is crucial so the compiler finds <nlohmann/json.hpp>.
-    target_link_libraries(${TEST_NAME}
-        PRIVATE
-            gtest_main
-            nlohmann_json::nlohmann_json
-    )
-    
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+  add_executable(${TEST_NAME} ${TEST_SRC} ${ARGN})
+
+  # Link with gtest and nlohmann_json.
+  # This is crucial so the compiler finds <nlohmann/json.hpp>.
+  target_link_libraries(${TEST_NAME}
+    PRIVATE
+    gtest_main
+    nlohmann_json::nlohmann_json
+  )
+
+  add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endfunction()
 
 # ------------------------------------------------
 # Create your test targets
 # ------------------------------------------------
 add_nes_test(runHarteCPUTests
-    src/CPU.cpp
-    src/OpCode.cpp
-    src/Logger.cpp
-    tests/CPU/CPU_Harte.cpp
+  src/CPU.cpp
+  src/OpCode.cpp
+  src/Logger.cpp
+  tests/CPU/CPU_Harte.cpp
 )
 
 add_nes_test(runCustomCPUTests
-    src/CPU.cpp
-    src/OpCode.cpp
-    src/Logger.cpp
-    tests/CPU/CPU_arithmetic_test.cpp
-    tests/CPU/CPU_branching_test.cpp
-    tests/CPU/CPU_compare_test.cpp
-    tests/CPU/CPU_control_test.cpp
-    tests/CPU/CPU_core_test.cpp
-    tests/CPU/CPU_flag_test.cpp
-    tests/CPU/CPU_loadstore_test.cpp
-    tests/CPU/CPU_logical_test.cpp
-    tests/CPU/CPU_shiftrotate_test.cpp
-    tests/CPU/CPU_transferstack_test.cpp
+  src/CPU.cpp
+  src/OpCode.cpp
+  src/Logger.cpp
+  tests/CPU/CPU_arithmetic_test.cpp
+  tests/CPU/CPU_branching_test.cpp
+  tests/CPU/CPU_compare_test.cpp
+  tests/CPU/CPU_control_test.cpp
+  tests/CPU/CPU_core_test.cpp
+  tests/CPU/CPU_flag_test.cpp
+  tests/CPU/CPU_loadstore_test.cpp
+  tests/CPU/CPU_logical_test.cpp
+  tests/CPU/CPU_shiftrotate_test.cpp
+  tests/CPU/CPU_transferstack_test.cpp
 )
 
 # add_nes_test(runPPUTests tests/PPU_test.cpp src/PPU.cpp)
