@@ -129,6 +129,9 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
                  AddressResolveInfo* addrInfo, uint8_t valueAtAddr, uint8_t A,
                  uint8_t X, uint8_t Y, uint8_t P, uint8_t SP, int ppuX,
                  int ppuY, uint64_t cycles) {
+
+  if (silenced) return;
+  
   // std::string line(94, ' ');  // allocate 94 char string
   std::string line(73, ' ');  // allocate 73 char string (no ppu + cycle)
 

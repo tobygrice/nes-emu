@@ -155,22 +155,23 @@ void CPU::executeInstruction() {
     err << "OpCode not implemented: " << std::uppercase << std::hex
         << std::setfill('0') << std::setw(2) << static_cast<int>(opcode);
     throw std::runtime_error(err.str());
-    // op = getOpCode(0xEA);  // op = NOP
   }
 
-  // 4) Read operand bytes for logger
+  // 4) read operand bytes for logger
   std::vector<uint8_t> opBytes;
   for (int i = 0; i < op->bytes; i++) {
     opBytes.push_back(memRead8(pc + i));
   }
+  // save current high byte for SHA, SHX, SHY, and TAS
+  currentHighByte = opBytes.back();  // little endian
 
-  // 5) Increment PC so that getOperandAddress() sees the operand bytes at pc
+  // 5) increment PC so that getOperandAddress() sees the operand bytes at pc
   pc++;
 
-  // 6) Compute final addressing
+  // 6) compute final address
   AddressResolveInfo addressInfo = getOperandAddress(op->mode);
 
-  // 7) Log
+  // 7) log instruction (nestest logs state before execution)
   uint8_t valueAtFinalAddr = memRead8(addressInfo.address);
   logger->log(initPC, op, &opBytes, &addressInfo, valueAtFinalAddr, a_register,
               x_register, y_register, status, sp,
@@ -179,10 +180,10 @@ void CPU::executeInstruction() {
               0   // CPU cycle
   );
 
-  // 8) Execute appropriate handler function
+  // 8) execute instruction
   (this->*(op->handler))(addressInfo.address);
 
-  // 10) Advance PC to consume operand bytes
+  // 10) advance PC to consume operand bytes
   if (!pcModified) {
     pc += (op->bytes - 1);
   } else {
@@ -687,31 +688,168 @@ void CPU::op_TYA(uint16_t /* implied */) {
 }
 
 // =====================================================
-// UNDOCUMENTED INSTRUCTIONS
+// UNDOCUMENTED/ILLEGAL INSTRUCTIONS
 // =====================================================
-// https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
-// http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes
+// https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes (mnemonics)
+// http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes (descriptions)
+// https://www.oxyron.de/html/opcodes02.html (status register impact)
 
-void CPU::opi_ALR(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_ANC(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_ANC2(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_ANE(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_ARR(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_DCP(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_ISC(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_LAS(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_LAX(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_LXA(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_RLA(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_RRA(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SAX(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SBX(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SHA(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SHX(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SHY(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SLO(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SRE(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_TAS(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_SBC(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_NOP(uint16_t addr) { /* TO-DO */ }
-void CPU::opi_KIL(uint16_t addr) { /* TO-DO */ }
+void CPU::opi_ALR(uint16_t addr) {
+  /* ANDs the contents of the A register with an immediate value and then LSRs
+   * the result. */
+  op_AND(addr);
+  op_LSR_ACC(0);  // implied addressing
+}
+void CPU::opi_ANC(uint16_t addr) {
+  /* ANC ANDs the contents of the A register with an immediate value and then
+   * moves bit 7 of A into the Carry flag.  This opcode works basically
+   * identically to AND #immed. except that the Carry flag is set to the same
+   * state that the Negative flag is set to. */
+  op_AND(addr);
+  if (status & FLAG_NEGATIVE) {
+    status |= FLAG_CARRY;
+  } else {
+    status &= ~FLAG_CARRY;
+  }
+}
+void CPU::opi_ANE(uint16_t addr) {
+  /* aka XAA: transfers the contents of the X register to the A register and
+   * then ANDs the A register with an immediate value. Highly unstable. */
+  op_TXA(0);
+  op_AND(addr);
+}
+void CPU::opi_ARR(uint16_t addr) {
+  /* ANDs the contents of the A register with an immediate value and then RORs
+   * the result. The carry flag is set to the value of bit 6 of the result.
+        •	The overflow flag is set to the XOR of bits 6 and 5 of the
+   result.*/
+  op_AND(addr);
+  op_ROR_ACC(0);
+
+  if (a_register & 0x40) {
+    status |= FLAG_CARRY;
+  } else {
+    status &= ~FLAG_CARRY;
+  }
+
+  bool newOverflow = (((a_register >> 6) & 1) ^ ((a_register >> 5) & 1)) != 0;
+  if (newOverflow) {
+    status |= FLAG_OVERFLOW;
+  } else {
+    status &= ~FLAG_OVERFLOW;
+  }
+}
+void CPU::opi_DCP(uint16_t addr) {
+  /* aka DCM: DECs the contents of a memory location and then CMPs the result
+   * with the A register. */
+  op_DEC(addr);
+  op_CMP(addr);
+}
+void CPU::opi_ISC(uint16_t addr) {
+  /* aka INS: INCs the contents of a memory location and then SBCs the result
+   * from the A register.*/
+  op_INC(addr);
+  op_SBC(addr);
+}
+void CPU::opi_LAS(uint16_t addr) {
+  /* ANDs the contents of a memory location with the contents of the stack
+   * pointer register and stores the result in the accumulator, the X register,
+   * and the stack pointer.  Affected flags: N Z.*/
+  sp &= memRead8(addr);
+  a_register = sp;
+  x_register = sp;
+  updateZeroAndNegativeFlags(sp);
+}
+void CPU::opi_LAX(uint16_t addr) {
+  /* This opcode loads both the accumulator and the X register with the contents
+   * of a memory location. */
+  op_LDA(addr);
+  op_LDX(addr);
+}
+void CPU::opi_LXA(uint16_t addr) {
+  /* aka OAL: ORs the A register with #$EE, ANDs the result with an immediate
+   * value, and then stores the result in both A and X. Highly unstable. */
+  a_register |= 0xEE;
+  op_AND(addr);
+  op_TAX(0);
+}
+void CPU::opi_RLA(uint16_t addr) {
+  /* ROLs the contents of a memory location and then ANDs the result with the
+   * accumulator. */
+  op_ROL(addr);
+  op_AND(addr);
+}
+void CPU::opi_RRA(uint16_t addr) {
+  /* RORs the contents of a memory location and then ADCs the result with the
+   * accumulator. */
+  op_ROR(addr);
+  op_ADC(addr);
+}
+void CPU::opi_SAX(uint16_t addr) {
+  /* aka AXS+AAX: ANDs the contents of the A and X registers (without changing
+   * the contents of either register) and stores the result in memory. Does not
+   * affect any flags in the processor status register.*/
+  memWrite8(addr, a_register & x_register);
+}
+void CPU::opi_SBX(uint16_t addr) {
+  /* aka AXS+SAX: ANDs the contents of the A and X registers (leaving the
+   * contents of A intact), subtracts an immediate value, and then stores the
+   * result in X. A few points might be made about the action of subtracting an
+   * immediate value. It actually works just like the CMP instruction, except
+   * that CMP does not store the result of the subtraction it performs in any
+   * register. This subtract operation is not affected by the state of the Carry
+   * flag, though it does affect the Carry flag. It does not affect the Overflow
+   * flag. */
+  x_register = (a_register & x_register) - memRead8(addr);
+  // set carry flag (C) if result > 255
+  if (x_register > 0xFF) {
+    status |= FLAG_CARRY;
+  } else {
+    status &= ~FLAG_CARRY;  // else clear carry flag
+  }
+  updateZeroAndNegativeFlags(x_register);
+}
+void CPU::opi_SHA(uint16_t addr) {
+  /* Stores A AND X AND (high-byte of addr. + 1) at addr. Unstable. */
+  uint8_t high_plus_one = currentHighByte + 1;
+  memWrite8(addr, (a_register & x_register) & high_plus_one);
+}
+void CPU::opi_SHX(uint16_t addr) {
+  /* aka A11,SXA,XAS: Stores X AND (high-byte of addr. + 1) at addr. Unstable.
+   */
+  uint8_t high_plus_one = currentHighByte + 1;
+  memWrite8(addr, x_register & high_plus_one);
+}
+void CPU::opi_SHY(uint16_t addr) {
+  /* aka SAY: Stores Y AND (high-byte of addr. + 1) at addr. Unstable. */
+  uint8_t high_plus_one = currentHighByte + 1;
+  memWrite8(addr, y_register & high_plus_one);
+}
+void CPU::opi_SLO(uint16_t addr) {
+  /* This opcode ASLs the contents of a memory location and then ORs the result
+  with the accumulator. */
+  op_ASL(addr);
+  op_ORA(addr);
+}
+void CPU::opi_SRE(uint16_t addr) {
+  /* aka LSE: LSRs the contents of a memory location and then EORs the result
+   * with the accumulator. */
+  op_LSR(addr);
+  op_EOR(addr);
+}
+void CPU::opi_TAS(uint16_t addr) {
+  /* ANDs the contents of the A and X registers (without changing the contents
+   * of either register) and transfers the result to the stack pointer. It then
+   * ANDs that result with the contents of the high byte of the target address
+   * of the operand +1 and stores that final result in memory. */
+  uint8_t high_plus_one = currentHighByte + 1;
+  sp = a_register & x_register;
+  memWrite8(addr, sp & high_plus_one);
+}
+void CPU::opi_SBC(uint16_t addr) { op_SBC(addr); }
+void CPU::opi_NOP(uint16_t addr) { return; }
+void CPU::opi_KIL(uint16_t addr) { executionActive = false; }
+
+// before: 11101001
+// expect: 01101000
+// actual: 00000000

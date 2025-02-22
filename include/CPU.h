@@ -25,6 +25,11 @@ class CPU {
   bool pcModified = false;  // flag set by handler if it has modified the pc
   bool executionActive = false;  // flag to indicate if program is still running
 
+  // variable to hold the high byte of operand *before* dereferencing
+  // only used by illegal opcodes SHA, SHX, SHY, and TAS
+  uint8_t currentHighByte;
+
+
  public:
   CPU(BusInterface* bus, Logger* logger);
 

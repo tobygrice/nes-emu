@@ -28,7 +28,7 @@ class MMU : public BusInterface {
     cpu_ram.fill(0);
     ppu_reg.fill(0);
     // ppu_reg[2] = 0x80;
-    apu_io.fill(0);
+    apu_io.fill(0xFF); // init FF
     exp_rom.fill(0);
     s_ram.fill(0);
     cart = Cartridge(romDump);

@@ -7,10 +7,12 @@
 #include <string>
 #include <vector>
 
-#include "OpCode.h"
 #include "AddressResolveInfo.h"
+#include "OpCode.h"
 
 class Logger {
+ private:
+  bool silenced;
  public:
   /**
    * Log a single CPU instruction/state line. Written with a LLM.
@@ -28,6 +30,9 @@ class Logger {
    *   cycles      - Cycle count
    *
    */
+
+  void mute() { silenced = true; };
+  void unmute() { silenced = false; };
 
   std::string disassembleInstr(uint16_t pc, const OpCode* op,
                                std::vector<uint8_t>* opBytes,

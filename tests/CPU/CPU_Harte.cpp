@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "../../include/CPU.h"
+#include "../../include/Logger.h"
 #include "../../include/OpCode.h"
 #include "../../include/TestBus.h"
-#include "../../include/Logger.h"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -20,13 +20,13 @@ namespace fs = std::filesystem;
 
 // Define a test fixture for CPU tests.
 class CPUHarteTests : public ::testing::Test {
-  protected:
-   TestBus bus;  // create a shared bus
-   CPU cpu;  // CPU instance that uses the shared bus
+ protected:
+  TestBus bus;  // create a shared bus
+  CPU cpu;      // CPU instance that uses the shared bus
   Logger logger;
- 
-   CPUHarteTests() : bus(), cpu(&bus, &logger) {}
- };
+  
+  CPUHarteTests() : bus(), cpu(&bus, &logger) {}
+};
 
 struct CPUState {
   uint16_t pc;
@@ -65,13 +65,12 @@ CPUState parse_state(const json &j) {
 TEST_F(CPUHarteTests, runAllHarteTests) {
   uint num_passed_tests = 0;
 
-  std::vector<uint8_t> opcodeList;
-  for (const auto &[opcode, op] : OPCODE_LOOKUP) {
-    opcodeList.push_back(opcode);
-  }
-  std::sort(opcodeList.begin(), opcodeList.end());
-
-  for (uint8_t opcode : opcodeList) {
+  for (uint8_t opcode = 0x00; opcode <= 0xFF; opcode++) {
+    const OpCode *op = getOpCode(opcode);  // look up opcode
+    if (!op->isDocumented) continue;       // only test documented opcodes
+    // unpredictable results make some unstable undocmented opcodes almost
+    // impossible to emulate consistently. Nestest provides best possible
+    // testing for undocumented opcodes.
 
     std::string filename =
         std::format("../tests/CPU/nes6502-TESTS/{:02x}.json", opcode);
@@ -139,7 +138,7 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
 }
 
 // Main entry point for the tests.
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
