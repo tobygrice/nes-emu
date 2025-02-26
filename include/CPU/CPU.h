@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "BusInterface.h"
-#include "Logger.h"
+#include "../BusInterface.h"
+#include "../Logger.h"
 #include "OpCode.h"
 #include "AddressResolveInfo.h"
 

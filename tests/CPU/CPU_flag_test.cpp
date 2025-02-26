@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "../../include/CPU.h"
+#include "../../include/CPU/CPU.h"
 #include "../../include/TestBus.h"
-#include "../../include/OpCode.h"
+#include "../../include/CPU/OpCode.h"
 #include "../../include/Logger.h"
 
 class CPUFlagTest : public ::testing::Test {

@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "../include/CPU.h"
+#include "../include/CPU/CPU.h"
 #include "../include/Logger.h"
 #include "../include/MMU.h"
 

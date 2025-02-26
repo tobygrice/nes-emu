@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "../../include/CPU.h"
-#include "../../include/OpCode.h"
+#include "../../include/CPU/CPU.h"
+#include "../../include/CPU/OpCode.h"
 #include "../../include/TestBus.h"
 #include "../../include/Logger.h"
 
@@ -39,6 +39,7 @@ TEST_F(CPUTransferStackTest, PLATest) {
   cpu.push(0b01101110);
   cpu.executeProgram();
 
-  EXPECT_EQ(cpu.getSP(), 0xFF - 3);  // BRK pushes 3 bytes to stack
+  // stack starts at 0xFD after resetInterrupt
+  EXPECT_EQ(cpu.getSP(), 0xFD - 3);  // BRK pushes 3 bytes to stack
   EXPECT_EQ(cpu.getA(), 0b01101110) << "A register should be loaded from stack";
 }

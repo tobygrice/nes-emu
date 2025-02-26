@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "../../include/CPU.h"
-#include "../../include/OpCode.h"
+#include "../../include/CPU/CPU.h"
+#include "../../include/CPU/OpCode.h"
 #include "../../include/TestBus.h"
 #include "../../include/Logger.h"
 
@@ -31,8 +31,9 @@ TEST_F(CPUControlTest, BRKHandler) {
   };
   cpu.loadAndExecute(program);
 
-  // After pushing three bytes, the stack pointer should be 0xFF - 3 = 0xFC.
-  EXPECT_EQ(cpu.getSP(), 0xFC);
+  // resetInterrupt sets sp to 0xFD
+  // after pushing three bytes, the stack pointer should be 0xFD - 3.
+  EXPECT_EQ(cpu.getSP(), 0xFD - 3);
   EXPECT_EQ(cpu.getPC(), 0x9000)
       << "New PC should be loaded from the BRK interrupt vector.";
   EXPECT_TRUE(cpu.getStatus() & cpu.FLAG_INTERRUPT)

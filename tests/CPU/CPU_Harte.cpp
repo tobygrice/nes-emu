@@ -5,9 +5,9 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 
-#include "../../include/CPU.h"
+#include "../../include/CPU/CPU.h"
 #include "../../include/Logger.h"
-#include "../../include/OpCode.h"
+#include "../../include/CPU/OpCode.h"
 #include "../../include/TestBus.h"
 
 using json = nlohmann::json;

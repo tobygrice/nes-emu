@@ -1,4 +1,4 @@
-#include "../include/CPU.h"
+#include "../../include/CPU/CPU.h"
 
 #include <cstdint>
 #include <iostream>
@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "../include/BusInterface.h"
-#include "../include/OpCode.h"
+#include "../../include/BusInterface.h"
+#include "../../include/CPU/OpCode.h"
 
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 

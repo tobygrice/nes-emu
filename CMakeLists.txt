@@ -34,10 +34,11 @@ FetchContent_MakeAvailable(nlohmann_json)
 # Main executable target
 # ------------------------------------------------
 add_executable(nesemu
-  src/Emulator.cpp
-  src/CPU.cpp
+  src/CPU/CPU.cpp
+  src/CPU/OpCode.cpp
+  src/PPU/AddrRegister.cpp
   src/Cartridge.cpp
-  src/OpCode.cpp
+  src/Emulator.cpp
   src/Logger.cpp
 )
 target_include_directories(nesemu PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -66,15 +67,15 @@ endfunction()
 # Create your test targets
 # ------------------------------------------------
 add_nes_test(runHarteCPUTests
-  src/CPU.cpp
-  src/OpCode.cpp
+  src/CPU/CPU.cpp
+  src/CPU/OpCode.cpp
   src/Logger.cpp
   tests/CPU/CPU_Harte.cpp
 )
 
 add_nes_test(runCustomCPUTests
-  src/CPU.cpp
-  src/OpCode.cpp
+  src/CPU/CPU.cpp
+  src/CPU/OpCode.cpp
   src/Logger.cpp
   tests/CPU/CPU_arithmetic_test.cpp
   tests/CPU/CPU_branching_test.cpp

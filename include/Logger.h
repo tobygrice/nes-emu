@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include "AddressResolveInfo.h"
-#include "OpCode.h"
+#include "CPU/AddressResolveInfo.h"
+#include "CPU/OpCode.h"
 
 class Logger {
  private:
