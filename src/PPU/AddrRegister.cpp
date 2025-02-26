@@ -13,6 +13,7 @@ void AddrRegister::set(uint16_t data) {
   low = static_cast<uint8_t>(data & 0x00FF);
 }
 
+// sets high or low byte to `data` (according to hi_ptr flag)
 void AddrRegister::update(uint8_t data) {
   if (hi_ptr) {
     high = data;
@@ -31,12 +32,14 @@ void AddrRegister::update(uint8_t data) {
 
 void AddrRegister::increment(uint8_t inc) {
   uint8_t oldLow = low;
-  // Wrapping addition is inherent with unsigned arithmetic.
+
   low = static_cast<uint8_t>(low + inc);
-  if (oldLow > low) {  // If low byte wrapped around, increment the high byte.
+  if (oldLow > low) {  
+    // low byte wrapped around, increment high byte
     high = static_cast<uint8_t>(high + 1);
   }
 
+  // mirror if address exceeds 0x3FFF
   if (get() > 0x3fff) {
     set(get() & 0x3fff);
   }
