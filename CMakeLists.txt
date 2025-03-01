@@ -36,7 +36,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 add_executable(nesemu
   src/CPU/CPU.cpp
   src/CPU/OpCode.cpp
-  src/PPU/AddrRegister.cpp
+  src/PPU/PPUAddr.cpp
   src/Cartridge.cpp
   src/Emulator.cpp
   src/Logger.cpp

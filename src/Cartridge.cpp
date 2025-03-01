@@ -8,6 +8,11 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
   return prg_rom[addr];
 }
 
+uint8_t Cartridge::read_chr_rom(uint16_t addr) {
+  // TO-DO perform mirroring?
+  return chr_rom[addr];
+}
+
 Cartridge::Cartridge(const std::vector<uint8_t>& romDump) {
   // validate iNES header
   // 0-3 | Constant "NES" ($4E $45 $53 $1A - ASCII "NES" followed by EOF char)

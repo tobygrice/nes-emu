@@ -3,8 +3,9 @@
 
 #include <cstdint>
 
-/**
- * PPU Control Register (0x2000)
+// https://www.nesdev.org/wiki/PPU_programmer_reference#MMIO_registers
+
+/** PPU Control Register (0x2000)
  *
  * 7  bit  0
  * ---- ----
@@ -22,47 +23,46 @@
  * |          (0: read backdrop from EXT pins; 1: output color on EXT pins)
  * +--------- Vblank NMI enable (0: off, 1: on)
  */
-struct PPUCTRL {
+struct PPUCtrl {
   uint8_t reg = 0;  // Full 8-bit register
 
-  uint8_t nametable() const { return reg & 0b00000011; }
+  uint8_t get_nametable() const { return reg & 0b00000011; }
   void set_nametable(uint8_t value) {
     reg = (reg & ~0b00000011) | (value & 0b00000011);
   }
 
-  bool increment() const { return reg & 0b00000100; }
+  bool get_increment() const { return reg & 0b00000100; }
   void set_increment(bool value) {
     reg = (reg & ~0b00000100) | (value ? 0b00000100 : 0);
   }
 
-  bool spritePattern() const { return reg & 0b00001000; }
+  bool get_spritePattern() const { return reg & 0b00001000; }
   void set_spritePattern(bool value) {
     reg = (reg & ~0b00001000) | (value ? 0b00001000 : 0);
   }
 
-  bool bgPattern() const { return reg & 0b00010000; }
+  bool get_bgPattern() const { return reg & 0b00010000; }
   void set_bgPattern(bool value) {
     reg = (reg & ~0b00010000) | (value ? 0b00010000 : 0);
   }
 
-  bool spriteSize() const { return reg & 0b00100000; }
+  bool get_spriteSize() const { return reg & 0b00100000; }
   void set_spriteSize(bool value) {
     reg = (reg & ~0b00100000) | (value ? 0b00100000 : 0);
   }
 
-  bool slaveMode() const { return reg & 0b01000000; }
+  bool get_slaveMode() const { return reg & 0b01000000; }
   void set_slaveMode(bool value) {
     reg = (reg & ~0b01000000) | (value ? 0b01000000 : 0);
   }
 
-  bool generateNMI() const { return reg & 0b10000000; }
-  void set_generateNMI(bool value) {
+  bool get_enableNMI() const { return reg & 0b10000000; }
+  void set_enableNMI(bool value) {
     reg = (reg & ~0b10000000) | (value ? 0b10000000 : 0);
   }
 };
 
-/**
- * PPU Mask Register (0x2001)
+/** PPU Mask Register (0x2001)
  *
  * 7  bit  0
  * ---- ----
@@ -77,52 +77,53 @@ struct PPUCTRL {
  * |+-------- Emphasize green (red on PAL/Dendy)
  * +--------- Emphasize blue
  */
-struct PPUMASK {
+struct PPUMask {
   uint8_t reg = 0;
 
-  bool grayscale() const { return reg & 0b00000001; }
-  void set_grayscale(bool value) {
+  bool get_greyscale() const { return reg & 0b00000001; }
+  void set_greyscale(bool value) {
     reg = (reg & ~0b00000001) | (value ? 0b00000001 : 0);
   }
 
-  bool showLeftBackground() const { return reg & 0b00000010; }
+  bool get_showLeftBackground() const { return reg & 0b00000010; }
   void set_showLeftBackground(bool value) {
     reg = (reg & ~0b00000010) | (value ? 0b00000010 : 0);
   }
 
-  bool showLeftSprites() const { return reg & 0b00000100; }
+  bool get_showLeftSprites() const { return reg & 0b00000100; }
   void set_showLeftSprites(bool value) {
     reg = (reg & ~0b00000100) | (value ? 0b00000100 : 0);
   }
 
-  bool showBackground() const { return reg & 0b00001000; }
+  bool get_showBackground() const { return reg & 0b00001000; }
   void set_showBackground(bool value) {
     reg = (reg & ~0b00001000) | (value ? 0b00001000 : 0);
   }
 
-  bool showSprites() const { return reg & 0b00010000; }
+  bool get_showSprites() const { return reg & 0b00010000; }
   void set_showSprites(bool value) {
     reg = (reg & ~0b00010000) | (value ? 0b00010000 : 0);
   }
 
-  bool emphasizeRed() const { return reg & 0b00100000; }
+  bool get_emphasizeRed() const { return reg & 0b00100000; }
   void set_emphasizeRed(bool value) {
     reg = (reg & ~0b00100000) | (value ? 0b00100000 : 0);
   }
 
-  bool emphasizeGreen() const { return reg & 0b01000000; }
+  bool get_emphasizeGreen() const { return reg & 0b01000000; }
   void set_emphasizeGreen(bool value) {
     reg = (reg & ~0b01000000) | (value ? 0b01000000 : 0);
   }
 
-  bool emphasizeBlue() const { return reg & 0b10000000; }
+  bool get_emphasizeBlue() const { return reg & 0b10000000; }
   void set_emphasizeBlue(bool value) {
     reg = (reg & ~0b10000000) | (value ? 0b10000000 : 0);
   }
 };
 
 /** PPU Status Register (0x2002)
- *  7  bit  0
+ *
+ * 7  bit  0
  * ---- ----
  * VSOx xxxx
  * |||| ||||
@@ -132,20 +133,20 @@ struct PPUMASK {
  * +--------- Vblank flag, cleared on read.
  */
 
-struct PPUSTATUS {
+struct PPUStatus {
   uint8_t reg = 0;
 
-  bool spriteOverflow() const { return reg & 0b00100000; }
+  bool get_spriteOverflow() const { return reg & 0b00100000; }
   void set_spriteOverflow(bool value) {
     reg = (reg & ~0b00100000) | (value ? 0b00100000 : 0);
   }
 
-  bool spriteZeroHit() const { return reg & 0b01000000; }
+  bool get_spriteZeroHit() const { return reg & 0b01000000; }
   void set_spriteZeroHit(bool value) {
     reg = (reg & ~0b01000000) | (value ? 0b01000000 : 0);
   }
 
-  bool vblank() const { return reg & 0b10000000; }
+  bool get_vblank() const { return reg & 0b10000000; }
   void set_vblank(bool value) {
     reg = (reg & ~0b10000000) | (value ? 0b10000000 : 0);
   }

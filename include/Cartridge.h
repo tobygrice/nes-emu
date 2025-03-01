@@ -58,6 +58,7 @@ class Cartridge {
   Cartridge() {}
   Cartridge(const std::vector<uint8_t>& raw);
   uint8_t read_prg_rom(uint16_t addr);
+  uint8_t read_chr_rom(uint16_t addr);
 };
 
 #endif

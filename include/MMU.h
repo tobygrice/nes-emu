@@ -53,6 +53,11 @@ class MMU : public BusInterface {
     }
   }
 
+  inline uint8_t read_chr_rom(uint16_t addr) {
+    cycles++;
+    return cart.read_chr_rom(addr);  // cartridge rom
+  }
+
   inline void write(uint16_t addr, uint8_t value) override {
     cycles++;
     switch (addr & 0xE000) {

@@ -1,20 +1,20 @@
-#include "../../include/PPU/AddrRegister.h"
+#include "../../include/PPU/PPUAddr.h"
 
-AddrRegister::AddrRegister() : high(0), low(0), hi_ptr(true) {}
+PPUAddr::PPUAddr() : high(0), low(0), hi_ptr(true) {}
 
 // combine high/low bytes into standard uint16_t object
-uint16_t AddrRegister::get() const {
+uint16_t PPUAddr::get() const {
   return (static_cast<uint16_t>(high) << 8) | low;
 }
 
 // sets high/low bytes from a 16bit address
-void AddrRegister::set(uint16_t data) {
+void PPUAddr::set(uint16_t data) {
   high = static_cast<uint8_t>(data >> 8);
   low = static_cast<uint8_t>(data & 0x00FF);
 }
 
 // sets high or low byte to `data` (according to hi_ptr flag)
-void AddrRegister::update(uint8_t data) {
+void PPUAddr::update(uint8_t data) {
   if (hi_ptr) {
     high = data;
   } else {
@@ -30,7 +30,7 @@ void AddrRegister::update(uint8_t data) {
   }
 }
 
-void AddrRegister::increment(uint8_t inc) {
+void PPUAddr::increment(uint8_t inc) {
   uint8_t oldLow = low;
 
   low = static_cast<uint8_t>(low + inc);
@@ -45,4 +45,4 @@ void AddrRegister::increment(uint8_t inc) {
   }
 }
 
-void AddrRegister::resetLatch() { hi_ptr = true; }
+void PPUAddr::resetLatch() { hi_ptr = true; }

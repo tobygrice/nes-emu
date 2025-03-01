@@ -1,9 +1,9 @@
-#ifndef ADDRREGISTER_H
-#define ADDRREGISTER_H
+#ifndef PPUADDR_H
+#define PPUADDR_H
 
 #include <cstdint>
 
-class AddrRegister {
+class PPUAddr {
  private:
   uint8_t high;  // high byte of the address
   uint8_t low;   // low byte of the address
@@ -12,7 +12,7 @@ class AddrRegister {
   void set(uint16_t data);  // sets addr register, applies mirroring
 
  public:
-  AddrRegister();
+  PPUAddr();
 
   uint16_t get() const;         // return combined high/low bytes
   void update(uint8_t data);    // updates high or low byte per hi_ptr flag
@@ -20,4 +20,4 @@ class AddrRegister {
   void resetLatch();            // next write is to high byte
 };
 
-#endif  // ADDRREGISTER_H
+#endif  // PPUADDR_H
