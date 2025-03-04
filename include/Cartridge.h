@@ -49,7 +49,7 @@ class Cartridge {
  private:
   std::vector<uint8_t> prg_rom;
   std::vector<uint8_t> chr_rom;
-  MirroringMode screen_mirroring;
+  MirroringMode mirroring;
   uint8_t mapper;
   size_t prg_rom_size;
   size_t chr_rom_size;
@@ -57,6 +57,7 @@ class Cartridge {
  public:
   Cartridge() {}
   Cartridge(const std::vector<uint8_t>& raw);
+  MirroringMode getMirroring() { return mirroring; }
   uint8_t read_prg_rom(uint16_t addr);
   uint8_t read_chr_rom(uint16_t addr);
 };

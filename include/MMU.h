@@ -13,12 +13,12 @@ class MMU : public BusInterface {
   // https://fceux.com/web/help/NESRAMMappingFindingValues.html
   std::array<uint8_t, 0x0800> cpu_ram;  // $0000 – $07FF: CPU RAM
                                         // $0800 – $1FFF: mirrors of CPU RAM
-  std::array<uint8_t, 0x0008> ppu_reg;  // $2000 - $2007: PPU registers
+  PPU ppu;                              // $2000 - $2007: PPU registers
                                         // $2008 – $3FFF: mirrors of PPU regs
   std::array<uint8_t, 0x0020> apu_io;   // $4000 – $401F: APU & I/O registers
   std::array<uint8_t, 0x1FE0> exp_rom;  // $4020 – $5FFF: cart expansion ROM
   std::array<uint8_t, 0x2000> s_ram;    // $6000 – $7FFF: save RAM
-  Cartridge cart;     // $8000 - $FFFF: cartridge ROM
+  Cartridge cart;                       // $8000 - $FFFF: cartridge ROM
 
   uint64_t cycles = 0;  // global cycle counter
 
@@ -26,55 +26,80 @@ class MMU : public BusInterface {
   MMU(const std::vector<uint8_t>& romDump) {
     cycles = 0;
     cpu_ram.fill(0);
-    ppu_reg.fill(0);
-    // ppu_reg[2] = 0x80;
-    apu_io.fill(0xFF); // init FF
+    apu_io.fill(0xFF);  // init FF
     exp_rom.fill(0);
     s_ram.fill(0);
     cart = Cartridge(romDump);
+    ppu = PPU(&cart);
   }
 
   inline uint64_t getCycleCount() const override { return cycles; }
 
   inline uint8_t read(uint16_t addr) override {
     cycles++;
-    switch (addr & 0xE000) {
-      case 0x0000:
-        return cpu_ram[addr & 0x07FF];  // mirror RAM
-      case 0x2000:
-        return ppu_reg[(addr - 0x2000) & 0x0007];  // mirror PPU reg
-      case 0x4000:
-        if (addr < 0x4020) return apu_io[addr - 0x4000];  // APU and I/O
-        return exp_rom[addr - 0x4020];  // cartridge expansion ROM
-      case 0x6000:
-        return s_ram[addr - 0x6000];  // save RAM
-      default:
-        return cart.read_prg_rom(addr - 0x8000);  // cartridge rom
+    // CPU RAM mirror: 0x0000 - 0x1FFF
+    if (addr <= 0x1FFF) {
+      addr &= 0b0000011111111111;  // mirror down addr
+      return cpu_ram[addr];
     }
-  }
-
-  inline uint8_t read_chr_rom(uint16_t addr) {
-    cycles++;
-    return cart.read_chr_rom(addr);  // cartridge rom
+    // 0x2002: PPU status
+    else if (addr == 0x2002) {
+      return ppu.getStatus();
+    }
+    // 0x2004: PPU OAM data
+    else if (addr == 0x2004) {
+      return ppu.getOam_data();
+    }
+    // 0x2007: PPU data port (read)
+    else if (addr == 0x2007) {
+      return ppu.readData();
+    }
+    // PPU registers mirror: 0x2008 to 0x3FFF
+    else if (addr >= 0x2008 && addr <= 0x3FFF) {
+      // mirror down to 0x2000-0x2007 and recurse
+      return read(addr & 0x2007);
+    }
+    // error point / TO-DO: missing exp_rom, s_ram and apu_io
+    // cartridge PRG_ROM space: 0x8000 to 0xFFFF
+    else if (addr >= 0x8000 && addr <= 0xFFFF) {
+      return cart.read_prg_rom(addr);
+    } else {
+      throw std::runtime_error("Attempt to read from unsupported address: " +
+                               std::to_string(addr));
+      return 0;
+    }
   }
 
   inline void write(uint16_t addr, uint8_t value) override {
     cycles++;
-    switch (addr & 0xE000) {
-      case 0x0000:
-        cpu_ram[addr & 0x07FF] = value;
-        break;
-      case 0x2000:
-        ppu_reg[(addr - 0x2000) & 0x0007] = value;
-        break;
-      case 0x4000:
-        if (addr < 0x4020) apu_io[addr - 0x4000] = value;  // APU and I/O
-        break; // ignore writes to CE-ROM
-      case 0x6000:
-        s_ram[addr - 0x6000] = value;
-        break;
-      default:
-        break;  // ignore writes to ROM
+    // CPU RAM mirror: 0x0000 - 0x1FFF
+    if (addr <= 0x1FFF) {
+      addr &= 0b0000011111111111;  // mirror down addr
+      cpu_ram[addr] = value;
+    } else if (addr == 0x2000) {
+      ppu.setCtrl(value);
+    } else if (addr == 0x2001) {
+      ppu.setMask(value);
+    } else if (addr == 0x2003) {
+      ppu.setOam_addr(value);
+    } else if (addr == 0x2004) {
+      ppu.setOam_data(value);
+    } else if (addr == 0x2005) {
+      ppu.setScroll(value);
+    } else if (addr == 0x2006) {
+      ppu.setAddr(value);
+    } else if (addr == 0x2007) {
+      ppu.writeData(value);
+    }
+    // PPU registers mirror: 0x2008 to 0x3FFF
+    else if (addr >= 0x2008 && addr <= 0x3FFF) {
+      // mirror down to 0x2000-0x2007 and recurse
+      write(addr & 0x2007, value);
+    }
+    // error point / TO-DO: missing exp_rom, s_ram and apu_io
+    else {
+      throw std::runtime_error("Attempt to write to unsupported address: " +
+                               std::to_string(addr));
     }
   }
 };

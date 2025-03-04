@@ -9,7 +9,6 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
 }
 
 uint8_t Cartridge::read_chr_rom(uint16_t addr) {
-  // TO-DO perform mirroring?
   return chr_rom[addr];
 }
 
@@ -34,10 +33,10 @@ Cartridge::Cartridge(const std::vector<uint8_t>& romDump) {
   // determine mirroring mode:
   if (romDump[6] & 0b00001000) {
     // bit 3 of flags 6 is set [alt layout]
-    screen_mirroring = MirroringMode::FourScreen;
+    mirroring = MirroringMode::FourScreen;
   } else {
     // bit 0 of flags 6 set ? vertical mirroring, else horizontal
-    screen_mirroring = (romDump[6] & 0b1) ? MirroringMode::Vertical
+    mirroring = (romDump[6] & 0b1) ? MirroringMode::Vertical
                                           : MirroringMode::Horizontal;
   }
 
