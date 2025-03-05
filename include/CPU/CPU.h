@@ -22,7 +22,6 @@ class CPU {
   BusInterface* bus;   // bus
   Logger* logger;      // logger
 
-  bool pcModified = false;  // flag set by handler if it has modified the pc
   bool executionActive = false;  // flag to indicate if program is still running
 
   // variable to hold the high byte of operand *before* dereferencing
@@ -73,7 +72,7 @@ class CPU {
   void loadAndExecute(const std::vector<uint8_t>& program);
   void loadProgram(const std::vector<uint8_t>& program);
   void executeProgram();
-  void executeInstruction();
+  uint8_t executeInstruction(); // returns cycles
 
   // addressing mode handling
   AddressResolveInfo getOperandAddress(AddressingMode mode);

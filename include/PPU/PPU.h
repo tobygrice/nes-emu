@@ -37,8 +37,9 @@ class PPU {
   PPU(Cartridge* cart) : cart(cart) {}
   uint16_t mirror_vram_addr(uint16_t addr);
 
-  uint8_t readData(); // 0x2007
-  void writeData(uint8_t value); // 0x
+  // read/writes to 0x2007
+  uint8_t readData();
+  void writeData(uint8_t value);
 
   uint8_t getStatus() { return status.reg; }
   uint8_t getOam_data() { return oam_data; }

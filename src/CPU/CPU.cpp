@@ -141,7 +141,7 @@ void CPU::executeProgram() {
   }
 }
 
-void CPU::executeInstruction() {
+uint8_t CPU::executeInstruction() {
   // 1) capture PC for logging
   uint16_t initPC = pc;
 
@@ -180,15 +180,29 @@ void CPU::executeInstruction() {
               0   // CPU cycle
   );
 
+  initPC++;  // increment initPC to match pc
+
   // 8) execute instruction
   (this->*(op->handler))(addressInfo.address);
 
-  // 10) advance PC to consume operand bytes
-  if (!pcModified) {
-    pc += (op->bytes - 1);
+  // 10) advance PC and compute total cycles
+  uint8_t totalCycles = op->cycles;
+
+  if (pc == initPC) {
+    pc += (op->bytes - 1); // advance pc past operand bytes
+    
+    // DO NOT add extra cycle for page crossed if instruction was a
+    // branching/subroutine instruction and the branch wasn't taken
+    if (op->mode != AddressingMode::Relative) {
+      if (addressInfo.pageCrossed) totalCycles++;
+    }
   } else {
-    pcModified = false;
+    // branch/subroutine taken
+    totalCycles++;
+    if (addressInfo.pageCrossed) totalCycles++;
   }
+
+  return totalCycles;
 }
 
 /**
@@ -202,6 +216,7 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
   info.address = 0;
   info.pointerAddress = 0;
   info.pointerUsed = false;
+  info.pageCrossed = false;
 
   switch (mode) {
     case AddressingMode::Implied:
@@ -212,6 +227,9 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
     case AddressingMode::Relative:
       // error point: uint8_t?
       info.address = pc + 1 + static_cast<int8_t>(memRead8(pc));
+      if (((pc + 1) & 0xFF00) != (info.address & 0xFF00)) {
+        info.pageCrossed = true;
+      }
       break;
     case AddressingMode::Immediate:
       info.address = pc;
@@ -234,11 +252,21 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
       break;
     }
     case AddressingMode::AbsoluteX: {
-      info.address = memRead16(pc) + x_register;
+      uint16_t base = memRead16(pc);
+      info.address = base + x_register;
+      if ((base & 0xFF00) != (info.address & 0xFF00)) {
+        // MSB of base address and resulting addition address is different
+        info.pageCrossed = true;  // +1 cycle for page crossed
+      }
       break;
     }
     case AddressingMode::AbsoluteY: {
-      info.address = memRead16(pc) + y_register;
+      uint16_t base = memRead16(pc);
+      info.address = base + y_register;
+      if ((base & 0xFF00) != (info.address & 0xFF00)) {
+        // MSB of base address and resulting addition address is different
+        info.pageCrossed = true;  // +1 cycle for page crossed
+      }
       break;
     }
     case AddressingMode::Indirect: {
@@ -284,7 +312,10 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode) {
       info.address = deref_base + y_register;
       info.pointerAddress = deref_base;
       info.pointerUsed = true;
-
+      if ((deref_base & 0xFF00) != (info.address & 0xFF00)) {
+        // MSB of base address and resulting addition address is different
+        info.pageCrossed = true;  // +1 cycle for page crossed
+      }
       break;
     }
     default:
@@ -331,9 +362,7 @@ void CPU::branch(uint16_t addr) {
     // cycleCount++;
   }
 
-  pc = addr;          // update pc
-  pcModified = true;  // set flag for execution loop
-  // cycleCount++;       // +1 cycle for branch taken
+  pc = addr;  // update pc
 }
 
 void CPU::op_ADC(uint16_t addr) { op_ADC_CORE(memRead8(addr)); }
@@ -437,7 +466,6 @@ void CPU::op_BRK(uint16_t /* implied */) {
 
   // fetch the new pc from the interrupt vector
   pc = memRead16(0xFFFE);
-  pcModified = true;
 
   executionActive = false;  // for now, terminate on BRK
 }
@@ -526,10 +554,7 @@ void CPU::op_INY(uint16_t /* implied */) {
   y_register++;
   updateZeroAndNegativeFlags(y_register);
 }
-void CPU::op_JMP(uint16_t addr) {
-  pc = addr;
-  pcModified = true;
-}
+void CPU::op_JMP(uint16_t addr) { pc = addr; }
 void CPU::op_JSR(uint16_t addr) {
   pc++;  // pc + 1 = the address minus one of the next instruction
 
@@ -538,7 +563,6 @@ void CPU::op_JSR(uint16_t addr) {
   push(pc & 0xFF);         // push LSB
 
   pc = addr;
-  pcModified = true;
 }
 void CPU::op_LDA(uint16_t addr) {
   uint8_t value = memRead8(addr);
@@ -645,13 +669,11 @@ void CPU::op_RTI(uint16_t /* implied */) {
   uint8_t pc_l = pop();
   uint8_t pc_h = pop();
   pc = ((pc_h << 8) | pc_l);
-  pcModified = true;
 }
 void CPU::op_RTS(uint16_t /* implied */) {
   uint8_t pc_l = pop();
   uint8_t pc_h = pop();
   pc = ((pc_h << 8) | pc_l) + 1;
-  pcModified = true;
 }
 void CPU::op_SBC(uint16_t addr) {
   // SBC:
@@ -849,7 +871,3 @@ void CPU::opi_TAS(uint16_t addr) {
 void CPU::opi_SBC(uint16_t addr) { op_SBC(addr); }
 void CPU::opi_NOP(uint16_t addr) { return; }
 void CPU::opi_KIL(uint16_t addr) { executionActive = false; }
-
-// before: 11101001
-// expect: 01101000
-// actual: 00000000

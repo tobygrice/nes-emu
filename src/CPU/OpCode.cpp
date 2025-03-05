@@ -24,20 +24,14 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // =====================================================
     // Control and Subroutine Instructions
     // =====================================================
-    {0x00,
-     OpCode(0x00, true, "BRK", 2, 7, AddressingMode::Implied, &CPU::op_BRK)},
-    {0x20,
-     OpCode(0x20, true, "JSR", 3, 6, AddressingMode::Absolute, &CPU::op_JSR)},
-    {0x4C,
-     OpCode(0x4C, true, "JMP", 3, 3, AddressingMode::Absolute, &CPU::op_JMP)},
-    {0x6C,
-     OpCode(0x6C, true, "JMP", 3, 5, AddressingMode::Indirect, &CPU::op_JMP)},
-    {0x40,
-     OpCode(0x40, true, "RTI", 1, 6, AddressingMode::Implied, &CPU::op_RTI)},
-    {0x60,
-     OpCode(0x60, true, "RTS", 1, 6, AddressingMode::Implied, &CPU::op_RTS)},
-    {0xEA,
-     OpCode(0xEA, true, "NOP", 1, 2, AddressingMode::Implied, &CPU::op_NOP)},
+    // all control/subroutine instructions -1 cycle to account for implementation
+    {0x00, OpCode(0x00, true, "BRK", 2, 6, AddressingMode::Implied, &CPU::op_BRK)},
+    {0x20, OpCode(0x20, true, "JSR", 3, 5, AddressingMode::Absolute, &CPU::op_JSR)},
+    {0x4C, OpCode(0x4C, true, "JMP", 3, 2, AddressingMode::Absolute, &CPU::op_JMP)},
+    {0x6C, OpCode(0x6C, true, "JMP", 3, 4, AddressingMode::Indirect, &CPU::op_JMP)},
+    {0x40, OpCode(0x40, true, "RTI", 1, 5, AddressingMode::Implied, &CPU::op_RTI)},
+    {0x60, OpCode(0x60, true, "RTS", 1, 5, AddressingMode::Implied, &CPU::op_RTS)},
+    {0xEA, OpCode(0xEA, true, "NOP", 1, 2, AddressingMode::Implied, &CPU::op_NOP)},
 
     // =====================================================
     // Load/Store Instructions
