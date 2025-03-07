@@ -65,7 +65,7 @@ CPUState parse_state(const json &j) {
 TEST_F(CPUHarteTests, runAllHarteTests) {
   uint num_passed_tests = 0;
 
-  for (uint8_t opcode = 0x00; opcode <= 0xFF; opcode++) {
+  for (uint16_t opcode = 0x00; opcode <= 0xFF; opcode++) {
     const OpCode *op = getOpCode(opcode);  // look up opcode
     if (!op->isDocumented) continue;       // only test documented opcodes
     // unpredictable results make some unstable undocmented opcodes almost
@@ -81,11 +81,8 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
     for (const auto &test : tests) {
       CPUState initial = parse_state(test["initial"]);
       CPUState expected = parse_state(test["final"]);
-
-      std::vector<std::tuple<uint16_t, uint8_t, std::string>> cycles;
-      for (const auto &c : test["cycles"]) {
-        cycles.emplace_back(c[0], c[1], c[2]);
-      }
+      
+      uint8_t expectedCycles = test["cycles"].size();
 
       cpu.setA(initial.a);
       cpu.setX(initial.x);
@@ -93,17 +90,12 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
       cpu.setStatus(initial.p);
       cpu.setPC(initial.pc);
       cpu.setSP(initial.s);
+      cpu.resetCycles();
       for (const auto &[addr, val] : initial.ram) {
         cpu.memWrite8(addr, val);
       }
 
-      cpu.executeInstruction();
-
-      /*
-      initial  01100001
-      expected 01100101
-      actual   00100101
-      */
+      uint8_t actualCycles = cpu.executeInstruction();
 
       ASSERT_EQ(cpu.getA(), expected.a)
           << " @ instruction " << test["name"] << " after passing "
@@ -131,6 +123,9 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
             << test["name"] << " after passing " << num_passed_tests
             << " tests.";
       }
+      ASSERT_EQ(actualCycles, expectedCycles)
+          << " @ instruction " << test["name"] << " after passing "
+          << num_passed_tests << " tests.";
       num_passed_tests++;
     }
     std::cout << "PASSED TEST " << std::format("{:#04x}\n", opcode);

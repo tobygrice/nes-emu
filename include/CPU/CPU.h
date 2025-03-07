@@ -7,8 +7,8 @@
 
 #include "../BusInterface.h"
 #include "../Logger.h"
-#include "OpCode.h"
 #include "AddressResolveInfo.h"
+#include "OpCode.h"
 
 class CPU {
  private:
@@ -22,12 +22,12 @@ class CPU {
   BusInterface* bus;   // bus
   Logger* logger;      // logger
 
+  bool pcModified = false;  // indicates if pc has been modified by instruction
   bool executionActive = false;  // flag to indicate if program is still running
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
   uint8_t currentHighByte;
-
 
  public:
   CPU(BusInterface* bus, Logger* logger);
@@ -45,15 +45,16 @@ class CPU {
   void setStatus(uint8_t value) { status = value; };
   void setPC(uint16_t value) { pc = value; };
   void setSP(uint8_t value) { sp = value; };
+  void resetCycles() { bus->resetCycles(); }
 
-  static constexpr uint8_t FLAG_CARRY     = 0b00000001;   // C
-  static constexpr uint8_t FLAG_ZERO      = 0b00000010;   // Z
-  static constexpr uint8_t FLAG_INTERRUPT = 0b00000100;   // I
-  static constexpr uint8_t FLAG_DECIMAL   = 0b00001000;   // D
-  static constexpr uint8_t FLAG_BREAK     = 0b00010000;   // B
-  static constexpr uint8_t FLAG_CONSTANT  = 0b00100000;   // 1 (constant)
-  static constexpr uint8_t FLAG_OVERFLOW  = 0b01000000;   // V
-  static constexpr uint8_t FLAG_NEGATIVE  = 0b10000000;   // N
+  static constexpr uint8_t FLAG_CARRY = 0b00000001;      // C
+  static constexpr uint8_t FLAG_ZERO = 0b00000010;       // Z
+  static constexpr uint8_t FLAG_INTERRUPT = 0b00000100;  // I
+  static constexpr uint8_t FLAG_DECIMAL = 0b00001000;    // D
+  static constexpr uint8_t FLAG_BREAK = 0b00010000;      // B
+  static constexpr uint8_t FLAG_CONSTANT = 0b00100000;   // 1 (constant)
+  static constexpr uint8_t FLAG_OVERFLOW = 0b01000000;   // V
+  static constexpr uint8_t FLAG_NEGATIVE = 0b10000000;   // N
 
   // helpers
   void updateZeroAndNegativeFlags(uint8_t result);
@@ -72,10 +73,10 @@ class CPU {
   void loadAndExecute(const std::vector<uint8_t>& program);
   void loadProgram(const std::vector<uint8_t>& program);
   void executeProgram();
-  uint8_t executeInstruction(); // returns cycles
+  uint8_t executeInstruction();  // returns cycles
 
   // addressing mode handling
-  AddressResolveInfo getOperandAddress(AddressingMode mode);
+  AddressResolveInfo getOperandAddress(AddressingMode mode, bool ignorePageCrossings);
 
   // instruction implementations - 56 instructions, 151 opcodes
   void op_ADC(uint16_t addr);

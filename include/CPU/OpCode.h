@@ -34,16 +34,19 @@ struct OpCode {
   uint8_t bytes;
   uint8_t cycles;
   AddressingMode mode;
+  bool ignorePageCrossings;
   InstructionHandler handler;
 
   OpCode(uint8_t code, bool isDocumented, std::string name, uint8_t bytes,
-         uint8_t cycles, AddressingMode mode, InstructionHandler handler)
+         uint8_t cycles, AddressingMode mode, bool ignorePageCrossings,
+         InstructionHandler handler)
       : code(code),
         isDocumented(isDocumented),
         name(std::move(name)),
         bytes(bytes),
         cycles(cycles),
         mode(mode),
+        ignorePageCrossings(ignorePageCrossings),
         handler(handler) {}
 };
 

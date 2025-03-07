@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "../MMU.h"
+#include "../Cartridge.h"
 #include "BitmaskRegs.h"
 #include "PPUAddr.h"
 
@@ -32,9 +32,12 @@ class PPU {
   std::array<uint8_t, 32> palette_table;  // 32 bytes
   Cartridge* cart;                        // cartridge
 
+  uint64_t cycles;
+  uint16_t scanline;
+
  public:
-  PPU() {}
-  PPU(Cartridge* cart) : cart(cart) {}
+  PPU() : cycles(0) {}
+  PPU(Cartridge* cart) : cart(cart), cycles(0) {}
   uint16_t mirror_vram_addr(uint16_t addr);
 
   // read/writes to 0x2007
@@ -50,6 +53,8 @@ class PPU {
   void setOam_data(uint8_t value) { oam_data = value; }
   void setScroll(uint8_t value) { scroll = value; }
   void setAddr(uint8_t value) { addr.update(value); }
+
+  bool tick(uint8_t cycles); // returns true if frame generation complete
 };
 
 #endif

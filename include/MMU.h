@@ -6,6 +6,7 @@
 
 #include "BusInterface.h"
 #include "Cartridge.h"
+#include "PPU/PPU.h"
 
 // Memory Management Unit (Bus)
 class MMU : public BusInterface {
@@ -33,10 +34,16 @@ class MMU : public BusInterface {
     ppu = PPU(&cart);
   }
 
+  inline void tick(uint8_t c) override {
+    cycles += c;
+    ppu.tick(c * 3);
+  }
+
   inline uint64_t getCycleCount() const override { return cycles; }
+  inline void resetCycles() override { cycles = 0; }
 
   inline uint8_t read(uint16_t addr) override {
-    cycles++;
+    // cycles++;
     // CPU RAM mirror: 0x0000 - 0x1FFF
     if (addr <= 0x1FFF) {
       addr &= 0b0000011111111111;  // mirror down addr
@@ -71,7 +78,7 @@ class MMU : public BusInterface {
   }
 
   inline void write(uint16_t addr, uint8_t value) override {
-    cycles++;
+    // cycles++;
     // CPU RAM mirror: 0x0000 - 0x1FFF
     if (addr <= 0x1FFF) {
       addr &= 0b0000011111111111;  // mirror down addr

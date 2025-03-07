@@ -132,8 +132,8 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
 
   if (silenced) return;
   
-  // std::string line(94, ' ');  // allocate 94 char string
-  std::string line(73, ' ');  // allocate 73 char string (no ppu + cycle)
+  std::string line(94, ' ');  // allocate 94 char string
+  // std::string line(73, ' ');  // allocate 73 char string (no ppu + cycle)
 
   // Field 1: PC at index 0 (4 characters)
   {
@@ -195,7 +195,6 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
   // Field 5: PPU at index 75 (11 characters wide)
   // Format: "PPU: XX, YYY" where ppuX is printed in a 2-digit field
   // and ppuY in a 3-digit field (right aligned)
-  /*
   {
     std::ostringstream oss;
     oss << "PPU: " << std::setw(2) << std::setfill(' ') << std::right << ppuX
@@ -208,17 +207,14 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
     }
     line.replace(74, 11, ppuStr);
   }
-  */
 
   // Field 6: Cycles at index 86 (8 characters wide)
   // Format: "CYC:XXXX" (no extra preceding space)
-  /*
   {
     std::ostringstream oss;
     oss << "CYC:" << cycles;
     line.replace(86, 8, oss.str());
   }
-  */
 
   std::cout << line << std::endl;
 }

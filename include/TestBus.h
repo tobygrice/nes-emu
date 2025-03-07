@@ -17,6 +17,7 @@ struct TestBus : public BusInterface {
   uint64_t cycles = 0;
 
  public:
+  virtual void resetCycles() override { cycles = 0; }
   virtual uint8_t read(uint16_t addr) override {
     cycles++;
     return memory[addr];
@@ -26,6 +27,7 @@ struct TestBus : public BusInterface {
     memory[addr] = value;
   }
   virtual uint64_t getCycleCount() const override { return cycles; }
+  virtual void tick(uint8_t cyc) override { cycles += cyc; }
 };
 
 #endif
