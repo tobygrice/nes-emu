@@ -80,7 +80,7 @@ TEST_F(CPUFlagTest, CLC_DoesNotAffectOtherFlags) {
   };
 
   cpu.loadProgram(program);
-  cpu.resetInterrupt();
+  cpu.in_RESET();
   // set all flags for testing:
   cpu.setStatus(cpu.FLAG_CARRY | cpu.FLAG_ZERO | cpu.FLAG_NEGATIVE |
                 cpu.FLAG_OVERFLOW);

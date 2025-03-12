@@ -127,7 +127,7 @@ TEST_F(CPUArithmeticTest, ADCCarrySet) {
                                   0x69, 0x20,  // ADC #$20
                                   0x00};       // BRK
   cpu.loadProgram(program);
-  cpu.resetInterrupt();
+  cpu.in_RESET();
   cpu.setStatus(cpu.getStatus() | 0x01); // set Carry flag
   cpu.executeProgram();
   EXPECT_EQ(cpu.getA(), 0x31);  // 0x10 + 0x20 + 1 = 0x31

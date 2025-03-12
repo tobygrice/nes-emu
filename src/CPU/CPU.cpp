@@ -73,7 +73,7 @@ void CPU::memWrite16(uint16_t addr, uint16_t data) {
  */
 void CPU::loadAndExecute(const std::vector<uint8_t>& program) {
   loadProgram(program);  // Load program into memory
-  resetInterrupt();      // Reset CPU (sets PC to reset vector)
+  in_RESET();            // Reset CPU (sets PC to reset vector)
   executeProgram();      // Start execution
 }
 
@@ -91,22 +91,6 @@ void CPU::loadProgram(const std::vector<uint8_t>& program) {
   memWrite16(0xFFFC, pc);
 }
 
-/**
- * NES has a mechanism to indicate where the CPU should start execution.
- * When a new cartridge is inserted, the CPU receives a "Reset interrupt"
- * signal, which instructs it to:
- * - Reset the state (registers and flags)
- * - Set pc to the 16-bit address stored at 0xFFFC
- */
-void CPU::resetInterrupt() {
-  a_register = 0;
-  x_register = 0;
-  y_register = 0;
-  status &= ~FLAG_DECIMAL;   // clear D flag
-  status |= FLAG_INTERRUPT;  // set interrupt flag
-  pc = memRead16(0xFFFC);
-}
-
 void CPU::executeProgram() {
   executionActive = true;
   std::deque<uint16_t> lastPCs;
@@ -115,30 +99,38 @@ void CPU::executeProgram() {
                                // the history, assume infinite loop
 
   while (executionActive) {
-    // Record the current PC in our history.
-    lastPCs.push_back(pc);
-    if (lastPCs.size() > maxHistory) {
-      lastPCs.pop_front();  // remove the oldest PC to maintain the size
-    }
+    // error point: may have broken my loop catcher by putting `break` in a
+    // nested block
+    {
+      // Record the current PC in our history.
+      lastPCs.push_back(pc);
+      if (lastPCs.size() > maxHistory) {
+        lastPCs.pop_front();  // remove the oldest PC to maintain the size
+      }
 
-    // Count how many times the current PC appears in the last 10.
-    int count = 0;
-    for (auto p : lastPCs) {
-      if (p == pc) {
-        count++;
+      // Count how many times the current PC appears in the last 10.
+      int count = 0;
+      for (auto p : lastPCs) {
+        if (p == pc) {
+          count++;
+        }
+      }
+
+      if (count >= hitThreshold) {
+        std::cerr << "Infinite loop detected at PC 0x" << std::uppercase
+                  << std::hex << pc << std::dec << " (" << count
+                  << " hits in the last " << maxHistory
+                  << " instructions). Exiting execution." << std::endl;
+        break;
       }
     }
 
-    if (count >= hitThreshold) {
-      std::cerr << "Infinite loop detected at PC 0x" << std::uppercase
-                << std::hex << pc << std::dec << " (" << count
-                << " hits in the last " << maxHistory
-                << " instructions). Exiting execution." << std::endl;
-      break;
+    if (bus->ppuNMI()) {
+      in_NMI();
+    } else {
+      uint8_t cyclesUsed = executeInstruction();
+      bus->tick(cyclesUsed);
     }
-
-    uint8_t instructionCycles = executeInstruction();
-    bus->tick(instructionCycles);
   }
 }
 
@@ -186,7 +178,7 @@ uint8_t CPU::executeInstruction() {
     pc += (op->bytes - 1);  // advance pc past operand bytes
 
     // DO NOT add extra cycle for page crossed if instruction was a
-    // branching/subroutine instruction and the branch wasn't taken
+    // branch instruction and the branch wasn't taken
     if (op->mode != AddressingMode::Relative) {
       if (addressInfo.pageCrossed) totalCycles++;
     }
@@ -357,6 +349,38 @@ void CPU::updateZeroAndNegativeFlags(uint8_t result) {
 void CPU::branch(uint16_t addr) {
   // relative address was already computed by getOperandAddress, set pc to addr
   pc = addr;          // update pc
+  pcModified = true;  // set flag for execution loop
+}
+
+/**
+ * NES has a mechanism to indicate where the CPU should start execution.
+ * When a new cartridge is inserted, the CPU receives a "Reset interrupt"
+ * signal, which instructs it to:
+ * - Reset the state (registers and flags)
+ * - Set pc to the 16-bit address stored at 0xFFFC
+ */
+void CPU::in_RESET() {
+  a_register = 0;
+  x_register = 0;
+  y_register = 0;
+  status &= ~FLAG_DECIMAL;   // clear D flag
+  status |= FLAG_INTERRUPT;  // set interrupt flag
+  pc = memRead16(0xFFFC);
+}
+void CPU::in_NMI() {
+  // error point: increment pc?
+
+  // push high byte first, then low byte
+  push((pc >> 8) & 0xFF);  // push MSB
+  push(pc & 0xFF);         // push LSB
+
+  // push the status register with the break flag set
+  push(status | FLAG_BREAK);
+
+  status |= FLAG_INTERRUPT;  // set the interrupt flag
+
+  // fetch the new pc from the NMI interrupt handler
+  pc = memRead16(0xFFFA);
   pcModified = true;  // set flag for execution loop
 }
 

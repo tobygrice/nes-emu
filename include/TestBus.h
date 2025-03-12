@@ -17,6 +17,7 @@ struct TestBus : public BusInterface {
   uint64_t cycles = 0;
 
  public:
+  virtual bool ppuNMI() override { return false; }
   virtual void resetCycles() override { cycles = 0; }
   virtual uint8_t read(uint16_t addr) override {
     cycles++;

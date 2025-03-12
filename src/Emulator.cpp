@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
   MMU mmu = MMU(raw);            // instantiate memory management unit (bus)
   CPU cpu = CPU(&mmu, &logger);  // instantiate CPU and provide bus
 
-  cpu.resetInterrupt();
+  cpu.in_RESET();
   cpu.setPC(0xC000);  // overwrite reset vector for incomplete emulators
   cpu.executeProgram();
 

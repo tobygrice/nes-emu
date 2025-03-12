@@ -24,7 +24,7 @@ TEST_F(CPUTransferStackTest, PHATest) {
                                   0x48,              // PHA
                                   0x00, 0x00};       // BRK
   cpu.loadProgram(program);
-  cpu.resetInterrupt();
+  cpu.in_RESET();
   uint8_t initialSP = cpu.getSP();
   cpu.executeProgram();
   EXPECT_EQ(cpu.getSP(), initialSP - 4);  // BRK pushes 3 bytes to stack
@@ -35,7 +35,7 @@ TEST_F(CPUTransferStackTest, PLATest) {
   std::vector<uint8_t> program = {0x68,         // PLA
                                   0x00, 0x00};  // BRK
   cpu.loadProgram(program);
-  cpu.resetInterrupt();
+  cpu.in_RESET();
   cpu.push(0b01101110);
   cpu.executeProgram();
 

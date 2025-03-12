@@ -69,7 +69,6 @@ class CPU {
   void memWrite16(uint16_t addr, uint16_t data);
 
   // program loading and execution
-  void resetInterrupt();
   void loadAndExecute(const std::vector<uint8_t>& program);
   void loadProgram(const std::vector<uint8_t>& program);
   void executeProgram();
@@ -77,6 +76,10 @@ class CPU {
 
   // addressing mode handling
   AddressResolveInfo getOperandAddress(AddressingMode mode, bool ignorePageCrossings);
+
+  // interrupts:
+  void in_RESET();
+  void in_NMI();
 
   // instruction implementations - 56 instructions, 151 opcodes
   void op_ADC(uint16_t addr);

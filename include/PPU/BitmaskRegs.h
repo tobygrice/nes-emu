@@ -57,7 +57,11 @@ struct PPUCtrl {
   }
 
   bool get_enableNMI() const { return reg & 0b10000000; }
-  void set_enableNMI(bool value) {
+  void set_enableNMI(bool value, bool inVblank, bool* nmiInterrupt) {
+    if (!(reg & 0b10000000) && value && inVblank && nmiInterrupt) {
+      // enable NMI is updating from 0 to 1 and vblank state is active
+      *nmiInterrupt = true;
+    }
     reg = (reg & ~0b10000000) | (value ? 0b10000000 : 0);
   }
 };

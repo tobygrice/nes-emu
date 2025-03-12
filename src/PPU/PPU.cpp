@@ -10,15 +10,17 @@ bool PPU::tick(uint8_t c) {
     if (scanline == 241) {
       if (ctrl.get_enableNMI()) {
         status.set_vblank(true);
-        // TO-DO trigger an NMI interrupt
+        nmiInterrupt = true;
       }
     }
 
-    if (scanline == 261) {
+    if (scanline >= 261) {
+      // error point: may need to set vblank if >= 262
       status.set_vblank(false);
-    } else if (scanline > 261) {
-      scanline = 0;
-      return true; // frame complete
+      if (scanline >= 262) {
+        scanline = 0;
+        return true; // frame complete
+      }
     }
   }
 

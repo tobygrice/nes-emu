@@ -34,9 +34,10 @@ class PPU {
 
   uint64_t cycles;
   uint16_t scanline;
+  bool nmiInterrupt;
 
  public:
-  PPU() : cycles(0) {}
+  PPU() : cycles(0), scanline(0), nmiInterrupt(0) {}
   PPU(Cartridge* cart) : cart(cart), cycles(0) {}
   uint16_t mirror_vram_addr(uint16_t addr);
 
@@ -46,6 +47,7 @@ class PPU {
 
   uint8_t getStatus() { return status.reg; }
   uint8_t getOam_data() { return oam_data; }
+  bool getNMI() { return nmiInterrupt; }
 
   void setCtrl(uint8_t value) { ctrl.reg = value; }
   void setMask(uint8_t value) { mask.reg = value; }
@@ -54,7 +56,7 @@ class PPU {
   void setScroll(uint8_t value) { scroll = value; }
   void setAddr(uint8_t value) { addr.update(value); }
 
-  bool tick(uint8_t cycles); // returns true if frame generation complete
+  bool tick(uint8_t cycles);  // returns true if frame generation complete
 };
 
 #endif

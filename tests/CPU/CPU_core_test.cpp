@@ -85,7 +85,7 @@ TEST_F(CPUTest, ResetInterrupt) {
 
   // Set the reset vector to 0x8000.
   cpu.memWrite16(0xFFFC, 0x8000);
-  cpu.resetInterrupt();
+  cpu.in_RESET();
   EXPECT_EQ(cpu.getPC(), 0x8000);
   EXPECT_EQ(cpu.getA(), 0);
   EXPECT_EQ(cpu.getX(), 0);

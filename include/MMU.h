@@ -39,6 +39,8 @@ class MMU : public BusInterface {
     ppu.tick(c * 3);
   }
 
+  inline bool ppuNMI() override { return ppu.getNMI(); }
+
   inline uint64_t getCycleCount() const override { return cycles; }
   inline void resetCycles() override { cycles = 0; }
 
