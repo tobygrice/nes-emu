@@ -69,10 +69,10 @@ class CPU {
   void memWrite16(uint16_t addr, uint16_t data);
 
   // program loading and execution
-  void loadAndExecute(const std::vector<uint8_t>& program);
+  // void loadAndExecute(const std::vector<uint8_t>& program);
   void loadProgram(const std::vector<uint8_t>& program);
-  void executeProgram();
-  uint8_t executeInstruction();  // returns cycles
+  void executeInstruction();
+  uint8_t executeInstructionCore();  // returns cycles
 
   // addressing mode handling
   AddressResolveInfo getOperandAddress(AddressingMode mode, bool ignorePageCrossings);

@@ -1,10 +1,13 @@
 #ifndef PPU_H
 #define PPU_H
 
+#include <array>
+#include <cstdint>
 #include <vector>
 
 #include "../Cartridge.h"
 #include "BitmaskRegs.h"
+#include "Frame.h"
 #include "PPUAddr.h"
 
 class PPU {
@@ -30,15 +33,17 @@ class PPU {
   std::array<uint8_t, 2048> vram;         // 2048 bytes of vram
   std::array<uint8_t, 256> oam;           // 256 bytes of sprite memory
   std::array<uint8_t, 32> palette_table;  // 32 bytes
-  Cartridge* cart;                        // cartridge
+  Cartridge* cart;                        // reference to cartridge
 
   uint64_t cycles;
   uint16_t scanline;
   bool nmiInterrupt;
 
  public:
-  PPU() : cycles(0), scanline(0), nmiInterrupt(0) {}
-  PPU(Cartridge* cart) : cart(cart), cycles(0) {}
+  PPU() : cycles(0), scanline(0), nmiInterrupt(false) {
+    // error point: may need specific initial register values.
+  }
+  PPU(Cartridge* cart) : cart(cart) { PPU(); }
   uint16_t mirror_vram_addr(uint16_t addr);
 
   // read/writes to 0x2007
@@ -57,6 +62,9 @@ class PPU {
   void setAddr(uint8_t value) { addr.update(value); }
 
   bool tick(uint8_t cycles);  // returns true if frame generation complete
+
+  Frame show_tile(const std::vector<uint8_t>& chr_rom, size_t bank,
+                  size_t tile_n);
 };
 
 #endif

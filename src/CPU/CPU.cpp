@@ -66,18 +66,18 @@ void CPU::memWrite16(uint16_t addr, uint16_t data) {
   memWrite8(addr + 1, high);          // write high byte second
 }
 
-/**
- * Loads provided program into memory, then executes it.
- *
- * @param program The program instruction set.
- */
-void CPU::loadAndExecute(const std::vector<uint8_t>& program) {
-  loadProgram(program);  // Load program into memory
-  in_RESET();            // Reset CPU (sets PC to reset vector)
-  executeProgram();      // Start execution
-}
+// /** DEPRECATED
+//  * Loads provided program into memory, then executes it.
+//  *
+//  * @param program The program instruction set.
+//  */
+// void CPU::loadAndExecute(const std::vector<uint8_t>& program) {
+//   loadProgram(program);  // Load program into memory
+//   in_RESET();            // Reset CPU (sets PC to reset vector)
+//   executeProgram();      // Start execution
+// }
 
-/**
+/** DEPRECATED - loadProgram
  * Loads provided program into memory.
  *
  * @param program The program instruction set.
@@ -91,7 +91,8 @@ void CPU::loadProgram(const std::vector<uint8_t>& program) {
   memWrite16(0xFFFC, pc);
 }
 
-void CPU::executeProgram() {
+void CPU::executeInstruction() {
+  /* legacy
   executionActive = true;
   std::deque<uint16_t> lastPCs;
   const int maxHistory = 8;    // only remember the last 8 PCs
@@ -99,6 +100,7 @@ void CPU::executeProgram() {
                                // the history, assume infinite loop
 
   while (executionActive) {
+
     // error point: may have broken my loop catcher by putting `break` in a
     // nested block
     {
@@ -124,17 +126,17 @@ void CPU::executeProgram() {
         break;
       }
     }
+    */
 
-    if (bus->ppuNMI()) {
-      in_NMI();
-    } else {
-      uint8_t cyclesUsed = executeInstruction();
-      bus->tick(cyclesUsed);
-    }
+  if (bus->ppuNMI()) {
+    in_NMI();
+  } else {
+    uint8_t cyclesUsed = executeInstructionCore();
+    bus->tick(cyclesUsed); // tick PPU and APU
   }
 }
 
-uint8_t CPU::executeInstruction() {
+uint8_t CPU::executeInstructionCore() {
   // 1) capture PC for logging
   uint16_t initPC = pc;
 

@@ -30,6 +30,6 @@ ctest --test-dir build --verbose -R APUTests   # Runs only APU tests
 ```
 To run nestest and compare logs:
 ```bash
-./build/nesemu nestest.nes > actual.log
+./build/nesemu test_roms/nestest.nes > actual.log
 awk 'NR==FNR{a[NR]=$0; next} {if ($0 != a[FNR]) {print "Difference at line", FNR; print "Actual:    " $0; print "Expected:  " a[FNR]; exit}}' expected.log actual.log
 ```

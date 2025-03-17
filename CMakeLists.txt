@@ -31,6 +31,16 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ------------------------------------------------
+# Fetch SDL https://www.libsdl.org 
+# ------------------------------------------------
+FetchContent_Declare(
+  SDL3
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+  GIT_TAG release-3.2.8
+)
+FetchContent_MakeAvailable(SDL3)
+
+# ------------------------------------------------
 # Main executable target
 # ------------------------------------------------
 add_executable(nesemu
@@ -44,21 +54,19 @@ add_executable(nesemu
 )
 target_include_directories(nesemu PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(nesemu PRIVATE -g -Wall)
-target_link_libraries(nesemu PRIVATE nlohmann_json::nlohmann_json)
-
+target_link_libraries(nesemu PRIVATE nlohmann_json::nlohmann_json SDL3::SDL3)
 
 # ------------------------------------------------
-# Define a helper function to create tests
+# Helper function to create tests
 # ------------------------------------------------
 function(add_nes_test TEST_NAME TEST_SRC)
   add_executable(${TEST_NAME} ${TEST_SRC} ${ARGN})
 
-  # Link with gtest and nlohmann_json.
-  # This is crucial so the compiler finds <nlohmann/json.hpp>.
   target_link_libraries(${TEST_NAME}
     PRIVATE
     gtest_main
     nlohmann_json::nlohmann_json
+    SDL3::SDL3
   )
 
   add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
