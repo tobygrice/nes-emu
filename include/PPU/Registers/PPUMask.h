@@ -1,0 +1,67 @@
+#ifndef PPUMASK_H
+#define PPUMASK_H
+
+#include <cstdint>
+#include <vector>
+
+enum class Colour { Red, Green, Blue };
+
+class PPUMask {
+ private:
+  uint8_t bits;
+
+ public:
+  static constexpr uint8_t GREYSCALE = 0b00000001;
+  static constexpr uint8_t LEFTMOST_8PXL_BACKGROUND = 0b00000010;
+  static constexpr uint8_t LEFTMOST_8PXL_SPRITE = 0b00000100;
+  static constexpr uint8_t SHOW_BACKGROUND = 0b00001000;
+  static constexpr uint8_t SHOW_SPRITES = 0b00010000;
+  static constexpr uint8_t EMPHASISE_RED = 0b00100000;
+  static constexpr uint8_t EMPHASISE_GREEN = 0b01000000;
+  static constexpr uint8_t EMPHASISE_BLUE = 0b10000000;
+
+  // Default constructor initializing the bits to 0.
+  PPUMask() : bits(0) {}
+
+  // Returns true if the greyscale flag is set.
+  bool is_grayscale() const { return (bits & GREYSCALE) != 0; }
+
+  // Returns true if the leftmost 8 pixels of the background should be shown.
+  bool leftmost_8pxl_background() const {
+    return (bits & LEFTMOST_8PXL_BACKGROUND) != 0;
+  }
+
+  // Returns true if the leftmost 8 pixels of sprites should be shown.
+  bool leftmost_8pxl_sprite() const {
+    return (bits & LEFTMOST_8PXL_SPRITE) != 0;
+  }
+
+  // Returns true if the background should be shown.
+  bool show_background() const { return (bits & SHOW_BACKGROUND) != 0; }
+
+  // Returns true if the sprites should be shown.
+  bool show_sprites() const { return (bits & SHOW_SPRITES) != 0; }
+
+  // Returns a vector of Colour values corresponding to the emphasised colors.
+  std::vector<Colour> emphasise() const {
+    std::vector<Colour> result;
+    if (bits & EMPHASISE_RED) {
+      result.push_back(Colour::Red);
+    }
+    if (bits & EMPHASISE_BLUE) {
+      result.push_back(Colour::Blue);
+    }
+    if (bits & EMPHASISE_GREEN) {
+      result.push_back(Colour::Green);
+    }
+    return result;
+  }
+
+  // Updates the register bits with new data.
+  void update(uint8_t data) { bits = data; }
+
+  // Optional helper: checks if a specific flag is set.
+  bool contains(uint8_t flag) const { return (bits & flag) != 0; }
+};
+
+#endif  // PPUMASK_H

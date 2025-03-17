@@ -6,9 +6,14 @@
 #include <vector>
 
 #include "../Cartridge.h"
-#include "BitmaskRegs.h"
 #include "Frame.h"
-#include "PPUAddr.h"
+#include "Registers/PPUAddr.h"
+#include "Registers/PPUCtrl.h"
+#include "Registers/PPUMask.h"
+#include "Registers/PPUScroll.h"
+#include "Registers/PPUStatus.h"
+
+class PPUCoreLogicTest;
 
 class PPU {
  private:
@@ -21,50 +26,77 @@ class PPU {
   PPUCtrl ctrl;      // 0x2000
   PPUMask mask;      // 0x2001
   PPUStatus status;  // 0x2002
-  uint8_t oam_addr;  // 0x2003
-  uint8_t oam_data;  // 0x2004
-  uint8_t scroll;    // 0x2005
+  PPUScroll scroll;  // 0x2005
   PPUAddr addr;      // 0x2006
   uint8_t data_buf;  // 0x2007 buffer
   uint8_t oam_dma;   // 0x4014
 
-  // MEMORY:
-  // chr_rom and mirroring mode in cartridge, accessed via MMU (bus)
-  std::array<uint8_t, 2048> vram;         // 2048 bytes of vram
-  std::array<uint8_t, 256> oam;           // 256 bytes of sprite memory
+  uint8_t oam_addr;                       // 0x2003
+  std::array<uint8_t, 256> oam_data;      // 0x2004 256 bytes of sprite memory
   std::array<uint8_t, 32> palette_table;  // 32 bytes
-  Cartridge* cart;                        // reference to cartridge
+
+  // chr_rom and mirroring mode in cartridge, accessed via MMU (bus)
+  std::array<uint8_t, 2048> vram;  // 2048 bytes of vram
+  Cartridge* cart;                 // reference to cartridge (in MMU)
 
   uint64_t cycles;
   uint16_t scanline;
   bool nmiInterrupt;
 
  public:
-  PPU() : cycles(0), scanline(0), nmiInterrupt(false) {
-    // error point: may need specific initial register values.
-  }
-  PPU(Cartridge* cart) : cart(cart) { PPU(); }
+  PPU()
+      : ctrl(),
+        mask(),
+        status(),
+        scroll(),
+        addr(),
+        data_buf(0),
+        oam_dma(0),
+
+        oam_addr(0),
+        oam_data{},
+        palette_table{},
+
+        vram{},
+
+        cart(nullptr),
+        cycles(0),
+        scanline(0),
+        nmiInterrupt(false) {}
+
+  PPU(Cartridge* cart) : PPU() { loadCartridge(cart); }
+
+  void loadCartridge(Cartridge* cart) { this->cart = cart; }
+
   uint16_t mirror_vram_addr(uint16_t addr);
 
-  // read/writes to 0x2007
-  uint8_t readData();
-  void writeData(uint8_t value);
-
-  uint8_t getStatus() { return status.reg; }
-  uint8_t getOam_data() { return oam_data; }
   bool getNMI() { return nmiInterrupt; }
-
-  void setCtrl(uint8_t value) { ctrl.reg = value; }
-  void setMask(uint8_t value) { mask.reg = value; }
-  void setOam_addr(uint8_t value) { oam_addr = value; }
-  void setOam_data(uint8_t value) { oam_data = value; }
-  void setScroll(uint8_t value) { scroll = value; }
-  void setAddr(uint8_t value) { addr.update(value); }
 
   bool tick(uint8_t cycles);  // returns true if frame generation complete
 
   Frame show_tile(const std::vector<uint8_t>& chr_rom, size_t bank,
                   size_t tile_n);
+
+  // read/writes to 0x2007
+  uint8_t read_data();
+  void write_to_data(uint8_t value);
+
+  // register READ/WRITES:
+  void write_to_ctrl(uint8_t value);
+  void write_to_mask(uint8_t value);
+  uint8_t read_status();
+  void write_to_oam_addr(uint8_t value);
+  void write_to_oam_data(uint8_t value);
+  uint8_t read_oam_data() const;
+  void write_to_scroll(uint8_t value);
+  void write_to_ppu_addr(uint8_t value);
+  void write_oam_dma(const std::array<uint8_t, 256>& data);
+
+  uint8_t TEST_getvram(uint16_t address) { return vram[address]; }
+  void TEST_setvram(uint16_t address, uint8_t value) { vram[address] = value; }
+  uint8_t TEST_getstatus() { return status.snapshot(); }
+  uint16_t TEST_getaddr() { return addr.get(); }
+  void TEST_set_vblank_status(bool val) { status.set_vblank_status(val); }
 };
 
 #endif

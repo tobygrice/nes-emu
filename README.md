@@ -23,10 +23,9 @@ To execute a ROM file (.nes):
 To run tests:
 ```bash
 ctest --test-dir build --verbose # run all tests
-ctest --test-dir build --verbose -R runCustomCPUTests   # Runs only CPU tests
-ctest --test-dir build --verbose --output-on-failure -R runHarteCPUTests    # Runs only Harte CPU tests
-ctest --test-dir build --verbose -R PPUTests   # Runs only PPU tests
-ctest --test-dir build --verbose -R APUTests   # Runs only APU tests
+ctest --test-dir build --verbose --output-on-failure -R runCPUTests
+ctest --test-dir build --verbose -R runPPUTests   # Runs only PPU tests
+ctest --test-dir build --verbose -R runAPUTests   # Runs only APU tests
 ```
 To run nestest and compare logs:
 ```bash

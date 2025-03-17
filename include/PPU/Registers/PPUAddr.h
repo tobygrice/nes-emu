@@ -17,7 +17,7 @@ class PPUAddr {
   uint16_t get() const;         // return combined high/low bytes
   void update(uint8_t data);    // updates high or low byte per hi_ptr flag
   void increment(uint8_t inc);  // adds `inc` to address, applies mirroring
-  void resetLatch();            // next write is to high byte
+  void reset_latch();            // next write is to high byte
 };
 
 #endif  // PPUADDR_H

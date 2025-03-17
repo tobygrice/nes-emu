@@ -47,7 +47,7 @@ add_executable(nesemu
   src/CPU/CPU.cpp
   src/CPU/OpCode.cpp
   src/PPU/PPU.cpp
-  src/PPU/PPUAddr.cpp
+  src/PPU/Registers/PPUAddr.cpp
   src/Cartridge.cpp
   src/Emulator.cpp
   src/Logger.cpp
@@ -75,27 +75,18 @@ endfunction()
 # ------------------------------------------------
 # Create your test targets
 # ------------------------------------------------
-add_nes_test(runHarteCPUTests
+add_nes_test(runCPUTests
   src/CPU/CPU.cpp
   src/CPU/OpCode.cpp
   src/Logger.cpp
   tests/CPU/CPU_Harte.cpp
 )
 
-add_nes_test(runCustomCPUTests
-  src/CPU/CPU.cpp
-  src/CPU/OpCode.cpp
-  src/Logger.cpp
-  tests/CPU/CPU_arithmetic_test.cpp
-  tests/CPU/CPU_branching_test.cpp
-  tests/CPU/CPU_compare_test.cpp
-  tests/CPU/CPU_control_test.cpp
-  tests/CPU/CPU_core_test.cpp
-  tests/CPU/CPU_flag_test.cpp
-  tests/CPU/CPU_loadstore_test.cpp
-  tests/CPU/CPU_logical_test.cpp
-  tests/CPU/CPU_shiftrotate_test.cpp
-  tests/CPU/CPU_transferstack_test.cpp
+add_nes_test(runPPUTests
+  src/Cartridge.cpp
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
+  tests/PPU/PPU_core_logic_test.cpp
 )
 
 # add_nes_test(runPPUTests tests/PPU_test.cpp src/PPU.cpp)

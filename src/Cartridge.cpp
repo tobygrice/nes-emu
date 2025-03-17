@@ -1,5 +1,7 @@
 #include "../include/Cartridge.h"
 
+// error point: not checking addr out of bounds -> seg fault
+// should not be an issue iff provided rom adheres to expectactions
 uint8_t Cartridge::read_prg_rom(uint16_t addr) {
   // mirror if prg_rom is 16KiB:
   if ((addr >= 0x4000) && (prg_rom.size() == 0x4000)) {
@@ -8,6 +10,8 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
   return prg_rom[addr];
 }
 
+// error point: not checking addr out of bounds -> seg fault
+// should not be an issue iff provided rom adheres to expectactions
 uint8_t Cartridge::read_chr_rom(uint16_t addr) {
   return chr_rom[addr];
 }

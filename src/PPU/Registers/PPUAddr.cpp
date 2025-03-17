@@ -1,4 +1,4 @@
-#include "../../include/PPU/PPUAddr.h"
+#include "../../../include/PPU/Registers/PPUAddr.h"
 
 PPUAddr::PPUAddr() : high(0), low(0), hi_ptr(true) {}
 
@@ -25,8 +25,8 @@ void PPUAddr::update(uint8_t data) {
   hi_ptr = !hi_ptr;
 
   // mirror if address exceeds 0x3FFF
-  if (get() > 0x3FFF) {
-    set(get() & 0x3FFF);
+  if (get() > 0b11111111111111) {
+    set(get() & 0b11111111111111);
   }
 }
 
@@ -45,4 +45,4 @@ void PPUAddr::increment(uint8_t inc) {
   }
 }
 
-void PPUAddr::resetLatch() { hi_ptr = true; }
+void PPUAddr::reset_latch() { hi_ptr = true; }

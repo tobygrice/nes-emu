@@ -95,7 +95,7 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
         cpu.memWrite8(addr, val);
       }
 
-      uint8_t actualCycles = cpu.executeInstruction();
+      uint8_t actualCycles = cpu.executeInstructionCore();
 
       ASSERT_EQ(cpu.getA(), expected.a)
           << " @ instruction " << test["name"] << " after passing "
