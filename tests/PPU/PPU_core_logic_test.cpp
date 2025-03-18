@@ -7,10 +7,11 @@
 #include "../../include/MMU.h"
 
 std::vector<uint8_t> readTestRom() {
-  char* filename = "../test_roms/nestest.nes";
+  std::string filename = "../test_roms/nestest.nes";
   std::ifstream file(filename, std::ios::binary);
   if (!file) {
-    throw std::runtime_error("Could not open test rom: " + std::string(filename));
+    throw std::runtime_error("Could not open test rom: " +
+                             std::string(filename));
   }
 
   // read rom file into vector
@@ -27,7 +28,10 @@ class PPUCoreLogicTest : public ::testing::Test {
   Cartridge cart;
   PPU ppu;
 
-  PPUCoreLogicTest() : testRom(readTestRom()), cart(testRom), ppu(&cart) {}
+  PPUCoreLogicTest()
+      : testRom(readTestRom()),
+        cart(testRom),
+        ppu(&cart) {}
 };
 
 // Test 1: PPU VRAM writes

@@ -6,16 +6,17 @@
 #include <vector>
 
 #include "../Cartridge.h"
-#include "Frame.h"
 #include "Registers/PPUAddr.h"
 #include "Registers/PPUCtrl.h"
 #include "Registers/PPUMask.h"
 #include "Registers/PPUScroll.h"
 #include "Registers/PPUStatus.h"
 
-class PPUCoreLogicTest;
+class Renderer;
 
 class PPU {
+  friend class Renderer;
+
  private:
   // REGISTERS:
   /**
@@ -37,14 +38,14 @@ class PPU {
 
   // chr_rom and mirroring mode in cartridge, accessed via MMU (bus)
   std::array<uint8_t, 2048> vram;  // 2048 bytes of vram
-  Cartridge* cart;                 // reference to cartridge (in MMU)
+  Cartridge* cart;
 
   uint64_t cycles;
   uint16_t scanline;
   bool nmiInterrupt;
 
  public:
-  PPU()
+  PPU(Cartridge* cart)
       : ctrl(),
         mask(),
         status(),
@@ -58,24 +59,17 @@ class PPU {
         palette_table{},
 
         vram{},
+        cart(cart),
 
-        cart(nullptr),
         cycles(0),
         scanline(0),
         nmiInterrupt(false) {}
-
-  PPU(Cartridge* cart) : PPU() { loadCartridge(cart); }
-
-  void loadCartridge(Cartridge* cart) { this->cart = cart; }
 
   uint16_t mirror_vram_addr(uint16_t addr);
 
   bool getNMI() { return nmiInterrupt; }
 
   bool tick(uint8_t cycles);  // returns true if frame generation complete
-
-  Frame show_tile(const std::vector<uint8_t>& chr_rom, size_t bank,
-                  size_t tile_n);
 
   // read/writes to 0x2007
   uint8_t read_data();

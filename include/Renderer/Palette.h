@@ -1,11 +1,8 @@
-#ifndef FRAME_H
-#define FRAME_H
+#ifndef PALETTE_H
+#define PALETTE_H
 
-#include <cassert>
 #include <tuple>
 #include <vector>
-
-#include "../Constants.h"
 
 using Color = std::tuple<uint8_t, uint8_t, uint8_t>;
 
@@ -33,20 +30,5 @@ constexpr std::array<Color, 64> SYSTEM_PALETTE{
      {0x99, 0xFF, 0xFC}, {0xDD, 0xDD, 0xDD}, {0x11, 0x11, 0x11},
      {0x11, 0x11, 0x11}}};
 
-class Frame {
- public:
-  std::vector<uint8_t> data;
 
-  Frame() : data(SCREEN_WIDTH * SCREEN_HEIGHT * 3, 0) {}
-
-  void set_pixel(int x, int y, const Color& rgb) {
-    int base = y * SCREEN_WIDTH * 3 + x * 3;
-    if (base + 2 < data.size()) {
-      data[base + 0] = std::get<0>(rgb);
-      data[base + 1] = std::get<1>(rgb);
-      data[base + 2] = std::get<2>(rgb);
-    }
-  }
-};
-
-#endif  // FRAME_H
+#endif // PALETTE_H

@@ -61,6 +61,7 @@ class Cartridge {
   void setMirroring(MirroringMode m) { this->mirroring = m; }
   uint8_t read_prg_rom(uint16_t addr);
   uint8_t read_chr_rom(uint16_t addr);
+  const uint8_t* get_chr_rom_addr() { return chr_rom.data(); }
 };
 
 #endif

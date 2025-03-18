@@ -66,73 +66,12 @@ void CPU::memWrite16(uint16_t addr, uint16_t data) {
   memWrite8(addr + 1, high);          // write high byte second
 }
 
-// /** DEPRECATED
-//  * Loads provided program into memory, then executes it.
-//  *
-//  * @param program The program instruction set.
-//  */
-// void CPU::loadAndExecute(const std::vector<uint8_t>& program) {
-//   loadProgram(program);  // Load program into memory
-//   in_RESET();            // Reset CPU (sets PC to reset vector)
-//   executeProgram();      // Start execution
-// }
-
-/** DEPRECATED - loadProgram
- * Loads provided program into memory.
- *
- * @param program The program instruction set.
- */
-void CPU::loadProgram(const std::vector<uint8_t>& program) {
-  for (size_t i = 0; i < program.size(); i++) {
-    memWrite8(pc + i, program[i]);
-  }
-
-  // Set the reset vector at 0xFFFC to point to the start address (pc).
-  memWrite16(0xFFFC, pc);
-}
-
 void CPU::executeInstruction() {
-  /* legacy
-  executionActive = true;
-  std::deque<uint16_t> lastPCs;
-  const int maxHistory = 8;    // only remember the last 8 PCs
-  const int hitThreshold = 4;  // if the current PC appears this many times in
-                               // the history, assume infinite loop
-
-  while (executionActive) {
-
-    // error point: may have broken my loop catcher by putting `break` in a
-    // nested block
-    {
-      // Record the current PC in our history.
-      lastPCs.push_back(pc);
-      if (lastPCs.size() > maxHistory) {
-        lastPCs.pop_front();  // remove the oldest PC to maintain the size
-      }
-
-      // Count how many times the current PC appears in the last 10.
-      int count = 0;
-      for (auto p : lastPCs) {
-        if (p == pc) {
-          count++;
-        }
-      }
-
-      if (count >= hitThreshold) {
-        std::cerr << "Infinite loop detected at PC 0x" << std::uppercase
-                  << std::hex << pc << std::dec << " (" << count
-                  << " hits in the last " << maxHistory
-                  << " instructions). Exiting execution." << std::endl;
-        break;
-      }
-    }
-    */
-
   if (bus->ppuNMI()) {
     in_NMI();
   } else {
-    uint8_t cyclesUsed = executeInstructionCore();
-    bus->tick(cyclesUsed); // tick PPU and APU
+    uint8_t cycles = executeInstructionCore();
+    bus->tick(cycles); // tick PPU and APU
   }
 }
 
@@ -215,7 +154,6 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode,
       info.address = 0;
       break;
     case AddressingMode::Relative:
-      // error point: uint8_t?
       info.address = pc + 1 + static_cast<int8_t>(memRead8(pc));
       if ((((pc + 1) & 0xFF00) != (info.address & 0xFF00)) &&
           !ignorePageCrossings) {
