@@ -481,7 +481,7 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0x97, OpCode(0x97, false, "SAX", 2, 4, AddressingMode::ZeroPageY, false, &CPU::opi_SAX)},
     {0x8F,
      OpCode(0x8F, false, "SAX", 3, 4, AddressingMode::Absolute, false, &CPU::opi_SAX)},
-    {0x83, OpCode(0x83, false, "SAX", 2, 2, AddressingMode::IndirectX, false, &CPU::opi_SAX)},
+    {0x83, OpCode(0x83, false, "SAX", 2, 6, AddressingMode::IndirectX, false, &CPU::opi_SAX)},
 
     // --- ANC - (AND then update Carry and Negative) ---
     // Here we choose to treat 0x0B and 0x2B as ANC and 0x8B as XAA.

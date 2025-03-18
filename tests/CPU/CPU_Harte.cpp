@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "../../include/CPU/CPU.h"
-#include "../../include/Logger.h"
 #include "../../include/CPU/OpCode.h"
+#include "../../include/Logger.h"
 #include "../../include/TestBus.h"
 
 using json = nlohmann::json;
@@ -24,8 +24,8 @@ class CPUHarteTests : public ::testing::Test {
   TestBus bus;  // create a shared bus
   CPU cpu;      // CPU instance that uses the shared bus
   Logger logger;
-  
-  CPUHarteTests() : bus(), cpu(&bus, &logger) {}
+
+  CPUHarteTests() : bus(), cpu(&logger) { cpu.linkBus(&bus); }
 };
 
 struct CPUState {
@@ -81,7 +81,7 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
     for (const auto &test : tests) {
       CPUState initial = parse_state(test["initial"]);
       CPUState expected = parse_state(test["final"]);
-      
+
       uint8_t expectedCycles = test["cycles"].size();
 
       cpu.setA(initial.a);
@@ -95,7 +95,7 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
         cpu.memWrite8(addr, val);
       }
 
-      uint8_t actualCycles = cpu.executeInstructionCore();
+      uint8_t actualCycles = cpu.executeInstruction();
 
       ASSERT_EQ(cpu.getA(), expected.a)
           << " @ instruction " << test["name"] << " after passing "

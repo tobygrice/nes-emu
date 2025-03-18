@@ -24,14 +24,26 @@ class CPU {
 
   bool pcModified = false;  // indicates if pc has been modified by instruction
   bool executionActive = false;  // flag to indicate if program is still running
+  bool handlingNMI = false;    // CPU is currently handling NMI interrupt
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
-  uint8_t currentHighByte;
+  uint8_t currentHighByte = 0;
 
  public:
-  CPU(BusInterface* bus, Logger* logger);
+  CPU(Logger* logger)
+      : a_register(0),       // accumulator starts at 0
+        x_register(0),       // X starts at 0
+        y_register(0),       // Y starts at 0
+        status(0b00100000),  // status register starts with all flags clear
+        pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
+        sp(0xFD),            // stack pointer starts at 0xFD (error point 0xFF?)
+        bus(nullptr),        // provided later to avoid circular dependency
+        logger(logger) {}    // log class
 
+  void linkBus(BusInterface* busptr) { this->bus = busptr; }
+
+  
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };
   uint8_t getY() { return y_register; };
@@ -39,6 +51,7 @@ class CPU {
   uint16_t getPC() { return pc; };
   uint8_t getSP() { return sp; };
   uint8_t getCycleCount() { return bus->getCycleCount(); };
+  bool isHandlingNMI() { return handlingNMI; }
   void setA(uint8_t value) { a_register = value; };
   void setX(uint8_t value) { x_register = value; };
   void setY(uint8_t value) { y_register = value; };
@@ -71,11 +84,11 @@ class CPU {
   // program loading and execution
   // void loadAndExecute(const std::vector<uint8_t>& program);
   void loadProgram(const std::vector<uint8_t>& program);
-  void executeInstruction();
-  uint8_t executeInstructionCore();  // returns cycles
+  uint8_t executeInstruction();  // returns cycles
 
   // addressing mode handling
-  AddressResolveInfo getOperandAddress(AddressingMode mode, bool ignorePageCrossings);
+  AddressResolveInfo getOperandAddress(AddressingMode mode,
+                                       bool ignorePageCrossings);
 
   // interrupts:
   void in_RESET();

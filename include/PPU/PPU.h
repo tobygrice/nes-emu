@@ -36,13 +36,15 @@ class PPU {
   std::array<uint8_t, 256> oam_data;      // 0x2004 256 bytes of sprite memory
   std::array<uint8_t, 32> palette_table;  // 32 bytes
 
-  // chr_rom and mirroring mode in cartridge, accessed via MMU (bus)
+  // chr_rom and mirroring mode in cartridge, accessed via bus
   std::array<uint8_t, 2048> vram;  // 2048 bytes of vram
   Cartridge* cart;
 
-  uint64_t cycles;
+  uint16_t cycles;
   uint16_t scanline;
   bool nmiInterrupt;
+
+  uint8_t last_written_value;
 
  public:
   PPU(Cartridge* cart)
@@ -61,13 +63,17 @@ class PPU {
         vram{},
         cart(cart),
 
-        cycles(0),
+        cycles(21), // pre-tick error point
         scanline(0),
-        nmiInterrupt(false) {}
+        nmiInterrupt(false),
+        last_written_value(0) {}
 
   uint16_t mirror_vram_addr(uint16_t addr);
 
   bool getNMI() { return nmiInterrupt; }
+  uint16_t getScanline() { return scanline; }
+  uint16_t getCycle() { return cycles; }
+  uint8_t lastWrittenValue() { return last_written_value; }
 
   bool tick(uint8_t cycles);  // returns true if frame generation complete
 

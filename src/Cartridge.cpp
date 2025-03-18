@@ -3,6 +3,10 @@
 // error point: not checking addr out of bounds -> seg fault
 // should not be an issue iff provided rom adheres to expectactions
 uint8_t Cartridge::read_prg_rom(uint16_t addr) {
+  if (empty) {
+    throw std::runtime_error("Error: no cartridge loaded.");
+  }
+
   // mirror if prg_rom is 16KiB:
   if ((addr >= 0x4000) && (prg_rom.size() == 0x4000)) {
     addr = addr % 0x4000;
@@ -13,10 +17,13 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
 // error point: not checking addr out of bounds -> seg fault
 // should not be an issue iff provided rom adheres to expectactions
 uint8_t Cartridge::read_chr_rom(uint16_t addr) {
+  if (empty) {
+    throw std::runtime_error("Error: no cartridge loaded.");
+  }
   return chr_rom[addr];
 }
 
-Cartridge::Cartridge(const std::vector<uint8_t>& romDump) {
+void Cartridge::load(const std::vector<uint8_t>& romDump) {
   // validate iNES header
   // 0-3 | Constant "NES" ($4E $45 $53 $1A - ASCII "NES" followed by EOF char)
   if (romDump.size() < 16 || romDump[0] != 'N' || romDump[1] != 'E' ||
@@ -41,7 +48,7 @@ Cartridge::Cartridge(const std::vector<uint8_t>& romDump) {
   } else {
     // bit 0 of flags 6 set ? vertical mirroring, else horizontal
     mirroring = (romDump[6] & 0b1) ? MirroringMode::Vertical
-                                          : MirroringMode::Horizontal;
+                                   : MirroringMode::Horizontal;
   }
 
   bool skip_trainer = (romDump[6] & 0x04) != 0;
@@ -56,4 +63,6 @@ Cartridge::Cartridge(const std::vector<uint8_t>& romDump) {
                  romDump.begin() + prg_rom_start + prg_rom_size);
   chr_rom.assign(romDump.begin() + chr_rom_start,
                  romDump.begin() + chr_rom_start + chr_rom_size);
+
+  empty = false;
 }

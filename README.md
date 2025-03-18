@@ -1,9 +1,9 @@
 # NES Emulator
 Cycle-accurate NES emulator. Currently under development.
 - [x] CPU official opcodes
-- [x] MMU (bus)
+- [x] Bus
 - [x] Nestest format logger
-- [ ] CPU unofficial opcodes
+- [x] CPU unofficial opcodes
 - [ ] PPU
 - [ ] Input
 - [ ] PPU Scrolling

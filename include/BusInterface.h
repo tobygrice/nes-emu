@@ -11,6 +11,8 @@ class BusInterface {
   virtual void tick(uint8_t cycles) = 0;
   virtual uint64_t getCycleCount() const = 0;
   virtual void resetCycles() = 0;
+  virtual uint16_t getPPUScanline() = 0;
+  virtual uint16_t getPPUCycle() = 0;
 
   virtual bool ppuNMI() = 0;
 };

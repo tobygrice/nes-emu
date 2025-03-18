@@ -48,6 +48,7 @@ add_executable(nesemu
   src/CPU/OpCode.cpp
   src/PPU/PPU.cpp
   src/PPU/Registers/PPUAddr.cpp
+  src/Renderer/Renderer.cpp
   src/Cartridge.cpp
   src/Emulator.cpp
   src/Logger.cpp

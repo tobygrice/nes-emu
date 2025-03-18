@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
+#include "../include/Bus.h"
 #include "../include/CPU/CPU.h"
 #include "../include/Logger.h"
-#include "../include/MMU.h"
+#include "../include/NES.h"
+#include "../include/Renderer/Renderer.h"
 
 std::vector<uint8_t> readROM(char *filename) {
   std::ifstream file(filename, std::ios::binary);
@@ -32,19 +34,16 @@ int main(int argc, char *argv[]) {
 
   std::vector<uint8_t> romDump = readROM(argv[1]);
 
-  // CPU is passed reference to MMU. MMU holds PPU.
-  Logger logger = Logger();
-  MMU mmu = MMU(romDump);        // instantiate memory management unit (bus)
-  CPU cpu = CPU(&mmu, &logger);  // instantiate CPU and provide bus
+  NES nes = NES(romDump);  // instantiate a virtual NES console
+  Renderer nes_renderer = Renderer();
 
-  cpu.in_RESET();  // call CPU reset interrupt to emulate cartridge insertion
-  // cpu.setPC(0xC000);  // overwrite reset vector for incomplete emulators
-  // cpu.executeProgram();
+  nes.cpu.setPC(0xC000);  // overwrite reset vector for incomplete emulators
+  // nes.cpu.executeProgram();
 
   // SDL initialisation:
   SDL_Window *window = nullptr;
-  SDL_Renderer *renderer = nullptr;
-  bool done = false;
+  SDL_Renderer *sdl_renderer = nullptr;
+  SDL_Texture *texture = nullptr;
 
   SDL_Init(SDL_INIT_VIDEO);  // Initialize SDL3
 
@@ -54,32 +53,39 @@ int main(int argc, char *argv[]) {
                             240,               // height, in pixels
                             SDL_WINDOW_OPENGL  // flags
   );
-  renderer = SDL_CreateRenderer(window, NULL);
+  sdl_renderer = SDL_CreateRenderer(window, NULL);
+  SDL_SetRenderScale(sdl_renderer, 3.0f, 3.0f);
+  texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGB24,
+                              SDL_TEXTUREACCESS_STREAMING, 256, 240);
 
-  if (window == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not create window: %s\n",
-                 SDL_GetError());
-    return 1;
-  }
+  bool running = true;
+  while (running) {
+    // Run the emulation until a frame is rendered
+    nes.generateFrame();
 
-  while (!done) {
+    Frame frame = Frame();
+    nes_renderer.render(nes.ppu, frame);
+
+    // Update the texture with the new frame from nes.ppu.getFrameData() (or
+    // similar)
+    SDL_UpdateTexture(texture, nullptr, frame.data.data(), 256 * 3);
+
+    // Render and present the frame
+    SDL_RenderClear(sdl_renderer);
+    SDL_RenderTexture(sdl_renderer, texture, nullptr, nullptr);
+    SDL_RenderPresent(sdl_renderer);
+
     SDL_Event event;
-
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_EVENT_QUIT) {
-        done = true;
+        running = false;
       }
     }
-
-    // Do game logic, present a frame, etc.
-    cpu.executeInstruction(); // will automatically tick PPU/APU
-
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
   }
 
   // Close and destroy the window
-  SDL_DestroyRenderer(renderer);
+  SDL_DestroyTexture(texture);
+  SDL_DestroyRenderer(sdl_renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
   return 0;

@@ -129,9 +129,8 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
                  AddressResolveInfo* addrInfo, uint8_t valueAtAddr, uint8_t A,
                  uint8_t X, uint8_t Y, uint8_t P, uint8_t SP, int ppuX,
                  int ppuY, uint64_t cycles) {
-
   if (silenced) return;
-  
+
   std::string line(94, ' ');  // allocate 94 char string
   // std::string line(73, ' ');  // allocate 73 char string (no ppu + cycle)
 
@@ -193,11 +192,11 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
   }
 
   // Field 5: PPU at index 75 (11 characters wide)
-  // Format: "PPU: XX, YYY" where ppuX is printed in a 2-digit field
-  // and ppuY in a 3-digit field (right aligned)
+  // Format: "PPU:XXX,YYY"
   {
     std::ostringstream oss;
-    oss << "PPU: " << std::setw(2) << std::setfill(' ') << std::right << ppuX
+    // Use "PPU:" without an extra trailing space
+    oss << "PPU:" << std::setw(3) << std::setfill(' ') << std::right << ppuX
         << "," << std::setw(3) << std::setfill(' ') << std::right << ppuY;
     std::string ppuStr = oss.str();
     if (ppuStr.size() < 11) {

@@ -12,26 +12,17 @@
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
 /**
- * Constructor to initialise registers with starting values.
- * https://www.nesdev.org/wiki/CPU_power_up_state
- */
-CPU::CPU(BusInterface* bus, Logger* logger)
-    : a_register(0),       // accumulator starts at 0
-      x_register(0),       // X starts at 0
-      y_register(0),       // Y starts at 0
-      status(0b00100000),  // status register starts with all flags clear
-      pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
-      sp(0xFD),            // stack pointer starts at 0xFD (error point 0xFF?)
-      bus(bus),            // shared bus object
-      logger(logger) {}    // log class
-
-/**
  * Fetches value at given address.
  *
  * @param addr The address from which to retrieve data.
  * @return Single byte of memory at provided addr.
  */
-uint8_t CPU::memRead8(uint16_t addr) { return bus->read(addr); }
+uint8_t CPU::memRead8(uint16_t addr) {
+  if (!bus) {
+    throw std::runtime_error("CPU: no bus linked.");
+  }
+  return bus->read(addr);
+}
 
 /**
  * Writes given data at given address.
@@ -39,7 +30,12 @@ uint8_t CPU::memRead8(uint16_t addr) { return bus->read(addr); }
  * @param addr The address to write the data.
  * @param data The data to be written.
  */
-void CPU::memWrite8(uint16_t addr, uint8_t data) { bus->write(addr, data); }
+void CPU::memWrite8(uint16_t addr, uint8_t data) {
+  if (!bus) {
+    throw std::runtime_error("CPU: no bus linked.");
+  }
+  bus->write(addr, data);
+}
 
 /**
  * Reads 2 bytes of data from the given address, accounting for little endian.
@@ -66,16 +62,11 @@ void CPU::memWrite16(uint16_t addr, uint16_t data) {
   memWrite8(addr + 1, high);          // write high byte second
 }
 
-void CPU::executeInstruction() {
-  if (bus->ppuNMI()) {
-    in_NMI();
-  } else {
-    uint8_t cycles = executeInstructionCore();
-    bus->tick(cycles); // tick PPU and APU
+uint8_t CPU::executeInstruction() {
+  if (!bus) {
+    throw std::runtime_error("CPU: no bus linked.");
   }
-}
 
-uint8_t CPU::executeInstructionCore() {
   // 1) capture PC for logging
   uint16_t initPC = pc;
 
@@ -104,8 +95,8 @@ uint8_t CPU::executeInstructionCore() {
   uint8_t valueAtFinalAddr = memRead8(addressInfo.address);
   logger->log(initPC, op, &opBytes, &addressInfo, valueAtFinalAddr, a_register,
               x_register, y_register, status, sp,
-              0,                    // ppu X
-              0,                    // ppu Y
+              bus->getPPUScanline(),
+              bus->getPPUCycle(),
               bus->getCycleCount()  // CPU cycle
   );
 
@@ -306,9 +297,11 @@ void CPU::in_RESET() {
   status &= ~FLAG_DECIMAL;   // clear D flag
   status |= FLAG_INTERRUPT;  // set interrupt flag
   pc = memRead16(0xFFFC);
+  std::cout << "starting pc = " << pc << std::endl;
 }
 void CPU::in_NMI() {
   // error point: increment pc?
+  handlingNMI = true;
 
   // push high byte first, then low byte
   push((pc >> 8) & 0xFF);  // push MSB
@@ -628,6 +621,8 @@ void CPU::op_ROR_ACC(uint16_t /* implied */) {
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_RTI(uint16_t /* implied */) {
+  handlingNMI = false;  // reset handling NMI flag
+
   status = (pop() | FLAG_CONSTANT) & ~FLAG_BREAK;
   // op_RTS(0);  // error point: may be incorrect to add 1 to PC
   uint8_t pc_l = pop();

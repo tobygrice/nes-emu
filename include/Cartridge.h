@@ -47,6 +47,7 @@ enum class MirroringMode { Vertical, Horizontal, FourScreen };
 
 class Cartridge {
  private:
+  bool empty;
   std::vector<uint8_t> prg_rom;
   std::vector<uint8_t> chr_rom;
   MirroringMode mirroring;
@@ -55,13 +56,34 @@ class Cartridge {
   size_t chr_rom_size;
 
  public:
-  // Cartridge() {}
-  Cartridge(const std::vector<uint8_t>& raw);
-  MirroringMode getMirroring() { return mirroring; }
-  void setMirroring(MirroringMode m) { this->mirroring = m; }
+  Cartridge()
+      : empty(true),
+        prg_rom{},
+        chr_rom{},
+        mirroring(),
+        mapper(),
+        prg_rom_size(0),
+        chr_rom_size(0) {}
+  Cartridge(const std::vector<uint8_t>& raw) { load(raw); }
+
+  void load(const std::vector<uint8_t>& raw);
   uint8_t read_prg_rom(uint16_t addr);
   uint8_t read_chr_rom(uint16_t addr);
-  const uint8_t* get_chr_rom_addr() { return chr_rom.data(); }
+
+  bool isEmpty() { return empty; }
+  MirroringMode getMirroring() { 
+    if (empty) {
+      throw std::runtime_error("Error: no cartridge loaded.");
+    }
+    return mirroring; 
+  }
+  void setMirroring(MirroringMode m) { this->mirroring = m; }
+  const uint8_t* get_chr_rom_addr() { 
+    if (empty) {
+      throw std::runtime_error("Error: no cartridge loaded.");
+    }
+    return chr_rom.data(); 
+  }
 };
 
 #endif

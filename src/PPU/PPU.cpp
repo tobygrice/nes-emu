@@ -1,4 +1,5 @@
 #include "../../include/PPU/PPU.h"
+
 #include "../../include/Renderer/Frame.h"
 
 bool PPU::tick(uint8_t c) {
@@ -57,6 +58,8 @@ uint8_t PPU::read_data() {
 }
 
 void PPU::write_to_data(uint8_t value) {
+  last_written_value = value;
+
   uint16_t addr_val = addr.get();
 
   if (addr_val <= 0x1FFF) {
@@ -115,6 +118,7 @@ uint16_t PPU::mirror_vram_addr(uint16_t addr) {
  * ========================================================================
  */
 void PPU::write_to_ctrl(uint8_t value) {
+  last_written_value = value;
   bool before_nmi_status = ctrl.generate_vblank_nmi();
   ctrl.update(value);
   // If the NMI flag just became set and we're in vblank, set the interrupt.
@@ -125,7 +129,10 @@ void PPU::write_to_ctrl(uint8_t value) {
 }
 
 // Updates the mask register.
-void PPU::write_to_mask(uint8_t value) { mask.update(value); }
+void PPU::write_to_mask(uint8_t value) {
+  last_written_value = value;
+  mask.update(value);
+}
 
 // Reads the status register snapshot and resets various latches.
 uint8_t PPU::read_status() {
@@ -137,11 +144,15 @@ uint8_t PPU::read_status() {
 }
 
 // Writes a value to the OAM (Object Attribute Memory) address.
-void PPU::write_to_oam_addr(uint8_t value) { oam_addr = value; }
+void PPU::write_to_oam_addr(uint8_t value) {
+  last_written_value = value;
+  oam_addr = value;
+}
 
 // Writes a value to the OAM data at the current address and increments the
 // address.
 void PPU::write_to_oam_data(uint8_t value) {
+  last_written_value = value;
   oam_data[oam_addr] = value;
   oam_addr = static_cast<uint8_t>(oam_addr + 1);
 }
@@ -150,10 +161,16 @@ void PPU::write_to_oam_data(uint8_t value) {
 uint8_t PPU::read_oam_data() const { return oam_data[oam_addr]; }
 
 // Writes to the scroll register.
-void PPU::write_to_scroll(uint8_t value) { scroll.write(value); }
+void PPU::write_to_scroll(uint8_t value) {
+  last_written_value = value;
+  scroll.write(value);
+}
 
 // Writes to the PPU address register.
-void PPU::write_to_ppu_addr(uint8_t value) { addr.update(value); }
+void PPU::write_to_ppu_addr(uint8_t value) {
+  last_written_value = value;
+  addr.update(value);
+}
 
 // Writes 256 bytes of DMA data to the OAM, starting at the current address.
 void PPU::write_oam_dma(const std::array<uint8_t, 256>& data) {

@@ -4,7 +4,7 @@
 #include <fstream>
 #include <vector>
 
-#include "../../include/MMU.h"
+#include "../../include/Bus.h"
 
 std::vector<uint8_t> readTestRom() {
   std::string filename = "../test_roms/nestest.nes";
