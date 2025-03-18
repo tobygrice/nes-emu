@@ -34,7 +34,7 @@ class PPUCtrl {
   static constexpr uint8_t NAMETABLE2 = 0b00000010;
   static constexpr uint8_t VRAM_ADD_INCREMENT = 0b00000100;
   static constexpr uint8_t SPRITE_PATTERN_ADDR = 0b00001000;
-  static constexpr uint8_t BACKROUND_PATTERN_ADDR = 0b00010000;
+  static constexpr uint8_t BACKGROUND_PATTERN_ADDR = 0b00010000;
   static constexpr uint8_t SPRITE_SIZE = 0b00100000;
   static constexpr uint8_t MASTER_SLAVE_SELECT = 0b01000000;
   static constexpr uint8_t GENERATE_NMI = 0b10000000;
@@ -51,47 +51,43 @@ class PPUCtrl {
         return 0x2400;
       case 0b10:
         return 0x2800;
-      default: // 0b11
-        return 0x2c00;
+      default:  // 0b11
+        return 0x2C00;
     }
   }
 
   // Returns the VRAM address increment: 1 if the VRAM_ADD_INCREMENT flag is not
   // set, 32 otherwise.
   uint8_t vram_addr_increment() const {
-    return ((bits & VRAM_ADD_INCREMENT) == 0) ? 1 : 32;
+    return !isSet(VRAM_ADD_INCREMENT) ? 1 : 32;
   }
 
   // Returns the sprite pattern table address: 0 if the flag is not set, 0x1000
   // if it is.
   uint16_t sprite_pattern_addr() const {
-    return ((bits & SPRITE_PATTERN_ADDR) == 0) ? 0 : 0x1000;
+    return !isSet(SPRITE_PATTERN_ADDR) ? 0 : 0x1000;
   }
 
   // Returns the background pattern table address: 0 if the flag is not set,
   // 0x1000 if it is.
   uint16_t bknd_pattern_addr() const {
-    return ((bits & BACKROUND_PATTERN_ADDR) == 0) ? 0 : 0x1000;
+    return !isSet(BACKGROUND_PATTERN_ADDR) ? 0 : 0x1000;
   }
 
   // Returns the sprite size: 8 if the SPRITE_SIZE flag is not set, 16 if it is.
-  uint8_t sprite_size() const { return ((bits & SPRITE_SIZE) == 0) ? 8 : 16; }
+  uint8_t sprite_size() const { return !isSet(SPRITE_SIZE) ? 8 : 16; }
 
   // Returns the PPU master/slave select.
-  // Note: the original Rust code checks SPRITE_SIZE instead of
-  // MASTER_SLAVE_SELECT.
-  uint8_t master_slave_select() const {
-    return ((bits & SPRITE_SIZE) == 0) ? 0 : 1;
-  }
+  uint8_t master_slave_select() const { return !isSet(MASTER_SLAVE_SELECT) ? 0 : 1; }
 
   // Returns true if an NMI should be generated at the start of vertical blank.
-  bool generate_vblank_nmi() const { return (bits & GENERATE_NMI) != 0; }
+  bool generate_vblank_nmi() const { return isSet(GENERATE_NMI); }
 
   // Updates the register's value.
   void update(uint8_t data) { bits = data; }
 
   // Optional helper: checks if a specific flag is set.
-  bool contains(uint8_t flag) const { return (bits & flag) != 0; }
+  bool isSet(uint8_t flag) const { return (bits & flag) != 0; }
 };
 
 #endif  // PPUCTRL_H

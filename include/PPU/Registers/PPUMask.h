@@ -24,34 +24,34 @@ class PPUMask {
   PPUMask() : bits(0) {}
 
   // Returns true if the greyscale flag is set.
-  bool is_grayscale() const { return (bits & GREYSCALE) != 0; }
+  bool is_grayscale() const { return isSet(GREYSCALE); }
 
   // Returns true if the leftmost 8 pixels of the background should be shown.
   bool leftmost_8pxl_background() const {
-    return (bits & LEFTMOST_8PXL_BACKGROUND) != 0;
+    return isSet(LEFTMOST_8PXL_BACKGROUND);
   }
 
   // Returns true if the leftmost 8 pixels of sprites should be shown.
   bool leftmost_8pxl_sprite() const {
-    return (bits & LEFTMOST_8PXL_SPRITE) != 0;
+    return isSet(LEFTMOST_8PXL_SPRITE);
   }
 
   // Returns true if the background should be shown.
-  bool show_background() const { return (bits & SHOW_BACKGROUND) != 0; }
+  bool show_background() const { return isSet(SHOW_BACKGROUND); }
 
   // Returns true if the sprites should be shown.
-  bool show_sprites() const { return (bits & SHOW_SPRITES) != 0; }
+  bool show_sprites() const { return isSet(SHOW_SPRITES); }
 
   // Returns a vector of Colour values corresponding to the emphasised colors.
   std::vector<Colour> emphasise() const {
     std::vector<Colour> result;
-    if (bits & EMPHASISE_RED) {
+    if (isSet(EMPHASISE_RED)) {
       result.push_back(Colour::Red);
     }
-    if (bits & EMPHASISE_BLUE) {
+    if (isSet(EMPHASISE_BLUE)) {
       result.push_back(Colour::Blue);
     }
-    if (bits & EMPHASISE_GREEN) {
+    if (isSet(EMPHASISE_GREEN)) {
       result.push_back(Colour::Green);
     }
     return result;
@@ -61,7 +61,7 @@ class PPUMask {
   void update(uint8_t data) { bits = data; }
 
   // Optional helper: checks if a specific flag is set.
-  bool contains(uint8_t flag) const { return (bits & flag) != 0; }
+  bool isSet(uint8_t flag) const { return (bits & flag) != 0; }
 };
 
 #endif  // PPUMASK_H

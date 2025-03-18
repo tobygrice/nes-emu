@@ -36,7 +36,7 @@ class PPUStatus {
   void set_sprite_overflow(bool status) { set(SPRITE_OVERFLOW, status); }
 
   // Clears the VBLANK_STARTED flag.
-  void reset_vblank_status() { bits &= ~VBLANK_STARTED; }
+  void reset_vblank_status() { set(VBLANK_STARTED, false); }
 
   // Returns true if VBLANK_STARTED flag is set.
   bool is_in_vblank() const { return (bits & VBLANK_STARTED) != 0; }

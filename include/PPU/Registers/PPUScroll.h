@@ -20,7 +20,6 @@ class PPUScroll {
     latch = !latch;
   }
 
-  // Resets the latch to false.
   void reset_latch() { latch = false; }
 };
 

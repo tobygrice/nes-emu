@@ -78,8 +78,12 @@ class Bus : public BusInterface {
     else if (addr >= 0x2008 && addr <= 0x3FFF) {
       // mirror down to 0x2000-0x2007 and recurse
       return read(addr & 0x2007);
-    } else if (addr >= 0x4000 && addr <= 0x401F) {
+    } else if (addr >= 0x4000 && addr <= 0x4015) {
       return 0;  // apu->readRegister(addr);
+    } else if (addr == 0x4016) {
+      return 0;  // joypad 1
+    } else if (addr == 0x4017) {
+      return 0;  // joypad 2
     } else if (addr >= 0x8000 && addr <= 0xFFFF) {
       return cart->read_prg_rom(addr);
     } else {
@@ -111,13 +115,31 @@ class Bus : public BusInterface {
       ppu->write_to_ppu_addr(value);
     } else if (addr == 0x2007) {
       ppu->write_to_data(value);
-    }
-    // PPU registers mirror: 0x2008 to 0x3FFF
-    else if (addr >= 0x2008 && addr <= 0x3FFF) {
+    } else if (addr >= 0x2008 && addr <= 0x3FFF) {
+      // PPU registers mirror: 0x2008 to 0x3FFF
       // mirror down to 0x2000-0x2007 and recurse
       write(addr & 0x2007, value);
-    } else if (addr >= 0x4000 && addr <= 0x401F) {
-      // apu write error point
+    } else if (addr == 0x4014) {
+      // data written to 0x4014 is the high byte of a memery block
+      // in CPU RAM.
+      std::array<uint8_t, 256> buffer;
+      // compute the start address
+      uint16_t start_addr = static_cast<uint16_t>(value) << 8;
+
+      for (uint16_t i = 0; i < 256; i++) {
+        buffer[i] = read(start_addr + i);
+      }
+      ppu->write_oam_dma(buffer);
+
+      // TODO: fix cycle counting here (error point)
+      // uint16_t add_cycles = (cycles % 2 == 1) ? 514 : 513;
+      // tick(add_cycles);  // This would need PPU ticks (add_cycles * 3)
+    } else if (addr >= 0x4000 && addr <= 0x4015) {
+      // apu write
+    } else if (addr == 0x4016) {
+      // joypad 1
+    } else if (addr == 0x4017) {
+      // joypad 2
     } else {
       // error point / TO-DO: missing exp_rom, s_ram and apu_io
       throw std::runtime_error("Attempt to write to unsupported address: " +

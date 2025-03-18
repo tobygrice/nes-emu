@@ -1,5 +1,8 @@
 #include "../include/Cartridge.h"
 
+#include <iomanip>  // for std::setw and std::setfill
+#include <iostream>
+
 // error point: not checking addr out of bounds -> seg fault
 // should not be an issue iff provided rom adheres to expectactions
 uint8_t Cartridge::read_prg_rom(uint16_t addr) {
@@ -7,10 +10,13 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
     throw std::runtime_error("Error: no cartridge loaded.");
   }
 
+  addr -= 0x8000;
+
   // mirror if prg_rom is 16KiB:
-  if ((addr >= 0x4000) && (prg_rom.size() == 0x4000)) {
-    addr = addr % 0x4000;
+  if ((prg_rom.size() == 0x4000) && (addr >= 0x4000)) {
+    addr %= 0x4000;
   }
+
   return prg_rom[addr];
 }
 
@@ -31,7 +37,7 @@ void Cartridge::load(const std::vector<uint8_t>& romDump) {
     throw std::invalid_argument("File is not in iNES file format");
   }
 
-  uint8_t ines_ver = romDump[7] & 0b00001100;
+  uint8_t ines_ver = (romDump[7] >> 2) & 0b00000011;
   if (ines_ver != 0) {
     throw std::invalid_argument("NES2.0 format is not supported yet.");
   }
@@ -51,7 +57,8 @@ void Cartridge::load(const std::vector<uint8_t>& romDump) {
                                    : MirroringMode::Horizontal;
   }
 
-  bool skip_trainer = (romDump[6] & 0x04) != 0;
+  bool skip_trainer = (romDump[6] & 0b00000100) != 0;
+
   size_t prg_rom_start = 16 + (skip_trainer ? 512 : 0);
   size_t chr_rom_start = prg_rom_start + prg_rom_size;
 

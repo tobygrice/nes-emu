@@ -1,5 +1,5 @@
 # NES Emulator
-Cycle-accurate NES emulator. Currently under development.
+NES emulator. Currently under development.
 - [x] CPU official opcodes
 - [x] Bus
 - [x] Nestest format logger
