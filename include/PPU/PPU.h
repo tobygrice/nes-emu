@@ -63,7 +63,7 @@ class PPU {
         vram{},
         cart(cart),
 
-        cycles(21), // pre-tick error point
+        cycles(0),
         scanline(0),
         nmiInterrupt(false),
         last_written_value(0) {}

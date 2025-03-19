@@ -37,9 +37,7 @@ int main(int argc, char *argv[]) {
   NES nes = NES(romDump);  // instantiate a virtual NES console
   Renderer nes_renderer = Renderer();
 
-  // std::cout << nes.cpu.getPC() << std::endl;
-  // exit(0);
-  nes.cpu.setPC(0xC000);  // overwrite reset vector for incomplete emulators
+  // nes.cpu.setPC(0xC000);  // overwrite reset vector for incomplete emulators
   // nes.cpu.executeProgram();
 
   // SDL initialisation:

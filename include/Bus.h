@@ -35,10 +35,12 @@ class Bus : public BusInterface {
         cpu(cpu),
         ppu(ppu),
         cart(cart),
-        cycles(7)  // pre-tick (error point)
+        cycles(0)
   {
     apu_io.fill(0xFF);  // init FF
   }
+
+  inline void setCycles(uint64_t c) override { cycles = c; }
 
   inline void tick(uint8_t c) override {
     ppu->tick(c * 3);
@@ -89,8 +91,6 @@ class Bus : public BusInterface {
     } else {
       // error point / TO-DO: missing exp_rom, s_ram and apu_io
       // cartridge PRG_ROM space: 0x8000 to 0xFFFF
-      throw std::runtime_error("Attempt to read from unsupported address: " +
-                               std::to_string(addr));
       return 0;
     }
   }
@@ -142,8 +142,6 @@ class Bus : public BusInterface {
       // joypad 2
     } else {
       // error point / TO-DO: missing exp_rom, s_ram and apu_io
-      throw std::runtime_error("Attempt to write to unsupported address: " +
-                               std::to_string(addr));
     }
   }
 };

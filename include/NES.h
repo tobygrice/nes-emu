@@ -40,7 +40,9 @@ class NES {
    */
   void insertCartridge(const std::vector<uint8_t>& romDump) {
     cart.load(romDump);
-    cpu.in_RESET();  // maybe call this elsewhere
+    cpu.in_RESET(); // reset interrupt called on cartridge insertion
+    bus.setCycles(7); // consumes 7 CPU cycles
+    // bus.tick(7) ? - nintendulator seems not to tick ppu, only cpu here
   }
 
   void generateFrame() {

@@ -215,9 +215,5 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
     line.replace(86, 8, oss.str());
   }
 
-  std::cout << line << std::endl;
+  std::cout << line << "\r\n";
 }
-
-// C936  01 55     ORA ($55,X) @ EA = FF22 = 9F    A:DA X:95 Y:B9 P:63 SP:69
-// PPU:  0,  0 CYC:0000 D053  01 80     ORA ($80,X) @ 80 = 0200 = AA    A:55
-// X:00 Y:5A P:64 SP:FB PPU: 24,  6 CYC:2730

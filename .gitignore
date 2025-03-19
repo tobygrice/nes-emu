@@ -4,6 +4,4 @@
 docs/.obsidian
 build
 tests/CPU/nes6502-TESTS
-test_roms/pacman.nes
-test_roms/smb.nes
-test_roms/smb2.nes
+testRoms

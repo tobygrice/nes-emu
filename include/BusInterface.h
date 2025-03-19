@@ -13,6 +13,7 @@ class BusInterface {
   virtual void resetCycles() = 0;
   virtual uint16_t getPPUScanline() = 0;
   virtual uint16_t getPPUCycle() = 0;
+  virtual void setCycles(uint64_t c) = 0;
 
   virtual bool ppuNMI() = 0;
 };

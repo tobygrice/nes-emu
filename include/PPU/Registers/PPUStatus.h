@@ -23,7 +23,6 @@ class PPUStatus {
   static constexpr uint8_t SPRITE_ZERO_HIT = 0b01000000;
   static constexpr uint8_t VBLANK_STARTED = 0b10000000;
 
-  // Default constructor, equivalent to Rust's new() method.
   PPUStatus() : bits(0) {}
 
   // Sets or clears the VBLANK_STARTED flag.

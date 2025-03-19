@@ -62,6 +62,21 @@ void CPU::memWrite16(uint16_t addr, uint16_t data) {
   memWrite8(addr + 1, high);          // write high byte second
 }
 
+void CPU::checkInfiniteLoop(uint16_t pc) {
+  recentPCs.push_back(pc);
+  if (recentPCs.size() > maxHistory) {
+    recentPCs.pop_front();  // remove the oldest PC to maintain the size
+  }
+  int count = 0;
+  for (uint16_t recentPC : recentPCs) {
+    if (pc == recentPC) count++;
+  }
+  if (count >= 10) {
+    // at least 50% of the last 20 PCs were identical
+    exit(1);
+  }
+}
+
 uint8_t CPU::executeInstruction() {
   if (!bus) {
     throw std::runtime_error("CPU: no bus linked.");
@@ -75,6 +90,8 @@ uint8_t CPU::executeInstruction() {
 
   // 3) lookup opcode table entry
   const OpCode* op = getOpCode(opcode);  // look up opcode
+
+  // checkInfiniteLoop(op->code);
 
   // 4) read operand bytes for logger
   std::vector<uint8_t> opBytes;
@@ -95,8 +112,8 @@ uint8_t CPU::executeInstruction() {
   uint8_t valueAtFinalAddr = memRead8(addressInfo.address);
   logger->log(initPC, op, &opBytes, &addressInfo, valueAtFinalAddr, a_register,
               x_register, y_register, status, sp,
-              bus->getPPUScanline(),
               bus->getPPUCycle(),
+              bus->getPPUScanline(),
               bus->getCycleCount()  // CPU cycle
   );
 
@@ -297,7 +314,6 @@ void CPU::in_RESET() {
   status &= ~FLAG_DECIMAL;   // clear D flag
   status |= FLAG_INTERRUPT;  // set interrupt flag
   pc = memRead16(0xFFFC);
-  std::cout << "starting pc = " << pc << std::endl;
 }
 void CPU::in_NMI() {
   // error point: increment pc?
@@ -419,8 +435,6 @@ void CPU::op_BRK(uint16_t /* implied */) {
   // fetch the new pc from the interrupt vector
   pc = memRead16(0xFFFE);
   pcModified = true;  // set flag for execution loop
-
-  executionActive = false;  // for now, terminate on BRK
 }
 void CPU::op_BVC(uint16_t addr) {
   if (!(status & FLAG_OVERFLOW)) {

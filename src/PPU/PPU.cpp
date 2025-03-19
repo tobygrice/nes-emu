@@ -10,9 +10,9 @@ bool PPU::tick(uint8_t c) {
     scanline++;
 
     if (scanline == 241) {
-      status.set_vblank_status(
-          true);  // error point: may need to set vblank if >= 261
-      status.set_sprite_zero_hit(false);
+      // error point: may need to set vblank if >= 261
+      status.set_vblank_status(true);  
+      status.set_sprite_zero_hit(true); // error point - true/false?
       if (ctrl.generate_vblank_nmi()) {
         nmiInterrupt = true;
       }
@@ -22,8 +22,8 @@ bool PPU::tick(uint8_t c) {
       // error point: may need to set vblank if == 261
       scanline = 0;
       nmiInterrupt = false;
-      status.set_sprite_zero_hit(true);
-      status.reset_vblank_status();
+      status.set_sprite_zero_hit(false);
+      status.set_vblank_status(false);
       return true;  // frame complete
     }
   }

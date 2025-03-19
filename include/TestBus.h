@@ -30,6 +30,7 @@ struct TestBus : public BusInterface {
   virtual uint64_t getCycleCount() const override { return cycles; }
   virtual void tick(uint8_t cyc) override { cycles += cyc; }
 
+  inline void setCycles(uint64_t c) override { cycles = c; }
   inline uint16_t getPPUScanline() override { return 0; }
   inline uint16_t getPPUCycle() override { return 0; }
 };

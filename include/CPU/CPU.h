@@ -24,11 +24,14 @@ class CPU {
 
   bool pcModified = false;  // indicates if pc has been modified by instruction
   bool executionActive = false;  // flag to indicate if program is still running
-  bool handlingNMI = false;    // CPU is currently handling NMI interrupt
+  bool handlingNMI = false;      // CPU is currently handling NMI interrupt
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
   uint8_t currentHighByte = 0;
+
+  std::deque<uint8_t> recentPCs;
+  const int maxHistory = 20;  // remember last 20 instructions
 
  public:
   CPU(Logger* logger)
@@ -39,11 +42,11 @@ class CPU {
         pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
         sp(0xFD),            // stack pointer starts at 0xFD (error point 0xFF?)
         bus(nullptr),        // provided later to avoid circular dependency
-        logger(logger) {}    // log class
+        logger(logger),      // log class
+        recentPCs() {}
 
   void linkBus(BusInterface* busptr) { this->bus = busptr; }
 
-  
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };
   uint8_t getY() { return y_register; };
@@ -59,6 +62,7 @@ class CPU {
   void setPC(uint16_t value) { pc = value; };
   void setSP(uint8_t value) { sp = value; };
   void resetCycles() { bus->resetCycles(); }
+  void checkInfiniteLoop(uint16_t pc);
 
   static constexpr uint8_t FLAG_CARRY = 0b00000001;      // C
   static constexpr uint8_t FLAG_ZERO = 0b00000010;       // Z
