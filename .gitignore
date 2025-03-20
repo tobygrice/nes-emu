@@ -4,4 +4,4 @@
 docs/.obsidian
 build
 tests/CPU/nes6502-TESTS
-testRoms
+rom_testing

@@ -21,7 +21,7 @@ class PPUStatus {
   // Bit definitions corresponding to the Rust bitflags.
   static constexpr uint8_t SPRITE_OVERFLOW = 0b00100000;
   static constexpr uint8_t SPRITE_ZERO_HIT = 0b01000000;
-  static constexpr uint8_t VBLANK_STARTED = 0b10000000;
+  static constexpr uint8_t VBLANK_STARTED =  0b10000000;
 
   PPUStatus() : bits(0) {}
 
@@ -33,9 +33,6 @@ class PPUStatus {
 
   // Sets or clears the SPRITE_OVERFLOW flag.
   void set_sprite_overflow(bool status) { set(SPRITE_OVERFLOW, status); }
-
-  // Clears the VBLANK_STARTED flag.
-  void reset_vblank_status() { set(VBLANK_STARTED, false); }
 
   // Returns true if VBLANK_STARTED flag is set.
   bool is_in_vblank() const { return (bits & VBLANK_STARTED) != 0; }

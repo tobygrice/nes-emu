@@ -9,9 +9,10 @@ bool PPU::tick(uint8_t c) {
     cycles -= 341;
     scanline++;
 
+    // scanline start at -1?
     if (scanline == 241) {
       // error point: may need to set vblank if >= 261
-      status.set_vblank_status(true);  
+      status.set_vblank_status(true);
       status.set_sprite_zero_hit(true); // error point - true/false?
       if (ctrl.generate_vblank_nmi()) {
         nmiInterrupt = true;
@@ -136,8 +137,9 @@ void PPU::write_to_mask(uint8_t value) {
 
 // Reads the status register snapshot and resets various latches.
 uint8_t PPU::read_status() {
-  uint8_t data = status.snapshot();
-  status.reset_vblank_status();
+  uint8_t data = 0;
+  data += status.snapshot();
+  status.set_vblank_status(false);
   addr.reset_latch();
   scroll.reset_latch();
   return data;
