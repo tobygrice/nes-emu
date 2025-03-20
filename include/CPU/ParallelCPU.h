@@ -10,22 +10,6 @@
 #include "AddressResolveInfo.h"
 #include "OpCode.h"
 
-enum class ResolutionState {
-  ReadOperand_Low,
-  ReadOperand_High,
-  ReadIndirect_Low,
-  ReadIndirect_High,
-  ComputeAddress,
-  Done
-};
-
-struct OperandResolutionContext {
-  AddressingMode mode;
-  ResolutionState state;
-  std::vector<uint8_t> bytes;  // Collected operand bytes
-  uint16_t computedAddress;
-};
-
 class CPU {
  private:
   // registers http://www.6502.org/users/obelisk/6502/registers.html
@@ -41,7 +25,7 @@ class CPU {
   const OpCode* currentOpCode;
   uint16_t currentAddress;
   uint8_t cyclesRemainingInCurrentInstr;
-  OperandResolutionContext currentOperandResolutionContext;
+  AddressResolveInfo currAddrResCtx;    // current address resolution context
   uint16_t pcBeforeInstruction;         // for logging
   std::vector<uint8_t> currentOpBytes;  // for logging
 
@@ -100,10 +84,15 @@ class CPU {
   uint8_t pop();
 
   // addressing mode handling
-  AddressResolveInfo computeAbsoluteAddress();
+  void computeAbsoluteAddress();
 
   inline uint16_t assembleBytes(uint8_t high, uint8_t low) {
     return (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
+  }
+
+  inline void readOperand() {
+    currentOpBytes.push_back(bus->read(pc));
+    pc++;
   }
 
   // interrupts:

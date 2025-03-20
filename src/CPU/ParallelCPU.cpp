@@ -15,7 +15,8 @@ void CPU::tick() {
     // assumes pc has already been incremented past previous operand bytes
 
     pcBeforeInstruction = pc;
-    uint8_t opcode = bus->read(pc);
+    uint8_t opcode = bus->read(
+        pc);  // error point: may need to decrement cycles remaining bc of this
     currentOpCode = getOpCode(opcode);
 
     // increment PC so that getOperandAddress() sees the operand bytes at pc
@@ -36,35 +37,39 @@ void CPU::tick() {
     currentHighByte = 0;
     currentOpBytes.clear();
     currentOpBytes.push_back(opcode);
+    currAddrResCtx.reset(currentOpCode->mode);
 
     return;
   }
 
-  if (currentOpBytes.size() < currentOpCode->bytes) {
-    uint8_t nextOperand = bus->read(pc);
-    currentOpBytes.push_back(nextOperand);
-    pc++;  // increment pc past operand byte
-    if (currentOpBytes.size() == currentOpCode->bytes) {
-      computeAbsoluteAddress();
+  // Relative addressing is exclusively used by branching instructions.
+  // On actual 6502 hardware, the target address is not computed until the
+  // CPU decides that the branch should be taken. To improve optimisation,
+  // absolute address will be computed inside branch handler iff branch is taken
+  if ((currAddrResCtx.state != ResolutionState::Done) &&
+      (currAddrResCtx.mode != AddressingMode::Relative)) {
+    computeAbsoluteAddress();
+
+    if (currAddrResCtx.state != ResolutionState::Done) {
+      cyclesRemainingInCurrentInstr--;
+      return;  // return if absolute address still not resolved
     }
-    return;
+    // as above: additional cycle for page crossing in branching instructions
+    // will be emulated inside the branch handler iff the branch is taken
+    if (currAddrResCtx.waitPageCrossed) {
+      // page was crossed in address resolution, emulate extra cycle.
+      // op->cycles does not include potential page crossings so do not
+      // decrement remaining cycles here
+      currAddrResCtx.waitPageCrossed = false;
+      return;
+    }
   }
-
-  // if bytes == 3 bus->read(op1)
 
   // 8) execute instruction
-  (this->*(currentOpCode->handler))(addressInfo.address);
-
-  // Execute one bus operation for the current cycle.
-  performBusAccess();
+  (this->*(currentOpCode->handler))(currAddrResCtx.address);
 
   // One cycle is complete.
-  cyclesRemaining--;
-
-  // Prepare the next bus access, if needed.
-  if (cyclesRemaining > 0) {
-    prepareNextBusAccess(currentOpcode);
-  }
+  cyclesRemainingInCurrentInstr--;
 }
 
 uint8_t CPU::executeInstruction() {
@@ -77,13 +82,13 @@ uint8_t CPU::executeInstruction() {
     // DO NOT add extra cycle for page crossed if instruction was a
     // branch instruction and the branch wasn't taken
     if (op->mode != AddressingMode::Relative) {
-      if (addressInfo.pageCrossed) totalCycles++;
+      if (addressInfo.waitPageCrossed) totalCycles++;
     }
   } else {
     // branch/subroutine taken
     pcModified = false;
     totalCycles++;
-    if (addressInfo.pageCrossed) totalCycles++;
+    if (addressInfo.waitPageCrossed) totalCycles++;
   }
 
   return totalCycles;
@@ -95,110 +100,202 @@ uint8_t CPU::executeInstruction() {
  * @param mode The addressing mode specified by the opcode
  * @return A 16-bit memory address
  */
-AddressResolveInfo CPU::computeAbsoluteAddress() {
-  AddressResolveInfo info = AddressResolveInfo();
-
+void CPU::computeAbsoluteAddress() {
   switch (currentOpCode->mode) {
     case AddressingMode::Implied:
-    case AddressingMode::Acc:
+    case AddressingMode::Acc: {
       // accumulator and implicit opcodes do not require an address
-      info.address = 0;
+      currAddrResCtx.state = ResolutionState::Done;
       break;
-    case AddressingMode::Relative:
-      info.address = pc + static_cast<int8_t>(currentOpBytes[1]);
-      if (((pc & 0xFF00) != (info.address & 0xFF00)) &&
-          !currentOpCode->ignorePageCrossings) {
-        info.pageCrossed = true;
+    }
+    case AddressingMode::Relative: {
+      if (currAddrResCtx.state == ResolutionState::Init) {
+        readOperand();
+        currAddrResCtx.state = ResolutionState::ComputeAddress;
+      } else {
+        currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
+        if (((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
+            !currentOpCode->ignorePageCrossings) {
+          currAddrResCtx.waitPageCrossed = true;
+        }
+        currAddrResCtx.state = ResolutionState::Done;
       }
       break;
-    case AddressingMode::Immediate:
-      info.address = pc - 1;  // pc currently pointing at next opcode
+    }
+    case AddressingMode::Immediate: {
+      // pc currently pointing at next opcode
+      currAddrResCtx.address = pc - 1;
+      currAddrResCtx.state = ResolutionState::Done;
       break;
-    case AddressingMode::ZeroPage:
-      info.address = static_cast<uint16_t>(currentOpBytes[1]);
+    }
+    case AddressingMode::ZeroPage: {
+      if (currAddrResCtx.state == ResolutionState::Init) {
+        readOperand();
+        currAddrResCtx.state = ResolutionState::ComputeAddress;
+      } else {  // ComputeAddress
+        currAddrResCtx.address = currentOpBytes[1];
+        currAddrResCtx.state = ResolutionState::Done;
+      }
       break;
-    case AddressingMode::Absolute:
-      info.address = assembleBytes(currentOpBytes[2], currentOpBytes[1]);
+    }
+    case AddressingMode::Absolute: {
+      switch (currAddrResCtx.state) {
+        case ResolutionState::Init:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ReadOperand;
+          break;
+        case ResolutionState::ReadOperand:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ComputeAddress;
+          break;
+        case ResolutionState::ComputeAddress:
+          currAddrResCtx.address =
+              assembleBytes(currentOpBytes[2], currentOpBytes[1]);
+          currAddrResCtx.state = ResolutionState::Done;
+          break;
+      }
       break;
+    }
     case AddressingMode::ZeroPageX: {
-      // wrap-around addition on 8-bit values:
-      uint8_t addr = static_cast<uint8_t>(currentOpBytes[1] + x_register);
-      info.address = static_cast<uint16_t>(addr);
+      if (currAddrResCtx.state == ResolutionState::Init) {
+        readOperand();
+        currAddrResCtx.state = ResolutionState::ComputeAddress;
+      } else {  // ComputeAddress
+        uint8_t addr = static_cast<uint8_t>(currentOpBytes[1] + x_register);
+        currAddrResCtx.address = static_cast<uint16_t>(addr);
+        currAddrResCtx.state = ResolutionState::Done;
+      }
       break;
     }
     case AddressingMode::ZeroPageY: {
-      uint8_t addr = static_cast<uint8_t>(currentOpBytes[1] + y_register);
-      info.address = static_cast<uint16_t>(addr);
+      if (currAddrResCtx.state == ResolutionState::Init) {
+        readOperand();
+        currAddrResCtx.state = ResolutionState::ComputeAddress;
+      } else {  // ComputeAddress
+        uint8_t addr = static_cast<uint8_t>(currentOpBytes[1] + y_register);
+        currAddrResCtx.address = static_cast<uint16_t>(addr);
+        currAddrResCtx.state = ResolutionState::Done;
+      }
       break;
     }
     case AddressingMode::AbsoluteX: {
-      uint16_t base = assembleBytes(currentOpBytes[2], currentOpBytes[1]);
-      info.address = base + x_register;
+      switch (currAddrResCtx.state) {
+        case ResolutionState::Init:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ReadOperand;
+          break;
+        case ResolutionState::ReadOperand:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ComputeAddress;
+          break;
+        case ResolutionState::ComputeAddress:
+          currentHighByte = currentOpBytes[2];  // for SHA, SHX, SHY
+          uint16_t base = assembleBytes(currentOpBytes[2], currentOpBytes[1]);
+          currAddrResCtx.address = base + x_register;
+          if (((base & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
+              !currentOpCode->ignorePageCrossings) {
+            currAddrResCtx.waitPageCrossed = true;
+          }
 
-      if (((base & 0xFF00) != (info.address & 0xFF00)) &&
-          !currentOpCode->ignorePageCrossings) {
-        // MSB of base address and resulting addition address is different
-        info.pageCrossed = true;  // +1 cycle for page crossed
+          currAddrResCtx.state = ResolutionState::Done;
+          break;
       }
       break;
     }
     case AddressingMode::AbsoluteY: {
-      uint16_t base = assembleBytes(currentOpBytes[2], currentOpBytes[1]);
-      info.address = base + y_register;
-      if (((base & 0xFF00) != (info.address & 0xFF00)) &&
-          !currentOpCode->ignorePageCrossings) {
-        // MSB of base address and resulting addition address is different
-        info.pageCrossed = true;  // +1 cycle for page crossed
+      switch (currAddrResCtx.state) {
+        case ResolutionState::Init:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ReadOperand;
+          break;
+        case ResolutionState::ReadOperand:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ComputeAddress;
+          break;
+        case ResolutionState::ComputeAddress:
+          currentHighByte = currentOpBytes[2];  // for SHA, SHX, SHY
+          uint16_t base = assembleBytes(currentOpBytes[2], currentOpBytes[1]);
+          currAddrResCtx.address = base + y_register;
+          if (((base & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
+              !currentOpCode->ignorePageCrossings) {
+            currAddrResCtx.waitPageCrossed = true;
+          }
+
+          currAddrResCtx.state = ResolutionState::Done;
+          break;
       }
       break;
     }
     case AddressingMode::Indirect: {
-      // For JMP ($xxxx): the 16-bit pointer is fetched from PC.
-      uint16_t pointer = assembleBytes(currentOpBytes[2], currentOpBytes[1]);
-      uint8_t lsb = memRead8(pointer);
-      uint8_t msb;
-      /* https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
-         "An original 6502 has does not correctly fetch the target address if
-         the indirect vector falls on a page boundary (e.g. $xxFF where xx is
-         any value from $00 to $FF). In this case fetches the LSB from $xxFF as
-         expected but takes the MSB from $xx00. This is fixed in some later
-         chips like the 65SC02 so for compatibility always ensure the indirect
-         vector is not at the end of the page." */
-      if ((pointer & 0x00FF) == 0x00FF) {
-        // emulate bug - wrap to beginning of page
-        msb = memRead8(pointer & 0xFF00);
-      } else {
-        msb = memRead8(pointer + 1);
+      switch (currAddrResCtx.state) {
+        case ResolutionState::Init:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ReadOperand;
+          break;
+        case ResolutionState::ReadOperand:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
+          break;
+        case ResolutionState::ReadIndirect_Low:
+          currAddrResCtx.pointerAddress =
+              assembleBytes(currentOpBytes[2], currentOpBytes[1]);
+          currAddrResCtx.address = bus->read(currAddrResCtx.pointerAddress);
+          currAddrResCtx.state = ResolutionState::ReadIndirect_High;
+          break;
+        case ResolutionState::ReadIndirect_High:
+          /* https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
+           "An original 6502 has does not correctly fetch the target address
+           if the indirect vector falls on a page boundary (e.g. $xxFF where
+           xx is any value from $00 to $FF). In this case fetches the LSB from
+           $xxFF as expected but takes the MSB from $xx00. This is fixed in
+           some later chips like the 65SC02 so for compatibility always ensure
+           the indirect vector is not at the end of the page." */
+          uint8_t msb;
+          if ((currAddrResCtx.pointerAddress & 0x00FF) == 0x00FF) {
+            // emulate known bug - wrap to beginning of page
+            msb = bus->read(currAddrResCtx.pointerAddress & 0xFF00);
+          } else {
+            msb = bus->read(currAddrResCtx.pointerAddress + 1);
+          }
+          // we can compute the address here but we still need to emulate one
+          // more cycle
+          currAddrResCtx.address =
+              (static_cast<uint16_t>(msb) << 8) | currAddrResCtx.address;
+          currAddrResCtx.state = ResolutionState::ComputeAddress;
+          break;
+        case ResolutionState::ComputeAddress:
+          currAddrResCtx.state = ResolutionState::Done;
+          break;
       }
-      info.address = (static_cast<uint16_t>(msb) << 8) | lsb;
       break;
     }
 
     case AddressingMode::IndirectX: {
       uint8_t ptr = memRead8(pc) + x_register;  // wrapping add on 8-bit
-      info.pointerUsed = true;
-      info.pointerAddress = static_cast<uint16_t>(ptr);
+      currAddrResCtx.pointerUsed = true;
+      currAddrResCtx.pointerAddress = static_cast<uint16_t>(ptr);
 
-      uint8_t low = memRead8(info.pointerAddress);
+      uint8_t low = memRead8(currAddrResCtx.pointerAddress);
       uint8_t high =
           memRead8(static_cast<uint16_t>(static_cast<uint8_t>(ptr + 1)));
-      info.address =
+      currAddrResCtx.address =
           (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
       break;
     }
 
     case AddressingMode::IndirectY: {
+      // currentHighByte = operand;
       uint8_t base = memRead8(pc);
       uint8_t low = memRead8(static_cast<uint16_t>(base));
       uint8_t high = memRead8(static_cast<uint8_t>(base + 1));
       uint16_t deref_base = (static_cast<uint16_t>(high) << 8) | low;
-      info.address = deref_base + y_register;
-      info.pointerAddress = deref_base;
-      info.pointerUsed = true;
-      if (((deref_base & 0xFF00) != (info.address & 0xFF00)) &&
+      currAddrResCtx.address = deref_base + y_register;
+      currAddrResCtx.pointerAddress = deref_base;
+      currAddrResCtx.pointerUsed = true;
+      if (((deref_base & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
           !currentOpCode->ignorePageCrossings) {
         // MSB of base address and resulting addition address is different
-        info.pageCrossed = true;  // +1 cycle for page crossed
+        currAddrResCtx.waitPageCrossed = true;  // +1 cycle for page crossed
       }
       break;
     }
@@ -239,7 +336,8 @@ void CPU::updateZeroAndNegativeFlags(uint8_t result) {
   }
 }
 void CPU::branch(uint16_t addr) {
-  // relative address was already computed by getOperandAddress, set pc to addr
+  // relative address was already computed by getOperandAddress, set pc to
+  // addr
   pc = addr;          // update pc
   pcModified = true;  // set flag for execution loop
 }
@@ -694,16 +792,16 @@ void CPU::opi_ISC(uint16_t addr) {
 }
 void CPU::opi_LAS(uint16_t addr) {
   /* ANDs the contents of a memory location with the contents of the stack
-   * pointer register and stores the result in the accumulator, the X register,
-   * and the stack pointer.  Affected flags: N Z.*/
+   * pointer register and stores the result in the accumulator, the X
+   * register, and the stack pointer.  Affected flags: N Z.*/
   sp &= memRead8(addr);
   a_register = sp;
   x_register = sp;
   updateZeroAndNegativeFlags(sp);
 }
 void CPU::opi_LAX(uint16_t addr) {
-  /* This opcode loads both the accumulator and the X register with the contents
-   * of a memory location. */
+  /* This opcode loads both the accumulator and the X register with the
+   * contents of a memory location. */
   op_LDA(addr);
   op_LDX(addr);
 }
@@ -728,19 +826,19 @@ void CPU::opi_RRA(uint16_t addr) {
 }
 void CPU::opi_SAX(uint16_t addr) {
   /* aka AXS+AAX: ANDs the contents of the A and X registers (without changing
-   * the contents of either register) and stores the result in memory. Does not
-   * affect any flags in the processor status register.*/
+   * the contents of either register) and stores the result in memory. Does
+   * not affect any flags in the processor status register.*/
   memWrite8(addr, a_register & x_register);
 }
 void CPU::opi_SBX(uint16_t addr) {
   /* aka AXS+SAX: ANDs the contents of the A and X registers (leaving the
    * contents of A intact), subtracts an immediate value, and then stores the
-   * result in X. A few points might be made about the action of subtracting an
-   * immediate value. It actually works just like the CMP instruction, except
-   * that CMP does not store the result of the subtraction it performs in any
-   * register. This subtract operation is not affected by the state of the Carry
-   * flag, though it does affect the Carry flag. It does not affect the Overflow
-   * flag. */
+   * result in X. A few points might be made about the action of subtracting
+   * an immediate value. It actually works just like the CMP instruction,
+   * except that CMP does not store the result of the subtraction it performs
+   * in any register. This subtract operation is not affected by the state of
+   * the Carry flag, though it does affect the Carry flag. It does not affect
+   * the Overflow flag. */
   x_register = (a_register & x_register) - memRead8(addr);
   // set carry flag (C) if result > 255
   if (x_register > 0xFF) {
@@ -767,8 +865,8 @@ void CPU::opi_SHY(uint16_t addr) {
   memWrite8(addr, y_register & high_plus_one);
 }
 void CPU::opi_SLO(uint16_t addr) {
-  /* This opcode ASLs the contents of a memory location and then ORs the result
-  with the accumulator. */
+  /* This opcode ASLs the contents of a memory location and then ORs the
+  result with the accumulator. */
   op_ASL(addr);
   op_ORA(addr);
 }
@@ -780,9 +878,9 @@ void CPU::opi_SRE(uint16_t addr) {
 }
 void CPU::opi_TAS(uint16_t addr) {
   /* ANDs the contents of the A and X registers (without changing the contents
-   * of either register) and transfers the result to the stack pointer. It then
-   * ANDs that result with the contents of the high byte of the target address
-   * of the operand +1 and stores that final result in memory. */
+   * of either register) and transfers the result to the stack pointer. It
+   * then ANDs that result with the contents of the high byte of the target
+   * address of the operand +1 and stores that final result in memory. */
   uint8_t high_plus_one = currentHighByte + 1;
   sp = a_register & x_register;
   memWrite8(addr, sp & high_plus_one);
