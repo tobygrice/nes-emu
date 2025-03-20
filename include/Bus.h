@@ -4,13 +4,12 @@
 #include <array>
 #include <cstdint>
 
-#include "BusInterface.h"
 #include "CPU/CPU.h"
 #include "Cartridge.h"
 #include "PPU/PPU.h"
 
 // Memory Management Unit (Bus)
-class Bus : public BusInterface {
+class Bus {
  private:
   // https://fceux.com/web/help/NESRAMMappingFindingValues.html
   std::array<uint8_t, 0x0800> cpu_ram;  // $0000 – $07FF: CPU RAM
@@ -40,9 +39,9 @@ class Bus : public BusInterface {
     apu_io.fill(0xFF);  // init FF
   }
 
-  inline void setCycles(uint64_t c) override { cycles = c; }
+  inline void setCycles(uint64_t c) { cycles = c; }
 
-  inline void tick(uint8_t c) override {
+  inline void tick(uint8_t c) {
     ppu->tick(c * 3);
     cycles += c;
   }
@@ -52,14 +51,14 @@ class Bus : public BusInterface {
     tick(cpu_cycles);
   }
 
-  inline bool ppuNMI() override { return ppu->getNMI(); }
-  inline uint16_t getPPUScanline() override { return ppu->getScanline(); }
-  inline uint16_t getPPUCycle() override { return ppu->getCycle(); }
+  inline bool ppuNMI() { return ppu->getNMI(); }
+  inline uint16_t getPPUScanline() { return ppu->getScanline(); }
+  inline uint16_t getPPUCycle() { return ppu->getCycle(); }
 
-  inline uint64_t getCycleCount() const override { return cycles; }
-  inline void resetCycles() override { cycles = 0; }
+  inline uint64_t getCycleCount() const { return cycles; }
+  inline void resetCycles() { cycles = 0; }
 
-  inline uint8_t read(uint16_t addr) override {
+  inline uint8_t read(uint16_t addr) {
     // cycles++;
     // CPU RAM mirror: 0x0000 - 0x1FFF
     if (addr <= 0x1FFF) {
@@ -95,7 +94,7 @@ class Bus : public BusInterface {
     }
   }
 
-  inline void write(uint16_t addr, uint8_t value) override {
+  inline void write(uint16_t addr, uint8_t value) {
     // cycles++;
     // CPU RAM mirror: 0x0000 - 0x1FFF
     if (addr <= 0x1FFF) {

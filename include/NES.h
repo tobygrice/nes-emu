@@ -13,20 +13,18 @@
  */
 class NES {
  public:
-  Logger logger;
+  Logger log;
+  
   Cartridge cart;
-
+  Bus bus;
   CPU cpu;
   PPU ppu;
   // APU apu;
-  Bus bus;
 
   /**
    * Instantiates all components with an empty cartridge.
    */
-  NES() : logger(), cart(), cpu(&logger), ppu(&cart), bus(&cpu, &ppu, &cart) {
-    cpu.linkBus(&bus);
-  }
+  NES() : log(), cart(), bus(&cart), cpu(&bus, &log), ppu(&bus, &cart) {}
 
   /**
    * Instantiates all components and loads romDump into cartridge.
