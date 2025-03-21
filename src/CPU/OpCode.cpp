@@ -293,25 +293,25 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     // =====================================================
     // Branch Instructions
     // =====================================================
-    // 2 cycles if not taken (base, added by execution loop)
-    // +1 cycles if taken (total 3)
-    // +2 cycles if taken and crossing a page (total 4)
+    // 3 cycles if taken
+    // -1 cycles if not taken (total 2)
+    // +1 cycles if taken and crossing a page (total 4)
     {0x10,
-     OpCode(0x10, true, "BPL", 2, 2, AddressingMode::Relative, false, &CPU::op_BPL)},
+     OpCode(0x10, true, "BPL", 2, 3, AddressingMode::Relative, false, &CPU::op_BPL)},
     {0x30,
-     OpCode(0x30, true, "BMI", 2, 2, AddressingMode::Relative, false, &CPU::op_BMI)},
+     OpCode(0x30, true, "BMI", 2, 3, AddressingMode::Relative, false, &CPU::op_BMI)},
     {0x50,
-     OpCode(0x50, true, "BVC", 2, 2, AddressingMode::Relative, false, &CPU::op_BVC)},
+     OpCode(0x50, true, "BVC", 2, 3, AddressingMode::Relative, false, &CPU::op_BVC)},
     {0x70,
-     OpCode(0x70, true, "BVS", 2, 2, AddressingMode::Relative, false, &CPU::op_BVS)},
+     OpCode(0x70, true, "BVS", 2, 3, AddressingMode::Relative, false, &CPU::op_BVS)},
     {0x90,
-     OpCode(0x90, true, "BCC", 2, 2, AddressingMode::Relative, false, &CPU::op_BCC)},
+     OpCode(0x90, true, "BCC", 2, 3, AddressingMode::Relative, false, &CPU::op_BCC)},
     {0xB0,
-     OpCode(0xB0, true, "BCS", 2, 2, AddressingMode::Relative, false, &CPU::op_BCS)},
+     OpCode(0xB0, true, "BCS", 2, 3, AddressingMode::Relative, false, &CPU::op_BCS)},
     {0xD0,
-     OpCode(0xD0, true, "BNE", 2, 2, AddressingMode::Relative, false, &CPU::op_BNE)},
+     OpCode(0xD0, true, "BNE", 2, 3, AddressingMode::Relative, false, &CPU::op_BNE)},
     {0xF0,
-     OpCode(0xF0, true, "BEQ", 2, 2, AddressingMode::Relative, false, &CPU::op_BEQ)},
+     OpCode(0xF0, true, "BEQ", 2, 3, AddressingMode::Relative, false, &CPU::op_BEQ)},
 
     // =====================================================
     // Compare Instructions

@@ -34,8 +34,7 @@ class Logger {
   void unmute() { silenced = false; };
 
   std::string disassembleInstr(CPUState* state);
-
-  void log(CPUState state);
+  void log(CPUState* state);
 };
 
 #endif

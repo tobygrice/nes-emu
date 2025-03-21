@@ -32,6 +32,7 @@ class CPU {
   const OpCode* currentOpCode = nullptr;
   std::vector<uint8_t> currentOpBytes;
   uint8_t cyclesRemainingInCurrentInstr = 0;
+  uint8_t cyclesRemainingInCurrentInterrupt = 7;
   AddressResolveInfo currAddrResCtx;  // current address resolution context
   uint8_t currentValueAtAddress = 0;
   CPUState* logState = nullptr;
@@ -40,7 +41,7 @@ class CPU {
   bool executionActive = false;  // flag to indicate if program is still running
   bool handlingNMI = false;      // CPU is currently handling NMI interrupt
 
-  Interrupt interrupt = Interrupt::NONE;
+  Interrupt activeInterrupt = Interrupt::NONE;
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
@@ -53,16 +54,16 @@ class CPU {
         y_register(0),       // Y starts at 0
         status(0b00100000),  // status register starts with all flags clear
         pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
-        sp(0xFD),            // stack pointer starts at 0xFD (error point 0xFF?)
+        sp(0xFF),            // stack pointer starts at 0xFD (error point 0xFF?)
         bus(bus),            // handles all read/writes
         logger(logger),      // log class
         currAddrResCtx() {}
 
   void tick();
 
-  void triggerRES() { interrupt = Interrupt::RES; }
-  void triggerNMI() { interrupt = Interrupt::NMI; }
-  void triggerIRQ() { interrupt = Interrupt::IRQ; }
+  void triggerRES() { activeInterrupt = Interrupt::RES; }
+  void triggerNMI() { activeInterrupt = Interrupt::NMI; }
+  void triggerIRQ() { activeInterrupt = Interrupt::IRQ; }
 
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };
@@ -91,8 +92,8 @@ class CPU {
   static constexpr uint8_t FLAG_NEGATIVE = 0b10000000;   // N
 
   // helpers
+  void branch();
   void updateZeroAndNegativeFlags(uint8_t result);
-  void branch(uint16_t addr);
   void push(uint8_t value);
   uint8_t pop();
 
@@ -109,8 +110,8 @@ class CPU {
   }
 
   // interrupts:
-  void in_RESET();
-  void in_NMI();
+  void in_RES();
+  void in_NMI_IRQ();
 
   // instruction implementations - 56 instructions, 151 opcodes
   void op_ADC(uint16_t addr);

@@ -11,25 +11,23 @@
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
 void CPU::tick() {
-  if (interrupt != Interrupt::NONE) {
+  if (activeInterrupt != Interrupt::NONE) {
     // interrupt has been triggered
-    switch (interrupt) {
-      case Interrupt::RES:
-        // handler
-        break;
+    switch (activeInterrupt) {
       case Interrupt::NMI:
-        // handler
-        break;
       case Interrupt::IRQ:
-        // handler
+        in_NMI_IRQ();
+        break;
+      case Interrupt::RES:
+        in_RES();
         break;
     }
+    return;
   }
 
   if (cyclesRemainingInCurrentInstr == 0) {
     // new instruction
-
-    logger->log(*logState);  // log previous instruction
+    logger->log(logState);  // log previous instruction
     delete logState;
 
     // assumes pc has already been incremented past previous operand bytes
@@ -73,16 +71,14 @@ void CPU::tick() {
       cyclesRemainingInCurrentInstr--;
       return;  // return if absolute address still not resolved
     }
+  }
 
-    // as above: additional cycle for page crossing in branching instructions
-    // will be emulated inside the branch handler iff the branch is taken
-    if (currAddrResCtx.waitPageCrossed) {
-      // page was crossed in address resolution, emulate extra cycle.
-      // op->cycles does not include potential page crossings so do not
-      // decrement remaining cycles here
-      currAddrResCtx.waitPageCrossed = false;
-      return;
-    }
+  if (currAddrResCtx.waitPageCrossed) {
+    // page was crossed in address resolution, emulate extra cycle.
+    // op->cycles does not include potential page crossings so do not
+    // decrement remaining cycles here
+    currAddrResCtx.waitPageCrossed = false;
+    return;
   }
 
   // execute instruction
@@ -90,28 +86,6 @@ void CPU::tick() {
 
   cyclesRemainingInCurrentInstr--;
   return;
-}
-
-uint8_t CPU::executeInstruction() {
-  // 10) advance PC and compute total cycles
-  uint8_t totalCycles = op->cycles;
-
-  if (!pcModified) {
-    pc += (op->bytes - 1);  // advance pc past operand bytes
-
-    // DO NOT add extra cycle for page crossed if instruction was a
-    // branch instruction and the branch wasn't taken
-    if (op->mode != AddressingMode::Relative) {
-      if (addressInfo.waitPageCrossed) totalCycles++;
-    }
-  } else {
-    // branch/subroutine taken
-    pcModified = false;
-    totalCycles++;
-    if (addressInfo.waitPageCrossed) totalCycles++;
-  }
-
-  return totalCycles;
 }
 
 /**
@@ -382,53 +356,100 @@ void CPU::updateZeroAndNegativeFlags(uint8_t result) {
   }
 }
 
-void CPU::branch(uint16_t addr) {
+void CPU::branch() {
   if (currAddrResCtx.state == ResolutionState::Init) {
     readOperand();
     currAddrResCtx.state = ResolutionState::ComputeAddress;
-  } else {  // currAddrResCtx.state == ResolutionState::ComputeAddress;
+  } else if (currAddrResCtx.state == ResolutionState::ComputeAddress) {
     currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
     if (((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
         !currentOpCode->ignorePageCrossings) {
       currAddrResCtx.waitPageCrossed = true;
     }
-    pc = addr;          // update pc
-    pcModified = true;  // set flag for execution loop
+    pc = currAddrResCtx.address;  // update pc
     currAddrResCtx.state = ResolutionState::Done;
   }
+  // else ResolutionState::Done, do nothing
 }
 
 /**
- * NES has a mechanism to indicate where the CPU should start execution.
- * When a new cartridge is inserted, the CPU receives a "Reset interrupt"
- * signal, which instructs it to:
- * - Reset the state (registers and flags)
- * - Set pc to the 16-bit address stored at 0xFFFC
+ * #  address R/W description
+ *--- ------- --- -----------------------------------------------
+ * 1    PC     R  fetch opcode and discard it - $00 (BRK) is forced
+ * 2    PC     R  read next instruction byte (discard same as above)
+ * 3  $0100,S  W  push PCH on stack, decrement S
+ * 4  $0100,S  W  push PCL on stack, decrement S
+ **** At this point, the signal status determines which interrupt vector is used
+ * 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
+ * 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
+ * 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
  */
-void CPU::in_RESET() {
-  a_register = 0;
-  x_register = 0;
-  y_register = 0;
-  status &= ~FLAG_DECIMAL;   // clear D flag
-  status |= FLAG_INTERRUPT;  // set interrupt flag
-  pc = memRead16(0xFFFC);
+void CPU::in_NMI_IRQ() {
+  cyclesRemainingInCurrentInterrupt--;
+  switch (cyclesRemainingInCurrentInterrupt) {
+    case 6:
+      bus->read(pc);  // fetch opcode and discard
+      break;          // burn cycle
+    case 5:
+      bus->read(pc + 1);  // fetch operand and discard
+      break;
+    case 4:
+      push((pc >> 8) & 0xFF);
+      break;
+    case 3:
+      push(static_cast<uint8_t>(pc & 0xFF));
+      break;
+    case 2:
+      // push(status | FLAG_BREAK);
+      push(status & ~FLAG_BREAK);
+      break;
+    case 1:
+      status |= FLAG_INTERRUPT;  // set the interrupt flag
+      uint16_t address = (activeInterrupt == Interrupt::NMI) ? 0xFFFA : 0xFFFE;
+      pc = bus->read(address);
+      break;
+    case 0:
+      uint16_t address = (activeInterrupt == Interrupt::NMI) ? 0xFFFB : 0xFFFF;
+      pc |= (static_cast<uint16_t>(bus->read(address)) << 8);
+      cyclesRemainingInCurrentInterrupt = 7;  // reset for next interrupt
+      activeInterrupt = Interrupt::NONE;
+      break;
+  }
 }
 
-void CPU::in_NMI() {
-  handlingNMI = true;
-
-  // push high byte first, then low byte
-  push((pc >> 8) & 0xFF);  // push MSB
-  push(pc & 0xFF);         // push LSB
-
-  // push the status register with the break flag set
-  push(status | FLAG_BREAK);
-
-  status |= FLAG_INTERRUPT;  // set the interrupt flag
-
-  // fetch the new pc from the NMI interrupt handler
-  pc = memRead16(0xFFFA);
-  pcModified = true;  // set flag for execution loop
+void CPU::in_RES() {
+  cyclesRemainingInCurrentInterrupt--;
+  switch (cyclesRemainingInCurrentInterrupt) {
+    case 6:
+      // dummy opcode read
+      // reset registers
+      a_register = 0;
+      x_register = 0;
+      y_register = 0;
+      status = 0b00100000;
+      sp = 0xFF;
+      break;
+    case 5:
+      break;  // dummy operand read
+    case 4:
+      sp--; // dummy stack push
+      break;
+    case 3:
+      sp--; // dummy stack push
+      break;
+    case 2:
+      break;
+    case 1:
+      status &= ~FLAG_DECIMAL;   // clear D flag
+      status |= FLAG_INTERRUPT;  // set the interrupt flag
+      pc = bus->read(0xFFFC);
+      break;
+    case 0:
+      pc |= (static_cast<uint16_t>(bus->read(0xFFFD)) << 8);
+      cyclesRemainingInCurrentInterrupt = 7;  // reset for next interrupt
+      activeInterrupt = Interrupt::NONE;
+      break;
+  }
 }
 
 void CPU::op_ADC(uint16_t addr) { op_ADC_CORE(memRead8(addr)); }
@@ -477,19 +498,31 @@ void CPU::op_ASL_ACC(uint16_t /* implied */) {
   a_register <<= 1;  // shift accumulator left
   updateZeroAndNegativeFlags(a_register);
 }
-void CPU::op_BCC(uint16_t addr) {
+void CPU::op_BCC(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_CARRY)) {
-    branch(addr);  // branch if carry flag clear
+    branch();  // branch if carry flag clear
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
-void CPU::op_BCS(uint16_t addr) {
+void CPU::op_BCS(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_CARRY) {
-    branch(addr);  // branch if carry flag set
+    branch();  // branch if carry flag set
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
-void CPU::op_BEQ(uint16_t addr) {
+void CPU::op_BEQ(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_ZERO) {
-    branch(addr);  // branch if zero flag is set
+    branch();  // branch if zero flag is set
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
 void CPU::op_BIT(uint16_t addr) {
@@ -503,19 +536,31 @@ void CPU::op_BIT(uint16_t addr) {
     status |= FLAG_ZERO;
   }
 }
-void CPU::op_BMI(uint16_t addr) {
+void CPU::op_BMI(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_NEGATIVE) {
-    branch(addr);  // branch if negative flag is set
+    branch();  // branch if negative flag is set
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
-void CPU::op_BNE(uint16_t addr) {
+void CPU::op_BNE(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_ZERO)) {
-    branch(addr);  // branch if zero flag is clear
+    branch();  // branch if zero flag is clear
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
-void CPU::op_BPL(uint16_t addr) {
+void CPU::op_BPL(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_NEGATIVE)) {
-    branch(addr);  // branch if negative flag is clear
+    branch();  // branch if negative flag is clear
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
 void CPU::op_BRK(uint16_t /* implied */) {
@@ -536,12 +581,20 @@ void CPU::op_BRK(uint16_t /* implied */) {
 }
 void CPU::op_BVC(uint16_t addr) {
   if (!(status & FLAG_OVERFLOW)) {
-    branch(addr);  // branch if overflow flag is clear
+    branch();  // branch if overflow flag is clear
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
 void CPU::op_BVS(uint16_t addr) {
   if (status & FLAG_OVERFLOW) {
-    branch(addr);  // branch if overflow flag is set
+    branch();  // branch if overflow flag is set
+  } else {
+    // branch not taken, set remaining cycles to 1 (will be decremented to zero
+    // immediately by tick function after this function exits)
+    cyclesRemainingInCurrentInstr = 1;
   }
 }
 void CPU::op_CLC(uint16_t /* implied */) { status &= ~FLAG_CARRY; }
