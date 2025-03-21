@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "CPU/AddressResolveInfo.h"
-#include "CPU/OpCode.h"
+#include "CPU/CPUState.h"
 
 class Logger {
  private:
@@ -34,15 +33,9 @@ class Logger {
   void mute() { silenced = true; };
   void unmute() { silenced = false; };
 
-  std::string disassembleInstr(uint16_t pc, const OpCode* op,
-                               std::vector<uint8_t>* opBytes,
-                               AddressResolveInfo& addrInfo,
-                               uint8_t valueAtAddr);
+  std::string disassembleInstr(CPUState* state);
 
-  void log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
-           AddressResolveInfo* addrInfo, uint8_t valueAtAddr, uint8_t A,
-           uint8_t X, uint8_t Y, uint8_t P, uint8_t SP, int ppuX, int ppuY,
-           uint64_t cycles);
+  void log(CPUState state);
 };
 
 #endif

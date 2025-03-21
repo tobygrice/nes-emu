@@ -10,28 +10,37 @@
 #include "AddressResolveInfo.h"
 #include "OpCode.h"
 
+enum class Interrupt {
+  NONE,
+  RES,
+  NMI,
+  IRQ
+};
+
 class CPU {
  private:
   // registers http://www.6502.org/users/obelisk/6502/registers.html
   uint8_t a_register;  // accumulator
   uint8_t x_register;  // index X
   uint8_t y_register;  // index Y
-  uint8_t status;      // processor status
+  uint8_t status;      // processor status (p)
   uint16_t pc;         // program counter
   uint8_t sp;          // stack pointer
   Bus* bus;            // bus
   Logger* logger;      // logger
 
-  const OpCode* currentOpCode;
-  uint16_t currentAddress;
-  uint8_t cyclesRemainingInCurrentInstr;
-  AddressResolveInfo currAddrResCtx;    // current address resolution context
-  uint16_t pcBeforeInstruction;         // for logging
-  std::vector<uint8_t> currentOpBytes;  // for logging
+  const OpCode* currentOpCode = nullptr;
+  std::vector<uint8_t> currentOpBytes;
+  uint8_t cyclesRemainingInCurrentInstr = 0;
+  AddressResolveInfo currAddrResCtx;  // current address resolution context
+  uint8_t currentValueAtAddress = 0;
+  CPUState* logState = nullptr;
 
   bool pcModified = false;  // indicates if pc has been modified by instruction
   bool executionActive = false;  // flag to indicate if program is still running
   bool handlingNMI = false;      // CPU is currently handling NMI interrupt
+
+  Interrupt interrupt = Interrupt::NONE;
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
@@ -46,10 +55,14 @@ class CPU {
         pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
         sp(0xFD),            // stack pointer starts at 0xFD (error point 0xFF?)
         bus(bus),            // handles all read/writes
-        logger(logger)       // log class
-  {}
+        logger(logger),      // log class
+        currAddrResCtx() {}
 
   void tick();
+
+  void triggerRES() { interrupt = Interrupt::RES; }
+  void triggerNMI() { interrupt = Interrupt::NMI; }
+  void triggerIRQ() { interrupt = Interrupt::IRQ; }
 
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };

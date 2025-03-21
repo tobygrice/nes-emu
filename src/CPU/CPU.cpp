@@ -236,8 +236,7 @@ AddressResolveInfo CPU::getOperandAddress(AddressingMode mode,
       info.pointerAddress = static_cast<uint16_t>(ptr);
 
       uint8_t low = memRead8(info.pointerAddress);
-      uint8_t high =
-          memRead8(static_cast<uint16_t>(static_cast<uint8_t>(ptr + 1)));
+      uint8_t high = memRead8(static_cast<uint16_t>(static_cast<uint8_t>(ptr + 1)));
       info.address =
           (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
       break;

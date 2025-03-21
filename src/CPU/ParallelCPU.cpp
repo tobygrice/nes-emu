@@ -11,34 +11,53 @@
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
 void CPU::tick() {
-  if (cyclesRemainingInCurrentInstr == 0) {
-    // assumes pc has already been incremented past previous operand bytes
+  if (interrupt != Interrupt::NONE) {
+    // interrupt has been triggered
+    switch (interrupt) {
+      case Interrupt::RES:
+        // handler
+        break;
+      case Interrupt::NMI:
+        // handler
+        break;
+      case Interrupt::IRQ:
+        // handler
+        break;
+    }
+  }
 
-    pcBeforeInstruction = pc;
-    uint8_t opcode = bus->read(
-        pc);  // error point: may need to decrement cycles remaining bc of this
+  if (cyclesRemainingInCurrentInstr == 0) {
+    // new instruction
+
+    logger->log(*logState);  // log previous instruction
+    delete logState;
+
+    // assumes pc has already been incremented past previous operand bytes
+    uint8_t opcode = bus->read(pc);
     currentOpCode = getOpCode(opcode);
 
-    // increment PC so that getOperandAddress() sees the operand bytes at pc
+    // CAPTURE CPU STATE FOR LOGGING
+    // - pass pointer to currentOpBytes, currAddrResCtx, currentValueAtAddress
+    // - all other elements of logState are locked to their current state
+    // - call logger.log(logState) once currentOpBytes, currAddrResCtx, and
+    //   currentValueAtAddress have been computed
+    logState = new CPUState(
+        pc, *currentOpCode, &currentOpBytes, &currAddrResCtx,
+        &currentValueAtAddress, a_register, x_register, y_register, status, sp,
+        bus->getPPUCycle(), bus->getPPUScanline(), bus->getCycleCount());
+
+    // increment PC to point at first operand
     pc++;
-
-    {  // 7) log instruction (nestest logs state before execution)
-      // not certain this should be placed here...
-      uint8_t valueAtFinalAddr = bus->read(addressInfo.address);
-      logger->log(pcBeforeInstruction, currentOpCode, &currentOpBytes,
-                  &addressInfo, valueAtFinalAddr, a_register, x_register,
-                  y_register, status, sp, bus->getPPUCycle(),
-                  bus->getPPUScanline(),
-                  bus->getCycleCount()  // CPU cycle
-      );
-    }
-
     cyclesRemainingInCurrentInstr = currentOpCode->cycles;
+
+    // reset values for new instruction
     currentHighByte = 0;
     currentOpBytes.clear();
     currentOpBytes.push_back(opcode);
     currAddrResCtx.reset(currentOpCode->mode);
 
+    // bus->read(pc) means this was a cycle, count cycle and return
+    cyclesRemainingInCurrentInstr--;
     return;
   }
 
@@ -54,6 +73,7 @@ void CPU::tick() {
       cyclesRemainingInCurrentInstr--;
       return;  // return if absolute address still not resolved
     }
+
     // as above: additional cycle for page crossing in branching instructions
     // will be emulated inside the branch handler iff the branch is taken
     if (currAddrResCtx.waitPageCrossed) {
@@ -65,11 +85,11 @@ void CPU::tick() {
     }
   }
 
-  // 8) execute instruction
+  // execute instruction
   (this->*(currentOpCode->handler))(currAddrResCtx.address);
 
-  // One cycle is complete.
   cyclesRemainingInCurrentInstr--;
+  return;
 }
 
 uint8_t CPU::executeInstruction() {
@@ -108,20 +128,9 @@ void CPU::computeAbsoluteAddress() {
       currAddrResCtx.state = ResolutionState::Done;
       break;
     }
-    case AddressingMode::Relative: {
-      if (currAddrResCtx.state == ResolutionState::Init) {
-        readOperand();
-        currAddrResCtx.state = ResolutionState::ComputeAddress;
-      } else {
-        currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
-        if (((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
-            !currentOpCode->ignorePageCrossings) {
-          currAddrResCtx.waitPageCrossed = true;
-        }
-        currAddrResCtx.state = ResolutionState::Done;
-      }
-      break;
-    }
+    case AddressingMode::Relative:
+      throw std::runtime_error(
+          "Relative addressing should be computed by branch instruction.");
     case AddressingMode::Immediate: {
       // pc currently pointing at next opcode
       currAddrResCtx.address = pc - 1;
@@ -257,7 +266,7 @@ void CPU::computeAbsoluteAddress() {
           } else {
             msb = bus->read(currAddrResCtx.pointerAddress + 1);
           }
-          // we can compute the address here but we still need to emulate one
+          // we can compute the address here but still need to emulate one
           // more cycle
           currAddrResCtx.address =
               (static_cast<uint16_t>(msb) << 8) | currAddrResCtx.address;
@@ -271,47 +280,84 @@ void CPU::computeAbsoluteAddress() {
     }
 
     case AddressingMode::IndirectX: {
-      uint8_t ptr = memRead8(pc) + x_register;  // wrapping add on 8-bit
-      currAddrResCtx.pointerUsed = true;
-      currAddrResCtx.pointerAddress = static_cast<uint16_t>(ptr);
+      switch (currAddrResCtx.state) {
+        case ResolutionState::Init:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
+          break;
+        case ResolutionState::ReadIndirect_Low:
+          currAddrResCtx.pointerAddress = currentOpBytes[1] + x_register;
+          currAddrResCtx.pointerUsed = true;
+          currAddrResCtx.address = bus->read(currAddrResCtx.pointerAddress);
+          currAddrResCtx.state = ResolutionState::ReadIndirect_High;
+          break;
+        case ResolutionState::ReadIndirect_High:
+          uint8_t high = bus->read(
+              static_cast<uint8_t>(currAddrResCtx.pointerAddress + 1));
+          currAddrResCtx.address =
+              (static_cast<uint16_t>(high) << 8) | currAddrResCtx.address;
+          currAddrResCtx.state = ResolutionState::ComputeAddress;
+          // we can compute the address here but still need to emulate one
+          // more cycle
+          break;
+        case ResolutionState::ComputeAddress:
+          currAddrResCtx.state = ResolutionState::Done;
+          break;
+      }
 
-      uint8_t low = memRead8(currAddrResCtx.pointerAddress);
-      uint8_t high =
-          memRead8(static_cast<uint16_t>(static_cast<uint8_t>(ptr + 1)));
-      currAddrResCtx.address =
-          (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
       break;
     }
 
     case AddressingMode::IndirectY: {
-      // currentHighByte = operand;
-      uint8_t base = memRead8(pc);
-      uint8_t low = memRead8(static_cast<uint16_t>(base));
-      uint8_t high = memRead8(static_cast<uint8_t>(base + 1));
-      uint16_t deref_base = (static_cast<uint16_t>(high) << 8) | low;
-      currAddrResCtx.address = deref_base + y_register;
-      currAddrResCtx.pointerAddress = deref_base;
-      currAddrResCtx.pointerUsed = true;
-      if (((deref_base & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
-          !currentOpCode->ignorePageCrossings) {
-        // MSB of base address and resulting addition address is different
-        currAddrResCtx.waitPageCrossed = true;  // +1 cycle for page crossed
+      switch (currAddrResCtx.state) {
+        case ResolutionState::Init:
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
+          break;
+        case ResolutionState::ReadIndirect_Low:
+          currAddrResCtx.pointerUsed = true;
+          currAddrResCtx.pointerAddress = bus->read(currentOpBytes[1]);
+          currAddrResCtx.state = ResolutionState::ReadIndirect_High;
+          break;
+        case ResolutionState::ReadIndirect_High:
+          currAddrResCtx.pointerAddress |=
+              static_cast<uint16_t>(
+                  bus->read(static_cast<uint8_t>(currentOpBytes[1] + 1)))
+              << 8;
+          currAddrResCtx.state = ResolutionState::ComputeAddress;
+          break;
+        case ResolutionState::ComputeAddress:
+          currAddrResCtx.address = currAddrResCtx.pointerAddress + y_register;
+          if (((currAddrResCtx.pointerAddress & 0xFF00) !=
+               (currAddrResCtx.address & 0xFF00)) &&
+              !currentOpCode->ignorePageCrossings) {
+            // MSB of base address and resulting addition address is different
+            currAddrResCtx.waitPageCrossed = true;  // +1 cycle for page crossed
+          }
+          currAddrResCtx.state = ResolutionState::Done;
+          break;
       }
       break;
     }
     default:
       throw std::runtime_error("Addressing mode not supported");
   }
-  return info;
 }
 
+/**
+ * Pushes value to the stack. Consumes 1 cycle.
+ */
 void CPU::push(uint8_t value) {
-  memWrite8(0x0100 + sp, value);
+  bus->write(0x0100 + sp, value);
   sp--;
 }
+
+/**
+ * Pops value from the stack. Consumes 1 cycle.
+ */
 uint8_t CPU::pop() {
   sp++;
-  return memRead8(0x100 + sp);
+  return bus->read(0x100 + sp);
 }
 
 /**
@@ -335,11 +381,21 @@ void CPU::updateZeroAndNegativeFlags(uint8_t result) {
     status &= ~FLAG_NEGATIVE;  // else clear negative flag
   }
 }
+
 void CPU::branch(uint16_t addr) {
-  // relative address was already computed by getOperandAddress, set pc to
-  // addr
-  pc = addr;          // update pc
-  pcModified = true;  // set flag for execution loop
+  if (currAddrResCtx.state == ResolutionState::Init) {
+    readOperand();
+    currAddrResCtx.state = ResolutionState::ComputeAddress;
+  } else {  // currAddrResCtx.state == ResolutionState::ComputeAddress;
+    currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
+    if (((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
+        !currentOpCode->ignorePageCrossings) {
+      currAddrResCtx.waitPageCrossed = true;
+    }
+    pc = addr;          // update pc
+    pcModified = true;  // set flag for execution loop
+    currAddrResCtx.state = ResolutionState::Done;
+  }
 }
 
 /**
@@ -357,8 +413,8 @@ void CPU::in_RESET() {
   status |= FLAG_INTERRUPT;  // set interrupt flag
   pc = memRead16(0xFFFC);
 }
+
 void CPU::in_NMI() {
-  // error point: increment pc?
   handlingNMI = true;
 
   // push high byte first, then low byte
@@ -578,8 +634,7 @@ void CPU::op_JSR(uint16_t addr) {
   pcModified = true;  // set flag for execution loop
 }
 void CPU::op_LDA(uint16_t addr) {
-  uint8_t value = memRead8(addr);
-  a_register = value;
+  a_register = bus->read(addr);
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_LDX(uint16_t addr) {

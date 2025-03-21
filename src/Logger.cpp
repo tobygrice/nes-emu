@@ -1,9 +1,6 @@
 #include "../include/Logger.h"
 
-std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
-                                     std::vector<uint8_t>* opBytes,
-                                     AddressResolveInfo& addrInfo,
-                                     uint8_t valueAtAddr) {
+std::string Logger::disassembleInstr(CPUState* state) {
   {
     // A small helper to print 2-digit hex (uppercase) with leading zeros.
     auto hex2 = [&](uint8_t v) {
@@ -24,15 +21,15 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
     // Start building the disassembly string: "name "
     std::ostringstream out;
 
-    if (op->isDocumented) {
+    if (state->op->isDocumented) {
       out << " ";
     } else {
       out << "*";
     }
-    out << std::uppercase << op->name << " ";
+    out << std::uppercase << state->op->name << " ";
 
     // For the addressing modes, build the operand string in nestest style.
-    switch (op->mode) {
+    switch (state->op->mode) {
       case AddressingMode::Implied:
         // e.g. "CLC", "INX", no operand needed
         // out << "" (nothing)
@@ -45,75 +42,75 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
 
       case AddressingMode::Immediate:
         // e.g. "CMP #$AA"
-        out << "#$" << hex2((*opBytes)[1]);
+        out << "#$" << hex2(state->opBytes->at(1));
         break;
 
       case AddressingMode::Relative:
         // e.g. "BNE $D038"
-        // The final address is already in addrInfo.address
-        out << "$" << hex4(addrInfo.address);
+        // The final address is already in addrInfo->address
+        out << "$" << hex4(state->addrInfo->address);
         break;
 
       case AddressingMode::ZeroPage:
         // e.g. "LDA $03 = AB"
-        out << "$" << hex2((*opBytes)[1]);
-        out << " = " << hex2(valueAtAddr);
+        out << "$" << hex2(state->opBytes->at(1));
+        out << " = " << hex2(state->valueAtAddr);
         break;
 
       case AddressingMode::ZeroPageX:
         // e.g. "LDA $03,X = AB"
-        out << "$" << hex2((*opBytes)[1]) << ",X";
-        out << " @ " << hex2(addrInfo.address);  // Include computed address
-        out << " = " << hex2(valueAtAddr);
+        out << "$" << hex2(state->opBytes->at(1)) << ",X";
+        out << " @ " << hex2(state->addrInfo->address);  // Include computed address
+        out << " = " << hex2(state->valueAtAddr);
         break;
 
       case AddressingMode::ZeroPageY:
         // e.g. "LDA $03,Y = AB"
-        out << "$" << hex2((*opBytes)[1]) << ",Y";
-        out << " @ " << hex2(addrInfo.address);  // Include computed address
-        out << " = " << hex2(valueAtAddr);
+        out << "$" << hex2(state->opBytes->at(1)) << ",Y";
+        out << " @ " << hex2(state->addrInfo->address);  // Include computed address
+        out << " = " << hex2(state->valueAtAddr);
         break;
 
       case AddressingMode::Absolute:
-        out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]);
-        if (op->name != "JSR" &&
-            op->name != "JMP") {  // Skip = XX for JSR and JMP
-          out << " = " << hex2(valueAtAddr);
+        out << "$" << hex4((state->opBytes->at(2) << 8) | state->opBytes->at(1));
+        if (state->op->name != "JSR" &&
+            state->op->name != "JMP") {  // Skip = XX for JSR and JMP
+          out << " = " << hex2(state->valueAtAddr);
         }
         break;
 
       case AddressingMode::AbsoluteX:
-        out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ",X";
-        out << " @ " << hex4(addrInfo.address);  // Include computed address
-        out << " = " << hex2(valueAtAddr);
+        out << "$" << hex4((state->opBytes->at(2) << 8) | state->opBytes->at(1)) << ",X";
+        out << " @ " << hex4(state->addrInfo->address);  // Include computed address
+        out << " = " << hex2(state->valueAtAddr);
         break;
 
       case AddressingMode::AbsoluteY:
-        out << "$" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ",Y";
-        out << " @ " << hex4(addrInfo.address);  // Include computed address
-        out << " = " << hex2(valueAtAddr);
+        out << "$" << hex4((state->opBytes->at(2) << 8) | state->opBytes->at(1)) << ",Y";
+        out << " @ " << hex4(state->addrInfo->address);  // Include computed address
+        out << " = " << hex2(state->valueAtAddr);
         break;
 
       case AddressingMode::Indirect:
-        out << "($" << hex4(((*opBytes)[2] << 8) | (*opBytes)[1]) << ")";
+        out << "($" << hex4((state->opBytes->at(2) << 8) | state->opBytes->at(1)) << ")";
         out << " = "
-            << hex4(addrInfo.address);  // Show final resolved address, no = XX
+            << hex4(state->addrInfo->address);  // Show final resolved address, no = XX
         break;
 
       case AddressingMode::IndirectX:
-        out << "($" << hex2((*opBytes)[1]) << ",X)";
+        out << "($" << hex2(state->opBytes->at(1)) << ",X)";
         out << " @ "
-            << hex2(addrInfo.pointerAddress);  // Intermediate zero-page pointer
-        out << " = " << hex4(addrInfo.address);  // Final resolved address
-        out << " = " << hex2(valueAtAddr);       // Value at final address
+            << hex2(state->addrInfo->pointerAddress);  // Intermediate zero-page pointer
+        out << " = " << hex4(state->addrInfo->address);  // Final resolved address
+        out << " = " << hex2(state->valueAtAddr);       // Value at final address
         break;
 
       case AddressingMode::IndirectY:
         // Expected format: "LDA ($89),Y = 0300 @ 0300 = 89"
-        out << "($" << hex2((*opBytes)[1]) << "),Y";
-        out << " = " << hex4(addrInfo.pointerAddress);  // Show base pointer
-        out << " @ " << hex4(addrInfo.address);  // Show final computed address
-        out << " = " << hex2(valueAtAddr);       // Show value at final address
+        out << "($" << hex2(state->opBytes->at(1)) << "),Y";
+        out << " = " << hex4(state->addrInfo->pointerAddress);  // Show base pointer
+        out << " @ " << hex4(state->addrInfo->address);  // Show final computed address
+        out << " = " << hex2(state->valueAtAddr);       // Show value at final address
         break;
 
       default:
@@ -125,10 +122,7 @@ std::string Logger::disassembleInstr(uint16_t pc, const OpCode* op,
   }
 }
 
-void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
-                 AddressResolveInfo* addrInfo, uint8_t valueAtAddr, uint8_t A,
-                 uint8_t X, uint8_t Y, uint8_t P, uint8_t SP, int ppuX,
-                 int ppuY, uint64_t cycles) {
+void Logger::log(CPUState state) {
   if (silenced) return;
 
   std::string line(94, ' ');  // allocate 94 char string
@@ -138,7 +132,7 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
   {
     std::ostringstream oss;
     oss << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
-        << pc;
+        << state.pc;
     line.replace(0, 4, oss.str());
   }
 
@@ -147,8 +141,8 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
     std::ostringstream oss;
     oss << std::uppercase << std::hex << std::setfill('0');
     // Print up to 3 opcode bytes separated by spaces.
-    for (size_t i = 0; i < opBytes->size() && i < 3; i++) {
-      oss << std::setw(2) << static_cast<int>((*opBytes)[i]);
+    for (size_t i = 0; i < state.opBytes->size() && i < 3; i++) {
+      oss << std::setw(2) << static_cast<int>(state.opBytes->at(i));
       if (i < 2) {
         oss << " ";
       }
@@ -163,7 +157,7 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
 
   // Field 3: Disassembly at index 17 (28 characters wide)
   {
-    std::string dis = disassembleInstr(pc, op, opBytes, *addrInfo, valueAtAddr);
+    std::string dis = disassembleInstr(&state);
     if (dis.size() < 31) {
       dis.append(31 - dis.size(), ' ');
     } else if (dis.size() > 31) {
@@ -177,11 +171,11 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
   {
     std::ostringstream oss;
     oss << std::uppercase << std::hex << std::setfill('0')
-        << "A:" << std::setw(2) << static_cast<int>(A) << " "
-        << "X:" << std::setw(2) << static_cast<int>(X) << " "
-        << "Y:" << std::setw(2) << static_cast<int>(Y) << " "
-        << "P:" << std::setw(2) << static_cast<int>(P) << " "
-        << "SP:" << std::setw(2) << static_cast<int>(SP);
+        << "A:" << std::setw(2) << static_cast<int>(state.A) << " "
+        << "X:" << std::setw(2) << static_cast<int>(state.X) << " "
+        << "Y:" << std::setw(2) << static_cast<int>(state.Y) << " "
+        << "P:" << std::setw(2) << static_cast<int>(state.P) << " "
+        << "SP:" << std::setw(2) << static_cast<int>(state.SP);
     std::string regStr = oss.str();
     if (regStr.size() < 25) {
       regStr.append(25 - regStr.size(), ' ');
@@ -196,8 +190,8 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
   {
     std::ostringstream oss;
     // Use "PPU:" without an extra trailing space
-    oss << "PPU:" << std::setw(3) << std::setfill(' ') << std::right << ppuX
-        << "," << std::setw(3) << std::setfill(' ') << std::right << ppuY;
+    oss << "PPU:" << std::setw(3) << std::setfill(' ') << std::right << state.ppuX
+        << "," << std::setw(3) << std::setfill(' ') << std::right << state.ppuY;
     std::string ppuStr = oss.str();
     if (ppuStr.size() < 11) {
       ppuStr.append(11 - ppuStr.size(), ' ');
@@ -211,7 +205,7 @@ void Logger::log(uint16_t pc, const OpCode* op, std::vector<uint8_t>* opBytes,
   // Format: "CYC:XXXX" (no extra preceding space)
   {
     std::ostringstream oss;
-    oss << "CYC:" << cycles;
+    oss << "CYC:" << state.cycles;
     line.replace(86, 8, oss.str());
   }
 
