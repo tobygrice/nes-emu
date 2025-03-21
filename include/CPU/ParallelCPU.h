@@ -10,12 +10,7 @@
 #include "AddressResolveInfo.h"
 #include "OpCode.h"
 
-enum class Interrupt {
-  NONE,
-  RES,
-  NMI,
-  IRQ
-};
+enum class Interrupt { NONE, RES, NMI, IRQ };
 
 class CPU {
  private:
@@ -94,8 +89,22 @@ class CPU {
   // helpers
   void branch();
   void updateZeroAndNegativeFlags(uint8_t result);
-  void push(uint8_t value);
-  uint8_t pop();
+  
+  /**
+   * Pushes value to the stack. Consumes 1 cycle.
+   */
+  inline void push(uint8_t value) {
+    bus->write(0x0100 + sp, value);
+    sp--;
+  }
+
+  /**
+   * Pops value from the stack. Consumes 1 cycle.
+   */
+  inline uint8_t pop() {
+    sp++;
+    return bus->read(0x100 + sp);
+  }
 
   // addressing mode handling
   void computeAbsoluteAddress();

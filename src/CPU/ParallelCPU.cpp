@@ -71,14 +71,14 @@ void CPU::tick() {
       cyclesRemainingInCurrentInstr--;
       return;  // return if absolute address still not resolved
     }
-  }
 
-  if (currAddrResCtx.waitPageCrossed) {
-    // page was crossed in address resolution, emulate extra cycle.
-    // op->cycles does not include potential page crossings so do not
-    // decrement remaining cycles here
-    currAddrResCtx.waitPageCrossed = false;
-    return;
+    if (currAddrResCtx.waitPageCrossed) {
+      // page was crossed in address resolution, emulate extra cycle.
+      // op->cycles does not include potential page crossings so do not
+      // decrement remaining cycles here
+      currAddrResCtx.waitPageCrossed = false;
+      return;
+    }
   }
 
   // execute instruction
@@ -252,7 +252,6 @@ void CPU::computeAbsoluteAddress() {
       }
       break;
     }
-
     case AddressingMode::IndirectX: {
       switch (currAddrResCtx.state) {
         case ResolutionState::Init:
@@ -281,7 +280,6 @@ void CPU::computeAbsoluteAddress() {
 
       break;
     }
-
     case AddressingMode::IndirectY: {
       switch (currAddrResCtx.state) {
         case ResolutionState::Init:
@@ -316,60 +314,6 @@ void CPU::computeAbsoluteAddress() {
     default:
       throw std::runtime_error("Addressing mode not supported");
   }
-}
-
-/**
- * Pushes value to the stack. Consumes 1 cycle.
- */
-void CPU::push(uint8_t value) {
-  bus->write(0x0100 + sp, value);
-  sp--;
-}
-
-/**
- * Pops value from the stack. Consumes 1 cycle.
- */
-uint8_t CPU::pop() {
-  sp++;
-  return bus->read(0x100 + sp);
-}
-
-/**
- * Updates the zero and negative flags based on a given result.
- *
- * @param result Zero flag is set if result is 0, negative flag is set if
- * MSB of result is 1.
- */
-void CPU::updateZeroAndNegativeFlags(uint8_t result) {
-  // zero flag is bit 1
-  if (result == 0) {
-    status |= FLAG_ZERO;  // set zero flag if result is 0
-  } else {
-    status &= ~FLAG_ZERO;  // else clear zero flag
-  }
-
-  // negative flag is bit 7
-  if (result & 0b10000000) {
-    status |= FLAG_NEGATIVE;  // set negative flag if bit 7 of result is 1
-  } else {
-    status &= ~FLAG_NEGATIVE;  // else clear negative flag
-  }
-}
-
-void CPU::branch() {
-  if (currAddrResCtx.state == ResolutionState::Init) {
-    readOperand();
-    currAddrResCtx.state = ResolutionState::ComputeAddress;
-  } else if (currAddrResCtx.state == ResolutionState::ComputeAddress) {
-    currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
-    if (((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
-        !currentOpCode->ignorePageCrossings) {
-      currAddrResCtx.waitPageCrossed = true;
-    }
-    pc = currAddrResCtx.address;  // update pc
-    currAddrResCtx.state = ResolutionState::Done;
-  }
-  // else ResolutionState::Done, do nothing
 }
 
 /**
@@ -432,10 +376,10 @@ void CPU::in_RES() {
     case 5:
       break;  // dummy operand read
     case 4:
-      sp--; // dummy stack push
+      sp--;  // dummy stack push
       break;
     case 3:
-      sp--; // dummy stack push
+      sp--;  // dummy stack push
       break;
     case 2:
       break;
@@ -450,6 +394,45 @@ void CPU::in_RES() {
       activeInterrupt = Interrupt::NONE;
       break;
   }
+}
+
+/**
+ * Updates the zero and negative flags based on a given result.
+ *
+ * @param result Zero flag is set if result is 0, negative flag is set if
+ * MSB of result is 1.
+ */
+void CPU::updateZeroAndNegativeFlags(uint8_t result) {
+  // zero flag is bit 1
+  if (result == 0) {
+    status |= FLAG_ZERO;  // set zero flag if result is 0
+  } else {
+    status &= ~FLAG_ZERO;  // else clear zero flag
+  }
+
+  // negative flag is bit 7
+  if (result & 0b10000000) {
+    status |= FLAG_NEGATIVE;  // set negative flag if bit 7 of result is 1
+  } else {
+    status &= ~FLAG_NEGATIVE;  // else clear negative flag
+  }
+}
+
+void CPU::branch() {
+  if (currAddrResCtx.state == ResolutionState::Init) {
+    readOperand();
+    currAddrResCtx.state = ResolutionState::ComputeAddress;
+  } else if (currAddrResCtx.state == ResolutionState::ComputeAddress) {
+    currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
+    if (((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
+        !currentOpCode->ignorePageCrossings) {
+      // increment remaining cycles to emulate extra cycle
+      cyclesRemainingInCurrentInstr++;
+    }
+    pc = currAddrResCtx.address;  // update pc
+    currAddrResCtx.state = ResolutionState::Done;
+  }
+  // else ResolutionState::Done, do nothing (emulate cycle)
 }
 
 void CPU::op_ADC(uint16_t addr) { op_ADC_CORE(memRead8(addr)); }
