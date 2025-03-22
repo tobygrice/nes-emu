@@ -25,6 +25,7 @@ class CPU {
   Logger* logger;      // logger
 
   const OpCode* currentOpCode = nullptr;
+  uint8_t readBuffer;
   std::vector<uint8_t> currentOpBytes;
   uint8_t cyclesRemainingInCurrentInstr = 0;
   uint8_t cyclesRemainingInCurrentInterrupt = 7;
@@ -89,7 +90,7 @@ class CPU {
   // helpers
   void branch();
   void updateZeroAndNegativeFlags(uint8_t result);
-  
+
   /**
    * Pushes value to the stack. Consumes 1 cycle.
    */

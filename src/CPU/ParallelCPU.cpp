@@ -317,6 +317,7 @@ void CPU::computeAbsoluteAddress() {
 }
 
 /**
+ * https://www.nesdev.org/wiki/CPU_interrupts
  * #  address R/W description
  *--- ------- --- -----------------------------------------------
  * 1    PC     R  fetch opcode and discard it - $00 (BRK) is forced
@@ -435,7 +436,10 @@ void CPU::branch() {
   // else ResolutionState::Done, do nothing (emulate cycle)
 }
 
-void CPU::op_ADC(uint16_t addr) { op_ADC_CORE(memRead8(addr)); }
+void CPU::op_ADC(uint16_t addr) {
+  op_ADC_CORE(bus->read(addr));
+  // all processing of adc_core is done in the same cycle as this read
+}
 void CPU::op_ADC_CORE(uint8_t operand) {
   // allows SBC to use ADC logic
   uint8_t carry = (status & 0x01);  // extract carry flag from status register
@@ -463,17 +467,24 @@ void CPU::op_ADC_CORE(uint8_t operand) {
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_AND(uint16_t addr) {
-  uint8_t value = memRead8(addr);
-  a_register &= value;
+  a_register &= bus->read(addr);
   updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_ASL(uint16_t addr) {
-  uint8_t value = memRead8(addr);
-  // store bit 7 before shift in carry flag
-  status = (status & ~FLAG_CARRY) | ((value & 0x80) ? 0x01 : 0);
-  value <<= 1;             // shift value left
-  memWrite8(addr, value);  // write new value back to memory
-  updateZeroAndNegativeFlags(value);
+  switch (cyclesRemainingInCurrentInstr) {
+    case 3:
+      readBuffer = bus->read(addr);
+      break;
+    case 2:
+      // emulate dummy read cycle
+      status = (status & ~FLAG_CARRY) | ((readBuffer & 0x80) ? 0x01 : 0);
+      readBuffer <<= 1;  // shift value left
+      break;
+    case 1:
+      bus->write(addr, readBuffer);
+      updateZeroAndNegativeFlags(readBuffer);
+      break;
+  }
 }
 void CPU::op_ASL_ACC(uint16_t /* implied */) {
   // store bit 7 before shift in carry flag
@@ -513,9 +524,9 @@ void CPU::op_BIT(uint16_t addr) {
   // - the zero-flag is set according to the result of the operand AND the
   // - accumulator (set, if the result is zero, unset otherwise).
   status &= ~(FLAG_NEGATIVE | FLAG_OVERFLOW | FLAG_ZERO);  // clear N,V,Z flags
-  uint8_t value = memRead8(addr);
-  status |= value & (FLAG_NEGATIVE | FLAG_OVERFLOW);
-  if ((value & a_register) == 0) {
+  readBuffer = bus->read(addr);
+  status |= readBuffer & (FLAG_NEGATIVE | FLAG_OVERFLOW);
+  if ((readBuffer & a_register) == 0) {
     status |= FLAG_ZERO;
   }
 }
@@ -546,23 +557,48 @@ void CPU::op_BPL(uint16_t /* calculated iff branch taken */) {
     cyclesRemainingInCurrentInstr = 1;
   }
 }
+/**
+ *  #  address R/W description
+ * --- ------- --- -----------------------------------------------
+ *  1    PC     R  fetch opcode, increment PC
+ *  2    PC     R  read next instruction byte (and throw it away),
+ *                 increment PC
+ *  3  $0100,S  W  push PCH on stack, decrement S
+ *  4  $0100,S  W  push PCL on stack, decrement S
+ * *** ATP, the signal status determines which interrupt vector is used ***
+ *  5  $0100,S  W  push P on stack (with B flag set), decrement S
+ *  6   $FFFE   R  fetch PCL, set I flag 
+ *  7   $FFFF   R  fetch PCH
+ */
 void CPU::op_BRK(uint16_t /* implied */) {
-  pc++;  // provide an extra byte of spacing for a break mark
-
-  // push high byte first, then low byte
-  push((pc >> 8) & 0xFF);  // push MSB
-  push(pc & 0xFF);         // push LSB
-
-  // push the status register with the break flag set.
-  push(status | FLAG_BREAK);
-
-  status |= FLAG_INTERRUPT;  // set the interrupt flag
-
-  // fetch the new pc from the interrupt vector
-  pc = memRead16(0xFFFE);
-  pcModified = true;  // set flag for execution loop
+  // cycle 1 already completed by tick function
+  switch (cyclesRemainingInCurrentInstr) {
+    case 6:
+      bus->read(pc); // operand dummy read
+      pc++;
+      break;
+    case 5:
+      push((pc >> 8) & 0xFF);  // push PCH
+      break;
+    case 4:
+      push(pc & 0xFF);  // push PCL
+      break;
+    case 3:
+      // push P on stack (with B flag set), decrement S
+      push(status | FLAG_BREAK);
+      break;
+    case 2:
+      // fetch PCL, set I flag 
+      pc = bus->read(0xFFFE);
+      status |= FLAG_INTERRUPT;  // set the interrupt flag
+      break;
+    case 1:
+      // fetch PCH
+      pc |= (static_cast<uint16_t>(bus->read(0xFFFF)) << 8);
+      break;
+  }
 }
-void CPU::op_BVC(uint16_t addr) {
+void CPU::op_BVC(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_OVERFLOW)) {
     branch();  // branch if overflow flag is clear
   } else {
@@ -571,7 +607,7 @@ void CPU::op_BVC(uint16_t addr) {
     cyclesRemainingInCurrentInstr = 1;
   }
 }
-void CPU::op_BVS(uint16_t addr) {
+void CPU::op_BVS(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_OVERFLOW) {
     branch();  // branch if overflow flag is set
   } else {
