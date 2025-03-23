@@ -5,10 +5,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "../BusInterface.h"
+#include "../Bus.h"
 #include "../Logger.h"
 #include "AddressResolveInfo.h"
 #include "OpCode.h"
+
+enum Interrupt { NONE, RES, NMI, IRQ };
 
 class CPU {
  private:
@@ -16,36 +18,54 @@ class CPU {
   uint8_t a_register;  // accumulator
   uint8_t x_register;  // index X
   uint8_t y_register;  // index Y
-  uint8_t status;      // processor status
+  uint8_t status;      // processor status (p)
   uint16_t pc;         // program counter
   uint8_t sp;          // stack pointer
-  BusInterface* bus;   // bus
+  Bus* bus;            // bus
   Logger* logger;      // logger
 
-  bool pcModified = false;  // indicates if pc has been modified by instruction
-  bool executionActive = false;  // flag to indicate if program is still running
-  bool handlingNMI = false;      // CPU is currently handling NMI interrupt
+  const OpCode* currentOpCode = nullptr;
+  uint8_t readBuffer;
+  std::vector<uint8_t> currentOpBytes;
+  uint8_t cyclesRemainingInCurrentInstr = 0;
+  uint8_t cyclesRemainingInCurrentInterrupt = 7;
+  AddressResolveInfo currAddrResCtx;  // current address resolution context
+  uint8_t currentValueAtAddress = 0;
+  CPUState* logState = nullptr;
+
+  bool initiatingInterrupt = false;
+  Interrupt activeInterrupt = Interrupt::NONE;
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
   uint8_t currentHighByte = 0;
 
-  std::deque<uint8_t> recentPCs;
-  const int maxHistory = 20;  // remember last 20 instructions
-
  public:
-  CPU(Logger* logger)
+  CPU(Bus* bus, Logger* logger)
       : a_register(0),       // accumulator starts at 0
         x_register(0),       // X starts at 0
         y_register(0),       // Y starts at 0
         status(0b00100000),  // status register starts with all flags clear
         pc(0x8000),          // cartridge ROM is 0x8000-0xFFFF in NES
-        sp(0xFD),            // stack pointer starts at 0xFD (error point 0xFF?)
-        bus(nullptr),        // provided later to avoid circular dependency
+        sp(0xFF),            // stack pointer starts at 0xFD (error point 0xFF?)
+        bus(bus),            // handles all read/writes
         logger(logger),      // log class
-        recentPCs() {}
+        currAddrResCtx() {}
 
-  void linkBus(BusInterface* busptr) { this->bus = busptr; }
+  void tick();
+
+  void triggerRES() {
+    initiatingInterrupt = true;
+    activeInterrupt = Interrupt::RES;
+  }
+  void triggerNMI() {
+    initiatingInterrupt = true;
+    activeInterrupt = Interrupt::NMI;
+  }
+  void triggerIRQ() {
+    initiatingInterrupt = true;
+    activeInterrupt = Interrupt::IRQ;
+  }
 
   uint8_t getA() { return a_register; };
   uint8_t getX() { return x_register; };
@@ -54,7 +74,7 @@ class CPU {
   uint16_t getPC() { return pc; };
   uint8_t getSP() { return sp; };
   uint8_t getCycleCount() { return bus->getCycleCount(); };
-  bool isHandlingNMI() { return handlingNMI; }
+  Interrupt checkInterrupt() { return activeInterrupt; }
   void setA(uint8_t value) { a_register = value; };
   void setX(uint8_t value) { x_register = value; };
   void setY(uint8_t value) { y_register = value; };
@@ -74,29 +94,40 @@ class CPU {
   static constexpr uint8_t FLAG_NEGATIVE = 0b10000000;   // N
 
   // helpers
+  void branch();
   void updateZeroAndNegativeFlags(uint8_t result);
-  void branch(uint16_t addr);
-  void push(uint8_t value);
-  uint8_t pop();
 
-  // memory handling
-  uint8_t memRead8(uint16_t addr);
-  uint16_t memRead16(uint16_t addr);
-  void memWrite8(uint16_t addr, uint8_t data);
-  void memWrite16(uint16_t addr, uint16_t data);
+  /**
+   * Pushes value to the stack. Consumes 1 cycle.
+   */
+  inline void push(uint8_t value) {
+    bus->write(0x0100 + sp, value);
+    sp--;
+  }
 
-  // program loading and execution
-  // void loadAndExecute(const std::vector<uint8_t>& program);
-  void loadProgram(const std::vector<uint8_t>& program);
-  uint8_t executeInstruction();  // returns cycles
+  /**
+   * Pops value from the stack. Consumes 1 cycle.
+   */
+  inline uint8_t pop() {
+    sp++;
+    return bus->read(0x100 + sp);
+  }
 
   // addressing mode handling
-  AddressResolveInfo getOperandAddress(AddressingMode mode,
-                                       bool ignorePageCrossings);
+  void computeAbsoluteAddress();
+
+  inline uint16_t assembleBytes(uint8_t high, uint8_t low) {
+    return (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
+  }
+
+  inline void readOperand() {
+    currentOpBytes.push_back(bus->read(pc));
+    pc++;
+  }
 
   // interrupts:
-  void in_RESET();
-  void in_NMI();
+  void in_RES();
+  void in_NMI_IRQ();
 
   // instruction implementations - 56 instructions, 151 opcodes
   void op_ADC(uint16_t addr);
@@ -161,30 +192,30 @@ class CPU {
   void op_TXS(uint16_t addr);
   void op_TYA(uint16_t addr);
 
-  // remaining 21 instructions / 105 unofficial opcodes:
-  void opi_ALR(uint16_t addr);
-  void opi_ANC(uint16_t addr);
-  void opi_ANC2(uint16_t addr);
-  void opi_ANE(uint16_t addr);
-  void opi_ARR(uint16_t addr);
-  void opi_DCP(uint16_t addr);
-  void opi_ISC(uint16_t addr);
-  void opi_LAS(uint16_t addr);
-  void opi_LAX(uint16_t addr);
-  void opi_LXA(uint16_t addr);
-  void opi_RLA(uint16_t addr);
-  void opi_RRA(uint16_t addr);
-  void opi_SAX(uint16_t addr);
-  void opi_SBX(uint16_t addr);
-  void opi_SHA(uint16_t addr);
-  void opi_SHX(uint16_t addr);
-  void opi_SHY(uint16_t addr);
-  void opi_SLO(uint16_t addr);
-  void opi_SRE(uint16_t addr);
-  void opi_TAS(uint16_t addr);
-  void opi_SBC(uint16_t addr);
-  void opi_NOP(uint16_t addr);
-  void opi_KIL(uint16_t addr);
+//   // remaining 21 instructions / 105 unofficial opcodes:
+//   void opi_ALR(uint16_t addr);
+//   void opi_ANC(uint16_t addr);
+//   void opi_ANC2(uint16_t addr);
+//   void opi_ANE(uint16_t addr);
+//   void opi_ARR(uint16_t addr);
+//   void opi_DCP(uint16_t addr);
+//   void opi_ISC(uint16_t addr);
+//   void opi_LAS(uint16_t addr);
+//   void opi_LAX(uint16_t addr);
+//   void opi_LXA(uint16_t addr);
+//   void opi_RLA(uint16_t addr);
+//   void opi_RRA(uint16_t addr);
+//   void opi_SAX(uint16_t addr);
+//   void opi_SBX(uint16_t addr);
+//   void opi_SHA(uint16_t addr);
+//   void opi_SHX(uint16_t addr);
+//   void opi_SHY(uint16_t addr);
+//   void opi_SLO(uint16_t addr);
+//   void opi_SRE(uint16_t addr);
+//   void opi_TAS(uint16_t addr);
+//   void opi_SBC(uint16_t addr);
+//   void opi_NOP(uint16_t addr);
+//   void opi_KIL(uint16_t addr);
 };
 
 #endif  // CPU_H

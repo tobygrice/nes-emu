@@ -8,6 +8,8 @@
 #include "Cartridge.h"
 #include "PPU/PPU.h"
 
+class CPU; // forward declare (circular dependency)
+
 // Memory Management Unit (Bus)
 class Bus {
  private:
@@ -40,16 +42,6 @@ class Bus {
   }
 
   inline void setCycles(uint64_t c) { cycles = c; }
-
-  inline void tick(uint8_t c) {
-    ppu->tick(c * 3);
-    cycles += c;
-  }
-
-  inline void tickCPU() {
-    uint8_t cpu_cycles = cpu->executeInstruction();
-    tick(cpu_cycles);
-  }
 
   inline bool ppuNMI() { return ppu->getNMI(); }
   inline uint16_t getPPUScanline() { return ppu->getScanline(); }

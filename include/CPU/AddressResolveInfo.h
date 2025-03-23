@@ -2,8 +2,9 @@
 #define ADDRESSRESOLVEINFO_H
 
 #include <cstdint>
+#include "OpCode.h" // AddressingMode class
 
-enum class ResolutionState {
+enum ResolutionState {
   Init,  // will read operand 1 in this phase if necessary
   ReadOperand,
   ReadIndirect_Low,
