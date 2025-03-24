@@ -1,13 +1,19 @@
 # NES Emulator
-NES emulator. Currently under development.
+This NES emulator is a personal project to experiment with distributed systems and parallel programming in C++. The goal is to have each processing unit of the NES console running
+in parallel with single-tick granularity, coordinated by a single shared clock (as in actual hardware).
+Running an emulator on a single-tick basis will cause a huge amount of overhead (the PPU ticks over 5 million times per second). Running at a full 60fps would be fantastic but is ultimately not the goal: the intention is primarily to emulate the original hardware as closely as possible. Once accurate emulation has been achieved, I will shift focus towards efficiency.
+
+Development progress:
 - [x] CPU official opcodes
 - [x] Bus
-- [x] Nestest format logger
+- [x] Nintendulator formatted logs
 - [x] CPU unofficial opcodes
+- [x] Convert CPU to single-cycle accuracy
 - [ ] PPU
 - [ ] Input
 - [ ] PPU Scrolling
 - [ ] APU
+- [ ] Mappers
 
 ## Building & Testing
 To compile:
@@ -24,11 +30,12 @@ To run tests:
 ```bash
 ctest --test-dir build --verbose # run all tests
 ctest --test-dir build --verbose --output-on-failure -R runCPUTests
+ctest --test-dir build --verbose --output-on-failure -R runCPUNestest
 ctest --test-dir build --verbose -R runPPUTests   # Runs only PPU tests
 ctest --test-dir build --verbose -R runAPUTests   # Runs only APU tests
 ```
 To run nestest and compare logs:
 ```bash
-./build/nesemu test_roms/nestest.nes > actual.log
-awk 'NR==FNR{a[NR]=$0; next} {if ($0 != a[FNR]) {print "Difference at line", FNR; print "Actual:    " $0; print "Expected:  " a[FNR]; exit}}' expected.log actual.log
+./build/nesemu test_roms/nestest.nes > logs/actual.log
+./logs/cmplogs.sh logs/nestest_cpu_exp.log logs/nestest_cpu_act.log
 ```

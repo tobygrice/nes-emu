@@ -49,7 +49,7 @@ void CPU::tick() {
     logState = new CPUState(
         pc, *currentOpCode, &currentOpBytes, &currAddrResCtx,
         &currentValueAtAddress, a_register, x_register, y_register, status, sp,
-        bus->getPPUCycle(), bus->getPPUScanline(), cycleCount);
+        bus->getPPUCycle(), bus->getPPUScanline(), cycleCount - 1);
 
     // increment PC to point at first operand
     pc++;
@@ -121,8 +121,7 @@ void CPU::computeAbsoluteAddress() {
     }
     case AddressingMode::Immediate: {
       currAddrResCtx.address = pc;
-      currentOpBytes.push_back(pc);
-      pc++;
+      readOperand();
       currAddrResCtx.state = ResolutionState::Done;
       break;
     }
@@ -391,6 +390,7 @@ void CPU::computeAbsoluteAddress() {
       throw std::runtime_error("Addressing mode not supported");
     }
   }
+  currentValueAtAddress = bus->read(currAddrResCtx.address);
 }
 
 /**
@@ -599,6 +599,15 @@ void CPU::op_BCC(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+
+    // very annoying feature of Nintendulator: branch target computed and
+    // included in logs, even if branch is not taken. For purpose of testing
+    // logs, run the branch calculation then reset the pc. TO-DO remove once
+    // testing complete.
+    uint16_t pc_capture = pc;
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -608,6 +617,10 @@ void CPU::op_BCS(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+    uint16_t pc_capture = pc;  // see note in op_BCC on Nintendulator logs
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -617,6 +630,10 @@ void CPU::op_BEQ(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+    uint16_t pc_capture = pc;  // see note in op_BCC on Nintendulator logs
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -637,6 +654,10 @@ void CPU::op_BMI(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+    uint16_t pc_capture = pc;  // see note in op_BCC on Nintendulator logs
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -646,6 +667,10 @@ void CPU::op_BNE(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+    uint16_t pc_capture = pc;  // see note in op_BCC on Nintendulator logs
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -655,6 +680,10 @@ void CPU::op_BPL(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+    uint16_t pc_capture = pc;  // see note in op_BCC on Nintendulator logs
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -705,6 +734,10 @@ void CPU::op_BVC(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+    uint16_t pc_capture = pc;  // see note in op_BCC on Nintendulator logs
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -714,6 +747,10 @@ void CPU::op_BVS(uint16_t /* calculated iff branch taken */) {
   } else {
     // branch not taken, set remaining cycles to 1 (will be decremented to
     // zero immediately by tick function after this function exits)
+    uint16_t pc_capture = pc;  // see note in op_BCC on Nintendulator logs
+    branch();
+    branch();
+    pc = pc_capture;
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -784,8 +821,8 @@ void CPU::op_DEY(uint16_t /* implied */) {
   updateZeroAndNegativeFlags(y_register);
 }
 void CPU::op_EOR(uint16_t addr) {
-    a_register ^= bus->read(addr);
-    updateZeroAndNegativeFlags(a_register);
+  a_register ^= bus->read(addr);
+  updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_INC(uint16_t addr) {
   switch (cyclesRemainingInCurrentInstr) {
@@ -1063,15 +1100,13 @@ void CPU::op_TYA(uint16_t /* implied */) {
 // https://www.oxyron.de/html/opcodes02.html (status register impact)
 
 void CPU::opi_ALR(uint16_t addr) {
-  /* ANDs the contents of the A register with an immediate value and then
-  LSRs
+  /* ANDs the contents of the A register with an immediate value and then LSRs
    * the result. */
   op_AND(addr);
   op_LSR_ACC(0);  // implied addressing
 }
 void CPU::opi_ANC(uint16_t addr) {
-  /* ANC ANDs the contents of the A register with an immediate value and
-  then
+  /* ANC ANDs the contents of the A register with an immediate value and then
    * moves bit 7 of A into the Carry flag.  This opcode works basically
    * identically to AND #immed. except that the Carry flag is set to the
    same
@@ -1105,32 +1140,31 @@ void CPU::opi_ARR(uint16_t addr) {
     status &= ~FLAG_CARRY;
   }
 
-  bool newOverflow = (((a_register >> 6) & 1) ^ ((a_register >> 5) & 1)) !=
-  0; if (newOverflow) {
+  bool newOverflow = (((a_register >> 6) & 1) ^ ((a_register >> 5) & 1)) != 0;
+  if (newOverflow) {
     status |= FLAG_OVERFLOW;
   } else {
     status &= ~FLAG_OVERFLOW;
   }
 }
 void CPU::opi_DCP(uint16_t addr) {
-  /* aka DCM: DECs the contents of a memory location and then CMPs the
-  result
+  /* aka DCM: DECs the contents of a memory location and then CMPs the result
    * with the A register. */
   op_DEC(addr);
-  op_CMP(addr);
+  if (cyclesRemainingInCurrentInstr == 1) op_CMP(addr);
 }
 void CPU::opi_ISC(uint16_t addr) {
   /* aka INS: INCs the contents of a memory location and then SBCs the
   result
    * from the A register.*/
   op_INC(addr);
-  op_SBC(addr);
+  if (cyclesRemainingInCurrentInstr == 1) op_SBC(addr);
 }
 void CPU::opi_LAS(uint16_t addr) {
   /* ANDs the contents of a memory location with the contents of the stack
    * pointer register and stores the result in the accumulator, the X
    * register, and the stack pointer.  Affected flags: N Z.*/
-  sp &= memRead8(addr);
+  sp &= bus->read(addr);
   a_register = sp;
   x_register = sp;
   updateZeroAndNegativeFlags(sp);
@@ -1154,21 +1188,21 @@ void CPU::opi_RLA(uint16_t addr) {
   the
    * accumulator. */
   op_ROL(addr);
-  op_AND(addr);
+  if (cyclesRemainingInCurrentInstr == 1) op_AND(addr);
 }
 void CPU::opi_RRA(uint16_t addr) {
   /* RORs the contents of a memory location and then ADCs the result with
   the
    * accumulator. */
   op_ROR(addr);
-  op_ADC(addr);
+  if (cyclesRemainingInCurrentInstr == 1) op_ADC(addr);
 }
 void CPU::opi_SAX(uint16_t addr) {
   /* aka AXS+AAX: ANDs the contents of the A and X registers (without
   changing
    * the contents of either register) and stores the result in memory. Does
    * not affect any flags in the processor status register.*/
-  memWrite8(addr, a_register & x_register);
+  bus->write(addr, a_register & x_register);
 }
 void CPU::opi_SBX(uint16_t addr) {
   /* aka AXS+SAX: ANDs the contents of the A and X registers (leaving the
@@ -1184,7 +1218,7 @@ void CPU::opi_SBX(uint16_t addr) {
    * the Carry flag, though it does affect the Carry flag. It does not
    affect
    * the Overflow flag. */
-  x_register = (a_register & x_register) - memRead8(addr);
+  x_register = (a_register & x_register) - bus->read(addr);
   // set carry flag (C) if result > 255
   if (x_register > 0xFF) {
     status |= FLAG_CARRY;
@@ -1196,32 +1230,32 @@ void CPU::opi_SBX(uint16_t addr) {
 void CPU::opi_SHA(uint16_t addr) {
   /* Stores A AND X AND (high-byte of addr. + 1) at addr. Unstable. */
   uint8_t high_plus_one = currentHighByte + 1;
-  memWrite8(addr, (a_register & x_register) & high_plus_one);
+  bus->write(addr, (a_register & x_register) & high_plus_one);
 }
 void CPU::opi_SHX(uint16_t addr) {
   /* aka A11,SXA,XAS: Stores X AND (high-byte of addr. + 1) at addr.
   Unstable.
    */
   uint8_t high_plus_one = currentHighByte + 1;
-  memWrite8(addr, x_register & high_plus_one);
+  bus->write(addr, x_register & high_plus_one);
 }
 void CPU::opi_SHY(uint16_t addr) {
   /* aka SAY: Stores Y AND (high-byte of addr. + 1) at addr. Unstable. */
   uint8_t high_plus_one = currentHighByte + 1;
-  memWrite8(addr, y_register & high_plus_one);
+  bus->write(addr, y_register & high_plus_one);
 }
 void CPU::opi_SLO(uint16_t addr) {
   /* This opcode ASLs the contents of a memory location and then ORs the
   result with the accumulator. */
   op_ASL(addr);
-  op_ORA(addr);
+  if (cyclesRemainingInCurrentInstr == 1) op_ORA(addr);
 }
 void CPU::opi_SRE(uint16_t addr) {
   /* aka LSE: LSRs the contents of a memory location and then EORs the
   result
    * with the accumulator. */
   op_LSR(addr);
-  op_EOR(addr);
+  if (cyclesRemainingInCurrentInstr == 1) op_EOR(addr);
 }
 void CPU::opi_TAS(uint16_t addr) {
   /* ANDs the contents of the A and X registers (without changing the
@@ -1231,8 +1265,8 @@ void CPU::opi_TAS(uint16_t addr) {
    * address of the operand +1 and stores that final result in memory. */
   uint8_t high_plus_one = currentHighByte + 1;
   sp = a_register & x_register;
-  memWrite8(addr, sp & high_plus_one);
+  bus->write(addr, sp & high_plus_one);
 }
 void CPU::opi_SBC(uint16_t addr) { op_SBC(addr); }
 void CPU::opi_NOP(uint16_t addr) { return; }
-void CPU::opi_KIL(uint16_t addr) { executionActive = false; }
+void CPU::opi_KIL(uint16_t addr) { return; }

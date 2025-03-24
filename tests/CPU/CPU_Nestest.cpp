@@ -26,11 +26,7 @@ TEST(CPUNestest, runNestest) {
 
   std::vector<uint8_t> romDump = readNestestROM();
   NES nes = NES(romDump);  // instantiate a virtual NES console
-  
-  nes.cpu.triggerRES();
-  for (int i=0; i<7; i++) {
-    nes.cpu.tick();
-  }
+  // NES(cart) calls reset interrupt
 
   nes.cpu.TEST_setPC(0xC000);
   // up to 0xC6B3 -> official instructions
