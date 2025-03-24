@@ -394,6 +394,7 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0xF8,
      OpCode(0xF8, true, "SED", 1, 2, AddressingMode::Implied, false, &CPU::op_SED)},
 
+    /*
     // 105 unofficial opcodes
     // =====================================================
     // UNOFFICIAL/ILLEGAL OPCODES
@@ -590,4 +591,5 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
      OpCode(0xD2, false, "KIL", 1, 2, AddressingMode::Implied, false, &CPU::opi_KIL)},
     {0xF2,
      OpCode(0xF2, false, "KIL", 1, 2, AddressingMode::Implied, false, &CPU::opi_KIL)},
+     */
 };

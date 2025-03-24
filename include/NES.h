@@ -14,17 +14,16 @@
 class NES {
  public:
   Logger log;
-  
   Cartridge cart;
+  PPU ppu;
   Bus bus;
   CPU cpu;
-  PPU ppu;
   // APU apu;
 
   /**
    * Instantiates all components with an empty cartridge.
    */
-  NES() : log(), cart(), bus(&cart), cpu(&bus, &log), ppu(&bus, &cart) {}
+  NES() : log(), cart(), ppu(&cart), bus(&ppu, &cart), cpu(&bus, &log) {}
 
   /**
    * Instantiates all components and loads romDump into cartridge.
@@ -38,25 +37,9 @@ class NES {
    */
   void insertCartridge(const std::vector<uint8_t>& romDump) {
     cart.load(romDump);
-    cpu.in_RESET(); // reset interrupt called on cartridge insertion
-    bus.setCycles(7); // consumes 7 CPU cycles
-    // bus.tick(7) ? - nintendulator seems not to tick ppu, only cpu here
-  }
-
-  void generateFrame() {
-    // run CPU until PPU triggers NMI
-    while (!bus.ppuNMI()) {
-      bus.tickCPU();
-    }
-
-    cpu.in_NMI();  // call CPU NMI handler
-    bus.tick(8);   // NMI handler takes 8 cycles
-
-    // continue to tick CPU while: 
-    //  - CPU is still handling NMI
-    //  - nmiInterrupt is still set (frame gen incomplete)
-    while (cpu.isHandlingNMI() || ppu.getNMI()) {
-      bus.tickCPU();
+    cpu.triggerRES(); // reset interrupt called on cartridge insertion
+    for (int i = 0; i < 7; i++) {
+      cpu.tick();
     }
   }
 };

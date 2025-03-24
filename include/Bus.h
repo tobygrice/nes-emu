@@ -4,11 +4,8 @@
 #include <array>
 #include <cstdint>
 
-#include "CPU/CPU.h"
 #include "Cartridge.h"
 #include "PPU/PPU.h"
-
-class CPU; // forward declare (circular dependency)
 
 // Memory Management Unit (Bus)
 class Bus {
@@ -19,23 +16,21 @@ class Bus {
                                         // $2000 - $2007: PPU registers
                                         // $2008 – $3FFF: mirrors of PPU regs
   std::array<uint8_t, 0x0020> apu_io;   // $4000 – $401F: APU & I/O registers
-  std::array<uint8_t, 0x1FE0> exp_rom;  // $4020 – $5FFF: cart expansion ROM
-  std::array<uint8_t, 0x2000> s_ram;    // $6000 – $7FFF: save RAM
-  CPU* cpu;
-  PPU* ppu;
+  // std::array<uint8_t, 0x1FE0> exp_rom;  // $4020 – $5FFF: cart expansion ROM
+  // std::array<uint8_t, 0x2000> s_ram;    // $6000 – $7FFF: save RAM
   Cartridge* cart;  // $8000 - $FFFF: cartridge ROM
+  PPU* ppu;
 
   uint64_t cycles = 0;  // global cycle counter
 
  public:
-  Bus(CPU* cpu, PPU* ppu, Cartridge* cart)
+  Bus(PPU* ppu, Cartridge* cart)
       : cpu_ram{},
         apu_io{},
-        exp_rom{},
-        s_ram{},
-        cpu(cpu),
-        ppu(ppu),
+        // exp_rom{},
+        // s_ram{},
         cart(cart),
+        ppu(ppu),
         cycles(0)
   {
     apu_io.fill(0xFF);  // init FF

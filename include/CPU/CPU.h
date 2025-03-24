@@ -81,7 +81,6 @@ class CPU {
   void setStatus(uint8_t value) { status = value; };
   void setPC(uint16_t value) { pc = value; };
   void setSP(uint8_t value) { sp = value; };
-  void resetCycles() { bus->resetCycles(); }
   void checkInfiniteLoop(uint16_t pc);
 
   static constexpr uint8_t FLAG_CARRY = 0b00000001;      // C

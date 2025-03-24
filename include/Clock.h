@@ -24,8 +24,8 @@ class Clock {
   // std::thread apuThread;
   std::atomic<bool> running;
 
-  long double cpuTickInterval;
-  long double ppuTickInterval;
+  double cpuTickInterval;
+  double ppuTickInterval;
 
  public:
   Clock(NES* nes, NESRegion region) : nes(nes), region(region), running(false) {
@@ -55,24 +55,41 @@ class Clock {
   }
 
  private:
-  // CPU thread loop calls nes->cpu.tick() at the proper interval
   void cpuLoop() {
-    using namespace std::chrono;
-    auto nextTick = high_resolution_clock::now();
+    using clock = std::chrono::steady_clock;
+    const auto tickDuration = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(cpuTickInterval));
+    auto startTime = clock::now();
+    unsigned long long cpuCycleCount = 0;
     while (running) {
       nes->cpu.tick();
-      nextTick += duration<double>(cpuTickInterval);
+      cpuCycleCount++;
+      auto nextTick = startTime + cpuCycleCount * tickDuration;
       std::this_thread::sleep_until(nextTick);
     }
+
+    /* option 2: wait for fixed interval after processing (does not consider
+    tick processing time) auto nextTick = std::chrono::steady_clock::now();
+    while (running) {
+      nes->cpu.tick();
+      nextTick +=
+          std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+              std::chrono::duration<double>(cpuTickInterval));
+      std::this_thread::sleep_until(nextTick);
+    }
+      */
   }
 
-  // PPU thread loop calls nes->ppu.tick() at the proper interval
   void ppuLoop() {
-    using namespace std::chrono;
-    auto nextTick = high_resolution_clock::now();
+    using clock = std::chrono::steady_clock;
+    const auto tickDuration = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(ppuTickInterval));
+    auto startTime = clock::now();
+    unsigned long long ppuCycleCount = 0;
     while (running) {
-      nes->ppu.tick();
-      nextTick += duration<double>(ppuTickInterval);
+      // nes->ppu.tick();
+      ppuCycleCount++;
+      auto nextTick = startTime + ppuCycleCount * tickDuration;
       std::this_thread::sleep_until(nextTick);
     }
   }

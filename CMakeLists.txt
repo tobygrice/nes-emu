@@ -79,7 +79,10 @@ endfunction()
 add_nes_test(runCPUTests
   src/CPU/CPU.cpp
   src/CPU/OpCode.cpp
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
   src/Logger.cpp
+  src/Cartridge.cpp
   tests/CPU/CPU_Harte.cpp
 )
 

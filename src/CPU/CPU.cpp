@@ -237,21 +237,24 @@ void CPU::computeAbsoluteAddress() {
     }
     case AddressingMode::Indirect: {
       switch (currAddrResCtx.state) {
-        case ResolutionState::Init:
+        case ResolutionState::Init: {
           readOperand();
           currAddrResCtx.state = ResolutionState::ReadOperand;
           break;
-        case ResolutionState::ReadOperand:
+        }
+        case ResolutionState::ReadOperand: {
           readOperand();
           currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
           break;
-        case ResolutionState::ReadIndirect_Low:
+        }
+        case ResolutionState::ReadIndirect_Low: {
           currAddrResCtx.pointerAddress =
               assembleBytes(currentOpBytes[2], currentOpBytes[1]);
           currAddrResCtx.address = bus->read(currAddrResCtx.pointerAddress);
           currAddrResCtx.state = ResolutionState::ReadIndirect_High;
           break;
-        case ResolutionState::ReadIndirect_High:
+        }
+        case ResolutionState::ReadIndirect_High: {
           /* https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
            "An original 6502 has does not correctly fetch the target address
            if the indirect vector falls on a page boundary (e.g. $xxFF where
@@ -272,28 +275,33 @@ void CPU::computeAbsoluteAddress() {
               (static_cast<uint16_t>(msb) << 8) | currAddrResCtx.address;
           currAddrResCtx.state = ResolutionState::ComputeAddress;
           break;
-        case ResolutionState::ComputeAddress:
+        }
+        case ResolutionState::ComputeAddress: {
           currAddrResCtx.state = ResolutionState::Done;
           break;
-        default:
+        }
+        default: {
           throw std::runtime_error("Unexpected value in switch statement.");
           break;
+        }
       }
       break;
     }
     case AddressingMode::IndirectX: {
       switch (currAddrResCtx.state) {
-        case ResolutionState::Init:
+        case ResolutionState::Init: {
           readOperand();
           currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
           break;
-        case ResolutionState::ReadIndirect_Low:
+        }
+        case ResolutionState::ReadIndirect_Low: {
           currAddrResCtx.pointerAddress = currentOpBytes[1] + x_register;
           currAddrResCtx.pointerUsed = true;
           currAddrResCtx.address = bus->read(currAddrResCtx.pointerAddress);
           currAddrResCtx.state = ResolutionState::ReadIndirect_High;
           break;
-        case ResolutionState::ReadIndirect_High:
+        }
+        case ResolutionState::ReadIndirect_High: {
           uint8_t high = bus->read(
               static_cast<uint8_t>(currAddrResCtx.pointerAddress + 1));
           currAddrResCtx.address =
@@ -302,34 +310,40 @@ void CPU::computeAbsoluteAddress() {
           // we can compute the address here but still need to emulate one
           // more cycle
           break;
-        case ResolutionState::ComputeAddress:
+        }
+        case ResolutionState::ComputeAddress: {
           currAddrResCtx.state = ResolutionState::Done;
           break;
-        default:
+        }
+        default: {
           throw std::runtime_error("Unexpected value in switch statement.");
           break;
+        }
       }
       break;
     }
     case AddressingMode::IndirectY: {
       switch (currAddrResCtx.state) {
-        case ResolutionState::Init:
+        case ResolutionState::Init: {
           readOperand();
           currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
           break;
-        case ResolutionState::ReadIndirect_Low:
+        }
+        case ResolutionState::ReadIndirect_Low: {
           currAddrResCtx.pointerUsed = true;
           currAddrResCtx.pointerAddress = bus->read(currentOpBytes[1]);
           currAddrResCtx.state = ResolutionState::ReadIndirect_High;
           break;
-        case ResolutionState::ReadIndirect_High:
+        }
+        case ResolutionState::ReadIndirect_High: {
           currAddrResCtx.pointerAddress |=
               static_cast<uint16_t>(
                   bus->read(static_cast<uint8_t>(currentOpBytes[1] + 1)))
               << 8;
           currAddrResCtx.state = ResolutionState::ComputeAddress;
           break;
-        case ResolutionState::ComputeAddress:
+        }
+        case ResolutionState::ComputeAddress: {
           currAddrResCtx.address = currAddrResCtx.pointerAddress + y_register;
           if (((currAddrResCtx.pointerAddress & 0xFF00) !=
                (currAddrResCtx.address & 0xFF00)) &&
@@ -339,14 +353,17 @@ void CPU::computeAbsoluteAddress() {
           }
           currAddrResCtx.state = ResolutionState::Done;
           break;
-        default:
+        }
+        default: {
           throw std::runtime_error("Unexpected value in switch statement.");
           break;
+        }
       }
       break;
     }
-    default:
+    default: {
       throw std::runtime_error("Addressing mode not supported");
+    }
   }
 }
 
@@ -366,33 +383,40 @@ void CPU::computeAbsoluteAddress() {
 void CPU::in_NMI_IRQ() {
   cyclesRemainingInCurrentInterrupt--;
   switch (cyclesRemainingInCurrentInterrupt) {
-    case 6:
+    case 6: {
       bus->read(pc);  // fetch opcode and discard
       break;          // burn cycle
-    case 5:
+    }
+    case 5: {
       bus->read(pc + 1);  // fetch operand and discard
       break;
-    case 4:
+    }
+    case 4: {
       push((pc >> 8) & 0xFF);
       break;
-    case 3:
+    }
+    case 3: {
       push(static_cast<uint8_t>(pc & 0xFF));
       break;
-    case 2:
+    }
+    case 2: {
       // push(status | FLAG_BREAK);
       push(status & ~FLAG_BREAK);
       break;
-    case 1:
+    }
+    case 1: {
       status |= FLAG_INTERRUPT;  // set the interrupt flag
       uint16_t address = (activeInterrupt == Interrupt::NMI) ? 0xFFFA : 0xFFFE;
       pc = bus->read(address);
       break;
-    case 0:
+    }
+    case 0: {
       uint16_t address = (activeInterrupt == Interrupt::NMI) ? 0xFFFB : 0xFFFF;
       pc |= (static_cast<uint16_t>(bus->read(address)) << 8);
       cyclesRemainingInCurrentInterrupt = 7;  // reset for next interrupt
       initiatingInterrupt = false;
       break;
+    }
   }
 }
 
@@ -742,9 +766,7 @@ void CPU::op_INY(uint16_t /* implied */) {
   y_register++;
   updateZeroAndNegativeFlags(y_register);
 }
-void CPU::op_JMP(uint16_t addr) {
-  pc = addr;
-}
+void CPU::op_JMP(uint16_t addr) { pc = addr; }
 void CPU::op_JSR(uint16_t addr) {
   switch (cyclesRemainingInCurrentInstr) {
     case 3:
@@ -838,10 +860,11 @@ void CPU::op_PLP(uint16_t /* implied */) {
 }
 void CPU::op_ROL(uint16_t addr) {
   switch (cyclesRemainingInCurrentInstr) {
-    case 3:
+    case 3: {
       readBuffer = bus->read(addr);
       break;
-    case 2:
+    }
+    case 2: {
       // dummy write same value back to addr here
       uint8_t result = (readBuffer << 1) | (status & FLAG_CARRY ? 1 : 0);
       if (readBuffer & 0x80) {
@@ -851,10 +874,12 @@ void CPU::op_ROL(uint16_t addr) {
       }
       readBuffer = result;
       break;
-    case 1:
+    }
+    case 1: {
       bus->write(addr, readBuffer);
       updateZeroAndNegativeFlags(readBuffer);
       break;
+    }
   }
 }
 void CPU::op_ROL_ACC(uint16_t /* implied */) {
@@ -872,10 +897,11 @@ void CPU::op_ROL_ACC(uint16_t /* implied */) {
 }
 void CPU::op_ROR(uint16_t addr) {
   switch (cyclesRemainingInCurrentInstr) {
-    case 3:
+    case 3: {
       readBuffer = bus->read(addr);
       break;
-    case 2:
+    }
+    case 2: {
       // dummy write same value back to addr here
       uint8_t result = (readBuffer >> 1) | (status & FLAG_CARRY ? 0x80 : 0);
       if (readBuffer & 0x01) {
@@ -885,10 +911,12 @@ void CPU::op_ROR(uint16_t addr) {
       }
       readBuffer = result;
       break;
-    case 1:
+    }
+    case 1: {
       bus->write(addr, readBuffer);
       updateZeroAndNegativeFlags(readBuffer);
       break;
+    }
   }
 }
 void CPU::op_ROR_ACC(uint16_t /* implied */) {
@@ -950,7 +978,7 @@ void CPU::op_SBC(uint16_t addr) {
   // A = A – M – (1 – C)
   //   = A + (~M) + C
   op_ADC_CORE(~(bus->read(addr)));
-  // op_ADC_CORE is only one cycle so this is fine, 
+  // op_ADC_CORE is only one cycle so this is fine,
   // the read is not duplicated
 }
 void CPU::op_SEC(uint16_t /* implied */) { status |= FLAG_CARRY; }
@@ -989,7 +1017,8 @@ void CPU::op_TYA(uint16_t /* implied */) {
 // https://www.oxyron.de/html/opcodes02.html (status register impact)
 
 // void CPU::opi_ALR(uint16_t addr) {
-//   /* ANDs the contents of the A register with an immediate value and then LSRs
+//   /* ANDs the contents of the A register with an immediate value and then
+//   LSRs
 //    * the result. */
 //   op_AND(addr);
 //   op_LSR_ACC(0);  // implied addressing
@@ -1013,7 +1042,8 @@ void CPU::op_TYA(uint16_t /* implied */) {
 //   op_AND(addr);
 // }
 // void CPU::opi_ARR(uint16_t addr) {
-//   /* ANDs the contents of the A register with an immediate value and then RORs
+//   /* ANDs the contents of the A register with an immediate value and then
+//   RORs
 //    * the result. The carry flag is set to the value of bit 6 of the result.
 //         •	The overflow flag is set to the XOR of bits 6 and 5 of the
 //    result.*/
@@ -1026,8 +1056,8 @@ void CPU::op_TYA(uint16_t /* implied */) {
 //     status &= ~FLAG_CARRY;
 //   }
 
-//   bool newOverflow = (((a_register >> 6) & 1) ^ ((a_register >> 5) & 1)) != 0;
-//   if (newOverflow) {
+//   bool newOverflow = (((a_register >> 6) & 1) ^ ((a_register >> 5) & 1)) !=
+//   0; if (newOverflow) {
 //     status |= FLAG_OVERFLOW;
 //   } else {
 //     status &= ~FLAG_OVERFLOW;
@@ -1080,7 +1110,8 @@ void CPU::op_TYA(uint16_t /* implied */) {
 //   op_ADC(addr);
 // }
 // void CPU::opi_SAX(uint16_t addr) {
-//   /* aka AXS+AAX: ANDs the contents of the A and X registers (without changing
+//   /* aka AXS+AAX: ANDs the contents of the A and X registers (without
+//   changing
 //    * the contents of either register) and stores the result in memory. Does
 //    * not affect any flags in the processor status register.*/
 //   memWrite8(addr, a_register & x_register);
@@ -1109,7 +1140,8 @@ void CPU::op_TYA(uint16_t /* implied */) {
 //   memWrite8(addr, (a_register & x_register) & high_plus_one);
 // }
 // void CPU::opi_SHX(uint16_t addr) {
-//   /* aka A11,SXA,XAS: Stores X AND (high-byte of addr. + 1) at addr. Unstable.
+//   /* aka A11,SXA,XAS: Stores X AND (high-byte of addr. + 1) at addr.
+//   Unstable.
 //    */
 //   uint8_t high_plus_one = currentHighByte + 1;
 //   memWrite8(addr, x_register & high_plus_one);
@@ -1132,7 +1164,8 @@ void CPU::op_TYA(uint16_t /* implied */) {
 //   op_EOR(addr);
 // }
 // void CPU::opi_TAS(uint16_t addr) {
-//   /* ANDs the contents of the A and X registers (without changing the contents
+//   /* ANDs the contents of the A and X registers (without changing the
+//   contents
 //    * of either register) and transfers the result to the stack pointer. It
 //    * then ANDs that result with the contents of the high byte of the target
 //    * address of the operand +1 and stores that final result in memory. */

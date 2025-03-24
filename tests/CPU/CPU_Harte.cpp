@@ -5,10 +5,9 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 
-#include "../../include/CPU/CPU.h"
-#include "../../include/CPU/OpCode.h"
+#include "../../include/NES.h"
+// #include "../../include/CPU/OpCode.h"
 #include "../../include/Logger.h"
-#include "../../include/TestBus.h"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -21,14 +20,12 @@ namespace fs = std::filesystem;
 // Define a test fixture for CPU tests.
 class CPUHarteTests : public ::testing::Test {
  protected:
-  TestBus bus;  // create a shared bus
-  CPU cpu;      // CPU instance that uses the shared bus
-  Logger logger;
+  NES nes;
 
-  CPUHarteTests() : bus(), cpu(&logger) { cpu.linkBus(&bus); }
+  CPUHarteTests() : nes() { std::cout << "init\n"; }
 };
 
-struct CPUState {
+struct CPUTestState {
   uint16_t pc;
   uint8_t s;           // sp
   uint8_t a, x, y, p;  // p = processor status
@@ -46,9 +43,9 @@ json load_json(const std::string &filename) {
   return j;
 }
 
-// Convert JSON object to CPUState
-CPUState parse_state(const json &j) {
-  CPUState state;
+// Convert JSON object to CPUTestState
+CPUTestState parse_state(const json &j) {
+  CPUTestState state;
   state.pc = j["pc"];
   state.s = j["s"];
   state.a = j["a"];
@@ -67,7 +64,11 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
 
   for (uint16_t opcode = 0x00; opcode <= 0xFF; opcode++) {
     const OpCode *op = getOpCode(opcode);  // look up opcode
-    if (!op->isDocumented) continue;       // only test documented opcodes
+    if (op) {
+      if (!op->isDocumented) continue;  // only test documented opcodes
+    } else {
+      continue;
+    }
     // unpredictable results make some unstable undocmented opcodes almost
     // impossible to emulate consistently. Nestest provides best possible
     // testing for undocumented opcodes.
@@ -79,53 +80,51 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
     json tests = load_json(filename);
 
     for (const auto &test : tests) {
-      CPUState initial = parse_state(test["initial"]);
-      CPUState expected = parse_state(test["final"]);
+      CPUTestState initial = parse_state(test["initial"]);
+      CPUTestState expected = parse_state(test["final"]);
 
       uint8_t expectedCycles = test["cycles"].size();
 
-      cpu.setA(initial.a);
-      cpu.setX(initial.x);
-      cpu.setY(initial.y);
-      cpu.setStatus(initial.p);
-      cpu.setPC(initial.pc);
-      cpu.setSP(initial.s);
-      cpu.resetCycles();
+      nes.cpu.setA(initial.a);
+      nes.cpu.setX(initial.x);
+      nes.cpu.setY(initial.y);
+      nes.cpu.setStatus(initial.p);
+      nes.cpu.setPC(initial.pc);
+      nes.cpu.setSP(initial.s);
       for (const auto &[addr, val] : initial.ram) {
-        cpu.memWrite8(addr, val);
+        nes.bus.write(addr, val);
       }
 
-      uint8_t actualCycles = cpu.executeInstruction();
+      for (int i = 0; i < expectedCycles; i++) {
+        nes.cpu.tick();
+      }
 
-      ASSERT_EQ(cpu.getA(), expected.a)
+      ASSERT_EQ(nes.cpu.getA(), expected.a)
           << " @ instruction " << test["name"] << " after passing "
           << num_passed_tests << " tests.";
-      ASSERT_EQ(cpu.getX(), expected.x)
+      ASSERT_EQ(nes.cpu.getX(), expected.x)
           << " @ instruction " << test["name"] << " after passing "
           << num_passed_tests << " tests.";
-      ASSERT_EQ(cpu.getY(), expected.y)
+      ASSERT_EQ(nes.cpu.getY(), expected.y)
           << " @ instruction " << test["name"] << " after passing "
           << num_passed_tests << " tests.";
-      ASSERT_EQ(cpu.getStatus(), expected.p)
+      ASSERT_EQ(nes.cpu.getStatus(), expected.p)
           << " @ instruction " << test["name"] << " after passing "
           << num_passed_tests << " tests.";
-      ASSERT_EQ(cpu.getPC(), expected.pc)
+      ASSERT_EQ(nes.cpu.getPC(), expected.pc)
           << " @ instruction " << test["name"] << " after passing "
           << num_passed_tests << " tests.";
-      ASSERT_EQ(cpu.getSP(), expected.s)
+      ASSERT_EQ(nes.cpu.getSP(), expected.s)
           << " @ instruction " << test["name"] << " after passing "
           << num_passed_tests << " tests.";
       for (const auto &[addr, val] : expected.ram) {
         // Compare the single byte at 'addr'
-        ASSERT_EQ(cpu.memRead8(addr), val)
+        ASSERT_EQ(nes.bus.read(addr), val)
             << "Mismatch at mem addr " << std::uppercase
             << std::format("{:#06x} (", addr) << addr << ") @ instruction "
             << test["name"] << " after passing " << num_passed_tests
             << " tests.";
       }
-      ASSERT_EQ(actualCycles, expectedCycles)
-          << " @ instruction " << test["name"] << " after passing "
-          << num_passed_tests << " tests.";
       num_passed_tests++;
     }
     std::cout << "PASSED TEST " << std::format("{:#04x}\n", opcode);

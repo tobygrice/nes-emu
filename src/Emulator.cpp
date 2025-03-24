@@ -7,11 +7,12 @@
 #include <string>
 #include <vector>
 
-#include "../include/Bus.h"
-#include "../include/CPU/CPU.h"
-#include "../include/Logger.h"
+// #include "../include/Bus.h"
+// #include "../include/CPU/CPU.h"
+// #include "../include/Logger.h"
 #include "../include/NES.h"
 #include "../include/Renderer/Renderer.h"
+#include "../include/Clock.h"
 
 std::vector<uint8_t> readROM(char *filename) {
   std::ifstream file(filename, std::ios::binary);
@@ -35,6 +36,7 @@ int main(int argc, char *argv[]) {
   std::vector<uint8_t> romDump = readROM(argv[1]);
 
   NES nes = NES(romDump);  // instantiate a virtual NES console
+  // NES nes = NES(); // empty nes
   Renderer nes_renderer = Renderer();
 
   // nes.cpu.setPC(0xC000);  // overwrite reset vector for incomplete emulators
@@ -58,29 +60,13 @@ int main(int argc, char *argv[]) {
   texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGB24,
                               SDL_TEXTUREACCESS_STREAMING, 256, 240);
 
-  bool running = true;
-  while (running) {
-    // Run the emulation until a frame is rendered
-    nes.generateFrame();
-
-    Frame frame = Frame();
-    nes_renderer.render(nes.ppu, frame);
-
-    // Update the texture with the new frame from nes.ppu.getFrameData() (or
-    // similar)
-    SDL_UpdateTexture(texture, nullptr, frame.data.data(), 256 * 3);
-
-    // Render and present the frame
-    SDL_RenderClear(sdl_renderer);
-    SDL_RenderTexture(sdl_renderer, texture, nullptr, nullptr);
-    SDL_RenderPresent(sdl_renderer);
-
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_EVENT_QUIT) {
-        running = false;
-      }
-    }
+  
+  Clock clock = Clock(&nes, NESRegion::NTSC);
+  // clock.start();
+  
+  nes.cpu.triggerRES();
+  for (int i=0; i<7; i++) {
+    nes.cpu.tick();
   }
 
   // Close and destroy the window
