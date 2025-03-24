@@ -8,7 +8,7 @@
  * @param opcode 6502 opcode.
  * @return An OpCode object.
  */
-const OpCode* getOpCode(uint8_t opcode) {
+const OpCode* OpCode::getOpCode(uint8_t opcode) {
   auto it = OPCODE_LOOKUP.find(opcode);
   if (it != OPCODE_LOOKUP.end()) {
     return &it->second;
@@ -19,7 +19,7 @@ const OpCode* getOpCode(uint8_t opcode) {
 /**
  * Opcode lookup table
  */
-const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
+const std::unordered_map<uint8_t, OpCode> OpCode::OPCODE_LOOKUP = {
     // 151 official opcodes
     // =====================================================
     // Control and Subroutine Instructions
@@ -30,7 +30,7 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0x6C, OpCode(0x6C, true, "JMP", 3, 5, AddressingMode::Indirect, false, &CPU::op_JMP)},
     {0x40, OpCode(0x40, true, "RTI", 1, 6, AddressingMode::Implied, false, &CPU::op_RTI)},
     {0x60, OpCode(0x60, true, "RTS", 1, 6, AddressingMode::Implied, false, &CPU::op_RTS)},
-    {0xEA, OpCode(0xEA, true, "NOP", 1, 3, AddressingMode::Implied, false, &CPU::op_NOP)},
+    {0xEA, OpCode(0xEA, true, "NOP", 1, 2, AddressingMode::Implied, false, &CPU::op_NOP)},
 
     // =====================================================
     // Load/Store Instructions
@@ -394,7 +394,6 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
     {0xF8,
      OpCode(0xF8, true, "SED", 1, 2, AddressingMode::Implied, false, &CPU::op_SED)},
 
-    /*
     // 105 unofficial opcodes
     // =====================================================
     // UNOFFICIAL/ILLEGAL OPCODES
@@ -591,5 +590,4 @@ const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP = {
      OpCode(0xD2, false, "KIL", 1, 2, AddressingMode::Implied, false, &CPU::opi_KIL)},
     {0xF2,
      OpCode(0xF2, false, "KIL", 1, 2, AddressingMode::Implied, false, &CPU::opi_KIL)},
-     */
 };

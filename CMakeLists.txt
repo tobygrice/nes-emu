@@ -76,7 +76,7 @@ endfunction()
 # ------------------------------------------------
 # Create your test targets
 # ------------------------------------------------
-add_nes_test(runCPUTests
+add_nes_test(runCPUHarteTests
   src/CPU/CPU.cpp
   src/CPU/OpCode.cpp
   src/PPU/PPU.cpp
@@ -84,6 +84,16 @@ add_nes_test(runCPUTests
   src/Logger.cpp
   src/Cartridge.cpp
   tests/CPU/CPU_Harte.cpp
+)
+
+add_nes_test(runCPUNestest
+  src/CPU/CPU.cpp
+  src/CPU/OpCode.cpp
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
+  src/Logger.cpp
+  src/Cartridge.cpp
+  tests/CPU/CPU_Nestest.cpp
 )
 
 add_nes_test(runPPUTests

@@ -5,10 +5,11 @@
 #include <cstdint>
 
 #include "Cartridge.h"
+#include "BusInterface.h"
 #include "PPU/PPU.h"
 
 // Memory Management Unit (Bus)
-class Bus {
+class Bus : public BusInterface {
  private:
   // https://fceux.com/web/help/NESRAMMappingFindingValues.html
   std::array<uint8_t, 0x0800> cpu_ram;  // $0000 – $07FF: CPU RAM
@@ -36,16 +37,14 @@ class Bus {
     apu_io.fill(0xFF);  // init FF
   }
 
-  inline void setCycles(uint64_t c) { cycles = c; }
-
   inline bool ppuNMI() { return ppu->getNMI(); }
-  inline uint16_t getPPUScanline() { return ppu->getScanline(); }
-  inline uint16_t getPPUCycle() { return ppu->getCycle(); }
+  inline uint16_t getPPUScanline() override { return ppu->getScanline(); }
+  inline uint16_t getPPUCycle() override { return ppu->getCycle(); }
 
   inline uint64_t getCycleCount() const { return cycles; }
   inline void resetCycles() { cycles = 0; }
 
-  inline uint8_t read(uint16_t addr) {
+  inline uint8_t read(uint16_t addr) override {
     // cycles++;
     // CPU RAM mirror: 0x0000 - 0x1FFF
     if (addr <= 0x1FFF) {
@@ -81,7 +80,7 @@ class Bus {
     }
   }
 
-  inline void write(uint16_t addr, uint8_t value) {
+  inline void write(uint16_t addr, uint8_t value) override {
     // cycles++;
     // CPU RAM mirror: 0x0000 - 0x1FFF
     if (addr <= 0x1FFF) {

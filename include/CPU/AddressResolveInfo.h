@@ -10,7 +10,9 @@ enum ResolutionState {
   ReadIndirect_Low,
   ReadIndirect_High,
   ComputeAddress,
-  Done
+  Done,
+  Branch1,
+  Branch2
 };
 
 struct AddressResolveInfo {

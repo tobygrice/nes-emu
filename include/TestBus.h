@@ -14,23 +14,15 @@
 struct TestBus : public BusInterface {
  private:
   std::array<uint8_t, 0x10000> memory = {};
-  uint64_t cycles = 0;
 
  public:
-  virtual bool ppuNMI() override { return false; }
-  virtual void resetCycles() override { cycles = 0; }
   virtual uint8_t read(uint16_t addr) override {
-    cycles++;
     return memory[addr];
   }
   virtual void write(uint16_t addr, uint8_t value) override {
-    cycles++;
     memory[addr] = value;
   }
-  virtual uint64_t getCycleCount() const override { return cycles; }
-  virtual void tick(uint8_t cyc) override { cycles += cyc; }
 
-  inline void setCycles(uint64_t c) override { cycles = c; }
   inline uint16_t getPPUScanline() override { return 0; }
   inline uint16_t getPPUCycle() override { return 0; }
 };

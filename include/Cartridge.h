@@ -60,7 +60,7 @@ class Cartridge {
       : empty(true),
         prg_rom{},
         chr_rom{},
-        mirroring(),
+        mirroring(MirroringMode::Horizontal),
         mapper(),
         prg_rom_size(0),
         chr_rom_size(0) {}
@@ -72,9 +72,6 @@ class Cartridge {
 
   bool isEmpty() { return empty; }
   MirroringMode getMirroring() { 
-    if (empty) {
-      throw std::runtime_error("Error: no cartridge loaded.");
-    }
     return mirroring; 
   }
   void setMirroring(MirroringMode m) { this->mirroring = m; }

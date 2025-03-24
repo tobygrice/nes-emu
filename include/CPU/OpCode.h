@@ -27,7 +27,8 @@ enum class AddressingMode {
 
 using InstructionHandler = void (CPU::*)(uint16_t);
 
-struct OpCode {
+class OpCode {
+ public:
   uint8_t code;
   bool isDocumented;
   std::string name;
@@ -48,9 +49,9 @@ struct OpCode {
         mode(mode),
         ignorePageCrossings(ignorePageCrossings),
         handler(handler) {}
-};
 
-extern const OpCode* getOpCode(uint8_t opcode);
-extern const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP;
+  static const OpCode* getOpCode(uint8_t opcode);
+  static const std::unordered_map<uint8_t, OpCode> OPCODE_LOOKUP;
+};
 
 #endif  // OPCODE_H

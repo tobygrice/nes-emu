@@ -11,6 +11,8 @@
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
 void CPU::tick() {
+  cycleCount++;
+
   if (initiatingInterrupt) {
     // interrupt has been triggered
     switch (activeInterrupt) {
@@ -30,12 +32,14 @@ void CPU::tick() {
 
   if (cyclesRemainingInCurrentInstr == 0) {
     // new instruction
-    logger->log(logState);  // log previous instruction
-    delete logState;
+    if (logState) {
+      logger->log(logState);  // log previous instruction
+      delete logState;
+    }
 
     // assumes pc has already been incremented past previous operand bytes
     uint8_t opcode = bus->read(pc);
-    currentOpCode = getOpCode(opcode);
+    currentOpCode = OpCode::getOpCode(opcode);
 
     // CAPTURE CPU STATE FOR LOGGING
     // - pass pointer to currentOpBytes, currAddrResCtx, currentValueAtAddress
@@ -45,7 +49,7 @@ void CPU::tick() {
     logState = new CPUState(
         pc, *currentOpCode, &currentOpBytes, &currAddrResCtx,
         &currentValueAtAddress, a_register, x_register, y_register, status, sp,
-        bus->getPPUCycle(), bus->getPPUScanline(), bus->getCycleCount());
+        bus->getPPUCycle(), bus->getPPUScanline(), cycleCount);
 
     // increment PC to point at first operand
     pc++;
@@ -67,10 +71,13 @@ void CPU::tick() {
   // CPU decides that the branch should be taken. To improve optimisation,
   // absolute address will be computed inside branch handler iff branch is taken
   if ((currAddrResCtx.state != ResolutionState::Done) &&
-      (currAddrResCtx.mode != AddressingMode::Relative)) {
+      (currAddrResCtx.state != ResolutionState::Branch1) &&
+      (currAddrResCtx.state != ResolutionState::Branch2)) {
     computeAbsoluteAddress();
 
-    if (currAddrResCtx.state != ResolutionState::Done) {
+    if ((currAddrResCtx.state != ResolutionState::Done) &&
+        (currAddrResCtx.state != ResolutionState::Branch1) &&
+        (currAddrResCtx.state != ResolutionState::Branch2)) {
       cyclesRemainingInCurrentInstr--;
       return;  // return if absolute address still not resolved
     }
@@ -85,6 +92,8 @@ void CPU::tick() {
   }
 
   // execute instruction
+  // std::cout << "absolute address = " <<
+  // static_cast<int>(currAddrResCtx.address) << std::endl;
   (this->*(currentOpCode->handler))(currAddrResCtx.address);
 
   cyclesRemainingInCurrentInstr--;
@@ -106,13 +115,14 @@ void CPU::computeAbsoluteAddress() {
       break;
     }
     case AddressingMode::Relative: {
-      throw std::runtime_error(
-          "Relative addressing should be computed by branch instruction.");
+      readOperand();
+      currAddrResCtx.state = ResolutionState::Branch1;
       break;
     }
     case AddressingMode::Immediate: {
-      // pc currently pointing at next opcode
-      currAddrResCtx.address = pc - 1;
+      currAddrResCtx.address = pc;
+      currentOpBytes.push_back(pc);
+      pc++;
       currAddrResCtx.state = ResolutionState::Done;
       break;
     }
@@ -153,13 +163,27 @@ void CPU::computeAbsoluteAddress() {
       break;
     }
     case AddressingMode::ZeroPageX: {
-      if (currAddrResCtx.state == ResolutionState::Init) {
-        readOperand();
-        currAddrResCtx.state = ResolutionState::ComputeAddress;
-      } else {  // ComputeAddress
-        uint8_t addr = static_cast<uint8_t>(currentOpBytes[1] + x_register);
-        currAddrResCtx.address = static_cast<uint16_t>(addr);
-        currAddrResCtx.state = ResolutionState::Done;
+      switch (currAddrResCtx.state) {
+        case ResolutionState::Init: {
+          // readOperand();
+          currAddrResCtx.state = ResolutionState::ReadOperand;
+          break;
+        }
+        case ResolutionState::ReadOperand: {
+          readOperand();
+          currAddrResCtx.state = ResolutionState::ComputeAddress;
+          break;
+        }
+        case ResolutionState::ComputeAddress: {
+          uint8_t addr = static_cast<uint8_t>(currentOpBytes[1] + x_register);
+          currAddrResCtx.address = static_cast<uint16_t>(addr);
+          currAddrResCtx.state = ResolutionState::Done;
+          break;
+        }
+        default: {
+          throw std::runtime_error("Unexpected resolution state in ZeroPageX.");
+          break;
+        }
       }
       break;
     }
@@ -273,10 +297,6 @@ void CPU::computeAbsoluteAddress() {
           // more cycle
           currAddrResCtx.address =
               (static_cast<uint16_t>(msb) << 8) | currAddrResCtx.address;
-          currAddrResCtx.state = ResolutionState::ComputeAddress;
-          break;
-        }
-        case ResolutionState::ComputeAddress: {
           currAddrResCtx.state = ResolutionState::Done;
           break;
         }
@@ -290,12 +310,18 @@ void CPU::computeAbsoluteAddress() {
     case AddressingMode::IndirectX: {
       switch (currAddrResCtx.state) {
         case ResolutionState::Init: {
+          // burn cycle
+          currAddrResCtx.state = ResolutionState::ReadOperand;
+          break;
+        }
+        case ResolutionState::ReadOperand: {
           readOperand();
           currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
           break;
         }
         case ResolutionState::ReadIndirect_Low: {
-          currAddrResCtx.pointerAddress = currentOpBytes[1] + x_register;
+          currAddrResCtx.pointerAddress =
+              static_cast<uint8_t>(currentOpBytes[1] + x_register);
           currAddrResCtx.pointerUsed = true;
           currAddrResCtx.address = bus->read(currAddrResCtx.pointerAddress);
           currAddrResCtx.state = ResolutionState::ReadIndirect_High;
@@ -375,10 +401,10 @@ void CPU::computeAbsoluteAddress() {
  * 2    PC     R  read next instruction byte (discard same as above)
  * 3  $0100,S  W  push PCH on stack, decrement S
  * 4  $0100,S  W  push PCL on stack, decrement S
- **** At this point, the signal status determines which interrupt vector is used
- * 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
- * 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
- * 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
+ **** At this point, the signal status determines which interrupt vector is
+ *used 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S 6   A
+ *R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag 7   A       R
+ *fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
  */
 void CPU::in_NMI_IRQ() {
   cyclesRemainingInCurrentInterrupt--;
@@ -478,25 +504,42 @@ void CPU::updateZeroAndNegativeFlags(uint8_t result) {
 }
 
 void CPU::branch() {
-  if (currAddrResCtx.state == ResolutionState::Init) {
-    readOperand();
-    currAddrResCtx.state = ResolutionState::ComputeAddress;
-  } else if (currAddrResCtx.state == ResolutionState::ComputeAddress) {
-    currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
-    if (((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
-        !currentOpCode->ignorePageCrossings) {
-      // increment remaining cycles to emulate extra cycle
-      cyclesRemainingInCurrentInstr++;
+  switch (currAddrResCtx.state) {
+    case ResolutionState::Branch1: {
+      // already readOperand();
+      currAddrResCtx.state = ResolutionState::Branch2;
+      break;
     }
-    pc = currAddrResCtx.address;  // update pc
-    currAddrResCtx.state = ResolutionState::Done;
+    case ResolutionState::Branch2: {
+      currAddrResCtx.address = pc + static_cast<int8_t>(currentOpBytes[1]);
+      if ((pc & 0xFF00) != (currAddrResCtx.address & 0xFF00)) {
+        // increment remaining cycles to emulate extra cycle
+        cyclesRemainingInCurrentInstr++;
+      }
+      pc = currAddrResCtx.address;  // update pc
+      currAddrResCtx.state = ResolutionState::Done;
+      break;
+    }
+    case ResolutionState::Done: {
+      // only reached if page crossing check increments
+      // cyclesRemainingInCurrentInstr
+      break;
+    }
+    default: {
+      throw std::runtime_error(
+          "Unexpected resolution state in branch handler.");
+      break;
+    }
   }
-  // else ResolutionState::Done, do nothing (emulate cycle)
 }
 
 void CPU::op_ADC(uint16_t addr) {
-  op_ADC_CORE(bus->read(addr));
-  // all processing of adc_core is done in the same cycle as this read
+  if (cyclesRemainingInCurrentInstr >= 2) {
+    return;
+  } else {
+    op_ADC_CORE(bus->read(addr));
+    // all processing of adc_core is done in the same cycle as this read
+  }
 }
 void CPU::op_ADC_CORE(uint8_t operand) {
   // allows SBC to use ADC logic
@@ -554,8 +597,8 @@ void CPU::op_BCC(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_CARRY)) {
     branch();  // branch if carry flag clear
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -563,8 +606,8 @@ void CPU::op_BCS(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_CARRY) {
     branch();  // branch if carry flag set
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -572,8 +615,8 @@ void CPU::op_BEQ(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_ZERO) {
     branch();  // branch if zero flag is set
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -592,8 +635,8 @@ void CPU::op_BMI(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_NEGATIVE) {
     branch();  // branch if negative flag is set
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -601,8 +644,8 @@ void CPU::op_BNE(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_ZERO)) {
     branch();  // branch if zero flag is clear
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -610,8 +653,8 @@ void CPU::op_BPL(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_NEGATIVE)) {
     branch();  // branch if negative flag is clear
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -660,8 +703,8 @@ void CPU::op_BVC(uint16_t /* calculated iff branch taken */) {
   if (!(status & FLAG_OVERFLOW)) {
     branch();  // branch if overflow flag is clear
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -669,8 +712,8 @@ void CPU::op_BVS(uint16_t /* calculated iff branch taken */) {
   if (status & FLAG_OVERFLOW) {
     branch();  // branch if overflow flag is set
   } else {
-    // branch not taken, set remaining cycles to 1 (will be decremented to zero
-    // immediately by tick function after this function exits)
+    // branch not taken, set remaining cycles to 1 (will be decremented to
+    // zero immediately by tick function after this function exits)
     cyclesRemainingInCurrentInstr = 1;
   }
 }
@@ -741,8 +784,8 @@ void CPU::op_DEY(uint16_t /* implied */) {
   updateZeroAndNegativeFlags(y_register);
 }
 void CPU::op_EOR(uint16_t addr) {
-  a_register ^= bus->read(addr);
-  updateZeroAndNegativeFlags(a_register);
+    a_register ^= bus->read(addr);
+    updateZeroAndNegativeFlags(a_register);
 }
 void CPU::op_INC(uint16_t addr) {
   switch (cyclesRemainingInCurrentInstr) {
@@ -770,7 +813,7 @@ void CPU::op_JMP(uint16_t addr) { pc = addr; }
 void CPU::op_JSR(uint16_t addr) {
   switch (cyclesRemainingInCurrentInstr) {
     case 3:
-      pc++;  // pc + 1 = the address minus one of the next instruction
+      pc--;  // pc - 1 = the address minus one of the next instruction
       push((pc >> 8) & 0xFF);  // push PCH
       break;
     case 2:
@@ -846,6 +889,9 @@ void CPU::op_PLA(uint16_t /* implied */) {
   }
 }
 void CPU::op_PLP(uint16_t /* implied */) {
+  // act: 00101000
+  // exp: 10101000
+  // pul: 10001000
   switch (cyclesRemainingInCurrentInstr) {
     case 3:
       // dummy read to pc
@@ -855,7 +901,7 @@ void CPU::op_PLP(uint16_t /* implied */) {
       break;
     case 1:
       status = (pop() | FLAG_CONSTANT) & ~FLAG_BREAK;
-      updateZeroAndNegativeFlags(a_register);
+      break;
   }
 }
 void CPU::op_ROL(uint16_t addr) {
@@ -969,7 +1015,7 @@ void CPU::op_RTS(uint16_t /* implied */) {
       break;
     case 1:
       pc |= static_cast<uint16_t>(pop()) << 8;
-      // error point: may need to inc pc?
+      pc++;
       break;
   }
 }
@@ -1016,163 +1062,177 @@ void CPU::op_TYA(uint16_t /* implied */) {
 // http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes (descriptions)
 // https://www.oxyron.de/html/opcodes02.html (status register impact)
 
-// void CPU::opi_ALR(uint16_t addr) {
-//   /* ANDs the contents of the A register with an immediate value and then
-//   LSRs
-//    * the result. */
-//   op_AND(addr);
-//   op_LSR_ACC(0);  // implied addressing
-// }
-// void CPU::opi_ANC(uint16_t addr) {
-//   /* ANC ANDs the contents of the A register with an immediate value and then
-//    * moves bit 7 of A into the Carry flag.  This opcode works basically
-//    * identically to AND #immed. except that the Carry flag is set to the same
-//    * state that the Negative flag is set to. */
-//   op_AND(addr);
-//   if (status & FLAG_NEGATIVE) {
-//     status |= FLAG_CARRY;
-//   } else {
-//     status &= ~FLAG_CARRY;
-//   }
-// }
-// void CPU::opi_ANE(uint16_t addr) {
-//   /* aka XAA: transfers the contents of the X register to the A register and
-//    * then ANDs the A register with an immediate value. Highly unstable. */
-//   op_TXA(0);
-//   op_AND(addr);
-// }
-// void CPU::opi_ARR(uint16_t addr) {
-//   /* ANDs the contents of the A register with an immediate value and then
-//   RORs
-//    * the result. The carry flag is set to the value of bit 6 of the result.
-//         •	The overflow flag is set to the XOR of bits 6 and 5 of the
-//    result.*/
-//   op_AND(addr);
-//   op_ROR_ACC(0);
+void CPU::opi_ALR(uint16_t addr) {
+  /* ANDs the contents of the A register with an immediate value and then
+  LSRs
+   * the result. */
+  op_AND(addr);
+  op_LSR_ACC(0);  // implied addressing
+}
+void CPU::opi_ANC(uint16_t addr) {
+  /* ANC ANDs the contents of the A register with an immediate value and
+  then
+   * moves bit 7 of A into the Carry flag.  This opcode works basically
+   * identically to AND #immed. except that the Carry flag is set to the
+   same
+   * state that the Negative flag is set to. */
+  op_AND(addr);
+  if (status & FLAG_NEGATIVE) {
+    status |= FLAG_CARRY;
+  } else {
+    status &= ~FLAG_CARRY;
+  }
+}
+void CPU::opi_ANE(uint16_t addr) {
+  /* aka XAA: transfers the contents of the X register to the A register
+  and
+   * then ANDs the A register with an immediate value. Highly unstable. */
+  op_TXA(0);
+  op_AND(addr);
+}
+void CPU::opi_ARR(uint16_t addr) {
+  /* ANDs the contents of the A register with an immediate value and then
+  RORs
+   * the result. The carry flag is set to the value of bit 6 of the result.
+        •	The overflow flag is set to the XOR of bits 6 and 5 of the
+   result.*/
+  op_AND(addr);
+  op_ROR_ACC(0);
 
-//   if (a_register & 0x40) {
-//     status |= FLAG_CARRY;
-//   } else {
-//     status &= ~FLAG_CARRY;
-//   }
+  if (a_register & 0x40) {
+    status |= FLAG_CARRY;
+  } else {
+    status &= ~FLAG_CARRY;
+  }
 
-//   bool newOverflow = (((a_register >> 6) & 1) ^ ((a_register >> 5) & 1)) !=
-//   0; if (newOverflow) {
-//     status |= FLAG_OVERFLOW;
-//   } else {
-//     status &= ~FLAG_OVERFLOW;
-//   }
-// }
-// void CPU::opi_DCP(uint16_t addr) {
-//   /* aka DCM: DECs the contents of a memory location and then CMPs the result
-//    * with the A register. */
-//   op_DEC(addr);
-//   op_CMP(addr);
-// }
-// void CPU::opi_ISC(uint16_t addr) {
-//   /* aka INS: INCs the contents of a memory location and then SBCs the result
-//    * from the A register.*/
-//   op_INC(addr);
-//   op_SBC(addr);
-// }
-// void CPU::opi_LAS(uint16_t addr) {
-//   /* ANDs the contents of a memory location with the contents of the stack
-//    * pointer register and stores the result in the accumulator, the X
-//    * register, and the stack pointer.  Affected flags: N Z.*/
-//   sp &= memRead8(addr);
-//   a_register = sp;
-//   x_register = sp;
-//   updateZeroAndNegativeFlags(sp);
-// }
-// void CPU::opi_LAX(uint16_t addr) {
-//   /* This opcode loads both the accumulator and the X register with the
-//    * contents of a memory location. */
-//   op_LDA(addr);
-//   op_LDX(addr);
-// }
-// void CPU::opi_LXA(uint16_t addr) {
-//   /* aka OAL: ORs the A register with #$EE, ANDs the result with an immediate
-//    * value, and then stores the result in both A and X. Highly unstable. */
-//   a_register |= 0xEE;
-//   op_AND(addr);
-//   op_TAX(0);
-// }
-// void CPU::opi_RLA(uint16_t addr) {
-//   /* ROLs the contents of a memory location and then ANDs the result with the
-//    * accumulator. */
-//   op_ROL(addr);
-//   op_AND(addr);
-// }
-// void CPU::opi_RRA(uint16_t addr) {
-//   /* RORs the contents of a memory location and then ADCs the result with the
-//    * accumulator. */
-//   op_ROR(addr);
-//   op_ADC(addr);
-// }
-// void CPU::opi_SAX(uint16_t addr) {
-//   /* aka AXS+AAX: ANDs the contents of the A and X registers (without
-//   changing
-//    * the contents of either register) and stores the result in memory. Does
-//    * not affect any flags in the processor status register.*/
-//   memWrite8(addr, a_register & x_register);
-// }
-// void CPU::opi_SBX(uint16_t addr) {
-//   /* aka AXS+SAX: ANDs the contents of the A and X registers (leaving the
-//    * contents of A intact), subtracts an immediate value, and then stores the
-//    * result in X. A few points might be made about the action of subtracting
-//    * an immediate value. It actually works just like the CMP instruction,
-//    * except that CMP does not store the result of the subtraction it performs
-//    * in any register. This subtract operation is not affected by the state of
-//    * the Carry flag, though it does affect the Carry flag. It does not affect
-//    * the Overflow flag. */
-//   x_register = (a_register & x_register) - memRead8(addr);
-//   // set carry flag (C) if result > 255
-//   if (x_register > 0xFF) {
-//     status |= FLAG_CARRY;
-//   } else {
-//     status &= ~FLAG_CARRY;  // else clear carry flag
-//   }
-//   updateZeroAndNegativeFlags(x_register);
-// }
-// void CPU::opi_SHA(uint16_t addr) {
-//   /* Stores A AND X AND (high-byte of addr. + 1) at addr. Unstable. */
-//   uint8_t high_plus_one = currentHighByte + 1;
-//   memWrite8(addr, (a_register & x_register) & high_plus_one);
-// }
-// void CPU::opi_SHX(uint16_t addr) {
-//   /* aka A11,SXA,XAS: Stores X AND (high-byte of addr. + 1) at addr.
-//   Unstable.
-//    */
-//   uint8_t high_plus_one = currentHighByte + 1;
-//   memWrite8(addr, x_register & high_plus_one);
-// }
-// void CPU::opi_SHY(uint16_t addr) {
-//   /* aka SAY: Stores Y AND (high-byte of addr. + 1) at addr. Unstable. */
-//   uint8_t high_plus_one = currentHighByte + 1;
-//   memWrite8(addr, y_register & high_plus_one);
-// }
-// void CPU::opi_SLO(uint16_t addr) {
-//   /* This opcode ASLs the contents of a memory location and then ORs the
-//   result with the accumulator. */
-//   op_ASL(addr);
-//   op_ORA(addr);
-// }
-// void CPU::opi_SRE(uint16_t addr) {
-//   /* aka LSE: LSRs the contents of a memory location and then EORs the result
-//    * with the accumulator. */
-//   op_LSR(addr);
-//   op_EOR(addr);
-// }
-// void CPU::opi_TAS(uint16_t addr) {
-//   /* ANDs the contents of the A and X registers (without changing the
-//   contents
-//    * of either register) and transfers the result to the stack pointer. It
-//    * then ANDs that result with the contents of the high byte of the target
-//    * address of the operand +1 and stores that final result in memory. */
-//   uint8_t high_plus_one = currentHighByte + 1;
-//   sp = a_register & x_register;
-//   memWrite8(addr, sp & high_plus_one);
-// }
-// void CPU::opi_SBC(uint16_t addr) { op_SBC(addr); }
-// void CPU::opi_NOP(uint16_t addr) { return; }
-// void CPU::opi_KIL(uint16_t addr) { executionActive = false; }
+  bool newOverflow = (((a_register >> 6) & 1) ^ ((a_register >> 5) & 1)) !=
+  0; if (newOverflow) {
+    status |= FLAG_OVERFLOW;
+  } else {
+    status &= ~FLAG_OVERFLOW;
+  }
+}
+void CPU::opi_DCP(uint16_t addr) {
+  /* aka DCM: DECs the contents of a memory location and then CMPs the
+  result
+   * with the A register. */
+  op_DEC(addr);
+  op_CMP(addr);
+}
+void CPU::opi_ISC(uint16_t addr) {
+  /* aka INS: INCs the contents of a memory location and then SBCs the
+  result
+   * from the A register.*/
+  op_INC(addr);
+  op_SBC(addr);
+}
+void CPU::opi_LAS(uint16_t addr) {
+  /* ANDs the contents of a memory location with the contents of the stack
+   * pointer register and stores the result in the accumulator, the X
+   * register, and the stack pointer.  Affected flags: N Z.*/
+  sp &= memRead8(addr);
+  a_register = sp;
+  x_register = sp;
+  updateZeroAndNegativeFlags(sp);
+}
+void CPU::opi_LAX(uint16_t addr) {
+  /* This opcode loads both the accumulator and the X register with the
+   * contents of a memory location. */
+  op_LDA(addr);
+  op_LDX(addr);
+}
+void CPU::opi_LXA(uint16_t addr) {
+  /* aka OAL: ORs the A register with #$EE, ANDs the result with an
+  immediate
+   * value, and then stores the result in both A and X. Highly unstable. */
+  a_register |= 0xEE;
+  op_AND(addr);
+  op_TAX(0);
+}
+void CPU::opi_RLA(uint16_t addr) {
+  /* ROLs the contents of a memory location and then ANDs the result with
+  the
+   * accumulator. */
+  op_ROL(addr);
+  op_AND(addr);
+}
+void CPU::opi_RRA(uint16_t addr) {
+  /* RORs the contents of a memory location and then ADCs the result with
+  the
+   * accumulator. */
+  op_ROR(addr);
+  op_ADC(addr);
+}
+void CPU::opi_SAX(uint16_t addr) {
+  /* aka AXS+AAX: ANDs the contents of the A and X registers (without
+  changing
+   * the contents of either register) and stores the result in memory. Does
+   * not affect any flags in the processor status register.*/
+  memWrite8(addr, a_register & x_register);
+}
+void CPU::opi_SBX(uint16_t addr) {
+  /* aka AXS+SAX: ANDs the contents of the A and X registers (leaving the
+   * contents of A intact), subtracts an immediate value, and then stores
+   the
+   * result in X. A few points might be made about the action of
+   subtracting
+   * an immediate value. It actually works just like the CMP instruction,
+   * except that CMP does not store the result of the subtraction it
+   performs
+   * in any register. This subtract operation is not affected by the state
+   of
+   * the Carry flag, though it does affect the Carry flag. It does not
+   affect
+   * the Overflow flag. */
+  x_register = (a_register & x_register) - memRead8(addr);
+  // set carry flag (C) if result > 255
+  if (x_register > 0xFF) {
+    status |= FLAG_CARRY;
+  } else {
+    status &= ~FLAG_CARRY;  // else clear carry flag
+  }
+  updateZeroAndNegativeFlags(x_register);
+}
+void CPU::opi_SHA(uint16_t addr) {
+  /* Stores A AND X AND (high-byte of addr. + 1) at addr. Unstable. */
+  uint8_t high_plus_one = currentHighByte + 1;
+  memWrite8(addr, (a_register & x_register) & high_plus_one);
+}
+void CPU::opi_SHX(uint16_t addr) {
+  /* aka A11,SXA,XAS: Stores X AND (high-byte of addr. + 1) at addr.
+  Unstable.
+   */
+  uint8_t high_plus_one = currentHighByte + 1;
+  memWrite8(addr, x_register & high_plus_one);
+}
+void CPU::opi_SHY(uint16_t addr) {
+  /* aka SAY: Stores Y AND (high-byte of addr. + 1) at addr. Unstable. */
+  uint8_t high_plus_one = currentHighByte + 1;
+  memWrite8(addr, y_register & high_plus_one);
+}
+void CPU::opi_SLO(uint16_t addr) {
+  /* This opcode ASLs the contents of a memory location and then ORs the
+  result with the accumulator. */
+  op_ASL(addr);
+  op_ORA(addr);
+}
+void CPU::opi_SRE(uint16_t addr) {
+  /* aka LSE: LSRs the contents of a memory location and then EORs the
+  result
+   * with the accumulator. */
+  op_LSR(addr);
+  op_EOR(addr);
+}
+void CPU::opi_TAS(uint16_t addr) {
+  /* ANDs the contents of the A and X registers (without changing the
+  contents
+   * of either register) and transfers the result to the stack pointer. It
+   * then ANDs that result with the contents of the high byte of the target
+   * address of the operand +1 and stores that final result in memory. */
+  uint8_t high_plus_one = currentHighByte + 1;
+  sp = a_register & x_register;
+  memWrite8(addr, sp & high_plus_one);
+}
+void CPU::opi_SBC(uint16_t addr) { op_SBC(addr); }
+void CPU::opi_NOP(uint16_t addr) { return; }
+void CPU::opi_KIL(uint16_t addr) { executionActive = false; }

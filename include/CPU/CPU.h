@@ -13,35 +13,10 @@
 enum Interrupt { NONE, RES, NMI, IRQ };
 
 class CPU {
- private:
-  // registers http://www.6502.org/users/obelisk/6502/registers.html
-  uint8_t a_register;  // accumulator
-  uint8_t x_register;  // index X
-  uint8_t y_register;  // index Y
-  uint8_t status;      // processor status (p)
-  uint16_t pc;         // program counter
-  uint8_t sp;          // stack pointer
-  Bus* bus;            // bus
-  Logger* logger;      // logger
-
-  const OpCode* currentOpCode = nullptr;
-  uint8_t readBuffer;
-  std::vector<uint8_t> currentOpBytes;
-  uint8_t cyclesRemainingInCurrentInstr = 0;
-  uint8_t cyclesRemainingInCurrentInterrupt = 7;
-  AddressResolveInfo currAddrResCtx;  // current address resolution context
-  uint8_t currentValueAtAddress = 0;
-  CPUState* logState = nullptr;
-
-  bool initiatingInterrupt = false;
-  Interrupt activeInterrupt = Interrupt::NONE;
-
-  // variable to hold the high byte of operand *before* dereferencing
-  // only used by illegal opcodes SHA, SHX, SHY, and TAS
-  uint8_t currentHighByte = 0;
+  friend class OpCode;
 
  public:
-  CPU(Bus* bus, Logger* logger)
+  CPU(BusInterface* bus, Logger* logger)
       : a_register(0),       // accumulator starts at 0
         x_register(0),       // X starts at 0
         y_register(0),       // Y starts at 0
@@ -67,21 +42,23 @@ class CPU {
     activeInterrupt = Interrupt::IRQ;
   }
 
-  uint8_t getA() { return a_register; };
-  uint8_t getX() { return x_register; };
-  uint8_t getY() { return y_register; };
-  uint8_t getStatus() { return status; };
-  uint16_t getPC() { return pc; };
-  uint8_t getSP() { return sp; };
-  uint8_t getCycleCount() { return bus->getCycleCount(); };
   Interrupt checkInterrupt() { return activeInterrupt; }
-  void setA(uint8_t value) { a_register = value; };
-  void setX(uint8_t value) { x_register = value; };
-  void setY(uint8_t value) { y_register = value; };
-  void setStatus(uint8_t value) { status = value; };
-  void setPC(uint16_t value) { pc = value; };
-  void setSP(uint8_t value) { sp = value; };
-  void checkInfiniteLoop(uint16_t pc);
+
+  uint8_t TEST_getA() { return a_register; };
+  uint8_t TEST_getX() { return x_register; };
+  uint8_t TEST_getY() { return y_register; };
+  uint8_t TEST_getStatus() { return status; };
+  uint16_t TEST_getPC() { return pc; };
+  uint8_t TEST_getSP() { return sp; };
+  uint8_t TEST_getCyclesRemainingInCurrentInstr() {
+    return cyclesRemainingInCurrentInstr;
+  };
+  void TEST_setA(uint8_t value) { a_register = value; };
+  void TEST_setX(uint8_t value) { x_register = value; };
+  void TEST_setY(uint8_t value) { y_register = value; };
+  void TEST_setStatus(uint8_t value) { status = value; };
+  void TEST_setPC(uint16_t value) { pc = value; };
+  void TEST_setSP(uint8_t value) { sp = value; };
 
   static constexpr uint8_t FLAG_CARRY = 0b00000001;      // C
   static constexpr uint8_t FLAG_ZERO = 0b00000010;       // Z
@@ -91,6 +68,35 @@ class CPU {
   static constexpr uint8_t FLAG_CONSTANT = 0b00100000;   // 1 (constant)
   static constexpr uint8_t FLAG_OVERFLOW = 0b01000000;   // V
   static constexpr uint8_t FLAG_NEGATIVE = 0b10000000;   // N
+
+ private:
+  // registers http://www.6502.org/users/obelisk/6502/registers.html
+  uint8_t a_register;  // accumulator
+  uint8_t x_register;  // index X
+  uint8_t y_register;  // index Y
+  uint8_t status;      // processor status (p)
+  uint16_t pc;         // program counter
+  uint8_t sp;          // stack pointer
+  BusInterface* bus;   // bus
+  Logger* logger;      // logger
+
+  const OpCode* currentOpCode = nullptr;
+  uint8_t readBuffer;
+  std::vector<uint8_t> currentOpBytes;
+  uint8_t cyclesRemainingInCurrentInstr = 0;
+  uint8_t cyclesRemainingInCurrentInterrupt = 7;
+  AddressResolveInfo currAddrResCtx;  // current address resolution context
+  uint8_t currentValueAtAddress = 0;
+  CPUState* logState = nullptr;
+
+  bool initiatingInterrupt = false;
+  Interrupt activeInterrupt = Interrupt::NONE;
+
+  // variable to hold the high byte of operand *before* dereferencing
+  // only used by illegal opcodes SHA, SHX, SHY, and TAS
+  uint8_t currentHighByte = 0;
+
+  uint64_t cycleCount = 0;
 
   // helpers
   void branch();
@@ -191,30 +197,30 @@ class CPU {
   void op_TXS(uint16_t addr);
   void op_TYA(uint16_t addr);
 
-//   // remaining 21 instructions / 105 unofficial opcodes:
-//   void opi_ALR(uint16_t addr);
-//   void opi_ANC(uint16_t addr);
-//   void opi_ANC2(uint16_t addr);
-//   void opi_ANE(uint16_t addr);
-//   void opi_ARR(uint16_t addr);
-//   void opi_DCP(uint16_t addr);
-//   void opi_ISC(uint16_t addr);
-//   void opi_LAS(uint16_t addr);
-//   void opi_LAX(uint16_t addr);
-//   void opi_LXA(uint16_t addr);
-//   void opi_RLA(uint16_t addr);
-//   void opi_RRA(uint16_t addr);
-//   void opi_SAX(uint16_t addr);
-//   void opi_SBX(uint16_t addr);
-//   void opi_SHA(uint16_t addr);
-//   void opi_SHX(uint16_t addr);
-//   void opi_SHY(uint16_t addr);
-//   void opi_SLO(uint16_t addr);
-//   void opi_SRE(uint16_t addr);
-//   void opi_TAS(uint16_t addr);
-//   void opi_SBC(uint16_t addr);
-//   void opi_NOP(uint16_t addr);
-//   void opi_KIL(uint16_t addr);
+  // remaining 21 instructions / 105 unofficial opcodes:
+  void opi_ALR(uint16_t addr);
+  void opi_ANC(uint16_t addr);
+  void opi_ANC2(uint16_t addr);
+  void opi_ANE(uint16_t addr);
+  void opi_ARR(uint16_t addr);
+  void opi_DCP(uint16_t addr);
+  void opi_ISC(uint16_t addr);
+  void opi_LAS(uint16_t addr);
+  void opi_LAX(uint16_t addr);
+  void opi_LXA(uint16_t addr);
+  void opi_RLA(uint16_t addr);
+  void opi_RRA(uint16_t addr);
+  void opi_SAX(uint16_t addr);
+  void opi_SBX(uint16_t addr);
+  void opi_SHA(uint16_t addr);
+  void opi_SHX(uint16_t addr);
+  void opi_SHY(uint16_t addr);
+  void opi_SLO(uint16_t addr);
+  void opi_SRE(uint16_t addr);
+  void opi_TAS(uint16_t addr);
+  void opi_SBC(uint16_t addr);
+  void opi_NOP(uint16_t addr);
+  void opi_KIL(uint16_t addr);
 };
 
 #endif  // CPU_H
