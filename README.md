@@ -4,7 +4,7 @@
 This NES emulator is a personal project to experiment with distributed systems and parallel programming in C++. The goal is to have each processing unit of the NES console running
 in parallel with single-tick granularity, coordinated by a single shared clock (as in actual hardware).
 
-Running an emulator on a single-tick basis will cause a huge amount of overhead (the PPU ticks over 5 million times per second). Running at a full 60fps would be fantastic but is ultimately not the goal: the intention is primarily to emulate the original hardware as closely as possible. Once accurate emulation has been achieved, I will shift focus towards efficiency.
+Running an emulator with single-tick granularity will cause a huge amount of overhead due to constant context-switching between components (the PPU ticks over 5 million times per second, the CPU over 1.5 million). This project is an experiment in parallel processing to see if this overhead can be mitigated or even removed (hardware allowing). Regardless of whether this can be achieved, I am not expecting this to run at full speed, nor is this the goal: the primary target is cycle-accurate emulation at all costs. Once this goal has been reached, I will then attempt to improve efficiency.
 
 ## Development progress:
 - [x] CPU official opcodes
