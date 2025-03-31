@@ -8,8 +8,6 @@
 
 #include "NES.h"
 
-enum class NESRegion { NTSC, PAL };
-
 const double TARGET_SPEED = 0.1;  // game speed to target (1 = full speed 60fps)
 
 // NTSC clock speed is 236.25 MHz ÷ 11 by definition
@@ -22,7 +20,7 @@ const double MASTER_SPEED_PAL =
 class Clock {
  private:
   NES* nes;
-  NESRegion region;
+  NESRegion region = NESRegion::None;
   std::thread cpuThread;
   std::thread ppuThread;
   // std::thread apuThread;
@@ -32,23 +30,33 @@ class Clock {
   double ppuTickInterval;
 
  public:
-  Clock(NES* nes, NESRegion region) : nes(nes), region(region), running(false) {
+  /** 
+   * Region MUST be set using setRegion() before starting
+   */
+  Clock(NES* nes) : nes(nes), running(false) {}
+
+  void setRegion(NESRegion region) {
+    this->region = region;
     // calculate CPU/PPU tick intervals (time in seconds between ticks)
-    // according to region
+    // according to region:
     if (region == NESRegion::NTSC) {
-      cpuTickInterval = 1.0 / (MASTER_SPEED_NTSC / 12);
-      ppuTickInterval = 1.0 / (MASTER_SPEED_NTSC / 4);
-    } else {  // PAL
-      cpuTickInterval = 1.0 / (MASTER_SPEED_PAL / 16);
-      ppuTickInterval = 1.0 / (MASTER_SPEED_PAL / 5);
+      this->cpuTickInterval = 1.0 / (MASTER_SPEED_NTSC / 12);
+      this->ppuTickInterval = 1.0 / (MASTER_SPEED_NTSC / 4);
+    } else if (region == NESRegion::PAL) {  // PAL
+      this->cpuTickInterval = 1.0 / (MASTER_SPEED_PAL / 16);
+      this->ppuTickInterval = 1.0 / (MASTER_SPEED_PAL / 5);
     }
   }
 
   // Start the clock threads
   void start() {
-    running = true;
-    cpuThread = std::thread(&Clock::cpuLoop, this);
-    ppuThread = std::thread(&Clock::ppuLoop, this);
+    if (region == NESRegion::None) {
+      throw std::runtime_error("No region set");
+    } else {
+      running = true;
+      cpuThread = std::thread(&Clock::cpuLoop, this);
+      ppuThread = std::thread(&Clock::ppuLoop, this);
+    }
   }
 
   // Signal the threads to stop and join them

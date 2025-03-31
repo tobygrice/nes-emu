@@ -4,6 +4,7 @@
 #include "Bus.h"
 #include "CPU/CPU.h"
 #include "Cartridge.h"
+#include "Clock.h"
 #include "Logger.h"
 #include "PPU/PPU.h"
 
@@ -18,12 +19,19 @@ class NES {
   PPU ppu;
   Bus bus;
   CPU cpu;
+  Clock clock;
   // APU apu;
 
   /**
    * Instantiates all components with an empty cartridge.
    */
-  NES() : log(), cart(), ppu(&cart), bus(&ppu, &cart), cpu(&bus, &log) {}
+  NES()
+      : log(),
+        cart(),
+        ppu(&cart),
+        bus(&ppu, &cart),
+        cpu(&bus, &log),
+        clock(this) {}
 
   /**
    * Instantiates all components and loads romDump into cartridge.
@@ -37,11 +45,22 @@ class NES {
    */
   void insertCartridge(const std::vector<uint8_t>& romDump) {
     cart.load(romDump);
-    cpu.triggerRES(); // reset interrupt called on cartridge insertion
-    for (int i = 0; i < 7; i++) {
-      cpu.tick();
-    }
+    clock.setRegion(cart.getRegion());
+
+    // reset interrupt called on cartridge insertion
+    // tick CPU past reset interrupt without PPU
+    cpu.triggerRES();  
+    for (int i = 0; i < 7; i++) cpu.tick();
   }
+
+  void start() {
+    clock.start();
+  }
+
+  void stop() {
+    clock.stop();
+  }
+
 };
 
 #endif  // NES_H

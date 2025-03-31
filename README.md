@@ -32,7 +32,7 @@ To execute a ROM file (.nes):
 To run tests:
 ```bash
 ctest --test-dir build --verbose # run all tests
-ctest --test-dir build --verbose --output-on-failure -R runCPUTests
+ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests
 ctest --test-dir build --verbose --output-on-failure -R runCPUNestest
 ctest --test-dir build --verbose -R runPPUTests   # Runs only PPU tests
 ctest --test-dir build --verbose -R runAPUTests   # Runs only APU tests

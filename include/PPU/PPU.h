@@ -41,7 +41,8 @@ class PPU {
   Cartridge* cart;
 
   uint16_t cycles;
-  uint16_t scanline;
+  int scanline; // -1 scanline
+  bool oddFrame = false;
   bool nmiInterrupt;
 
   uint8_t last_written_value;
@@ -68,18 +69,18 @@ class PPU {
         nmiInterrupt(false),
         last_written_value(0) {}
 
-  uint16_t mirror_vram_addr(uint16_t addr);
+  void tick();  // returns true if frame generation complete
+
+  uint16_t mirrorVRAMAddress(uint16_t addr);
 
   bool getNMI() { return nmiInterrupt; }
   uint16_t getScanline() { return scanline; }
   uint16_t getCycle() { return cycles; }
   uint8_t lastWrittenValue() { return last_written_value; }
 
-  bool tick(uint8_t cycles);  // returns true if frame generation complete
-
   // read/writes to 0x2007
-  uint8_t read_data();
-  void write_to_data(uint8_t value);
+  uint8_t cpuRead();
+  void cpuWrite(uint8_t value);
 
   // register READ/WRITES:
   void write_to_ctrl(uint8_t value);

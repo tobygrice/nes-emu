@@ -6,21 +6,25 @@
 #include <vector>
 
 #include "../Constants.h"
-#include "Palette.h"
+
+using Colour = std::tuple<uint8_t, uint8_t, uint8_t>;
 
 class Frame {
  public:
-  std::vector<uint8_t> data;
+  std::vector<Colour> data;
+  int currentPixel;
 
-  Frame() : data(SCREEN_WIDTH * SCREEN_HEIGHT * 3, 0) {}
+  Frame() : data(SCREEN_WIDTH * SCREEN_HEIGHT, {0, 0, 0}), currentPixel(0) {}
 
-  void set_pixel(int x, int y, const Color& rgb) {
-    int base = y * SCREEN_WIDTH * 3 + x * 3;
-    if (base + 2 < data.size()) {
-      data[base + 0] = std::get<0>(rgb);
-      data[base + 1] = std::get<1>(rgb);
-      data[base + 2] = std::get<2>(rgb);
+  // PPU determines colour and sets pixel
+  void set_pixel(const Colour& colour) {
+    // int index = (y * SCREEN_WIDTH) + x;
+    // TO-DO: remove out-of-range check once stable for performance
+    if (currentPixel >= data.size()) {
+      throw std::runtime_error("Attempt to set Frame pixel out of range");
     }
+    data.at(currentPixel) = colour;
+    currentPixel++;
   }
 };
 

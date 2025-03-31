@@ -55,7 +55,7 @@ class Bus : public BusInterface {
     } else if (addr == 0x2004) {
       return ppu->read_oam_data();
     } else if (addr == 0x2007) {
-      return ppu->read_data();
+      return ppu->cpuRead();
     } else if ((addr >= 0x2000) && (addr <= 0x2006)) {
       // 0x2000, 0x2001, 0x2003, 0x2005, 0x2006
       // PPU READ ONLY - return last value written to 0x2000 -> 0x2007
@@ -99,7 +99,7 @@ class Bus : public BusInterface {
     } else if (addr == 0x2006) {
       ppu->write_to_ppu_addr(value);
     } else if (addr == 0x2007) {
-      ppu->write_to_data(value);
+      ppu->cpuWrite(value);
     } else if (addr >= 0x2008 && addr <= 0x3FFF) {
       // PPU registers mirror: 0x2008 to 0x3FFF
       // mirror down to 0x2000-0x2007 and recurse

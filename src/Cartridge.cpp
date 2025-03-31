@@ -44,6 +44,17 @@ void Cartridge::load(const std::vector<uint8_t>& romDump) {
 
   mapper = (romDump[7] & 0b11110000) | (romDump[6] >> 4);
 
+  // FLAGS 9
+  // 76543210
+  // ||||||||
+  // |||||||+- TV system (0: NTSC; 1: PAL)
+  // +++++++-- Reserved, set to zero
+  region = romDump[9] == 0 ? NESRegion::NTSC : NESRegion::PAL;
+
+  if (mapper != 0x00) {
+    throw std::runtime_error("mapper not implemented");
+  }
+
   prg_rom_size = romDump[4] * 16384;  // PRG ROM size given in 16KiB blocks
   chr_rom_size = romDump[5] * 8192;   // CHR ROM size given in 8KiB blocks
 

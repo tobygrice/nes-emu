@@ -44,6 +44,7 @@
 
 // enum class for addressing modes
 enum class MirroringMode { Vertical, Horizontal, FourScreen };
+enum class NESRegion { NTSC, PAL, None };
 
 class Cartridge {
  private:
@@ -51,6 +52,7 @@ class Cartridge {
   std::vector<uint8_t> prg_rom;
   std::vector<uint8_t> chr_rom;
   MirroringMode mirroring;
+  NESRegion region;
   uint8_t mapper;
   size_t prg_rom_size;
   size_t chr_rom_size;
@@ -61,26 +63,29 @@ class Cartridge {
         prg_rom{},
         chr_rom{},
         mirroring(MirroringMode::Horizontal),
+        region(NESRegion::None),
         mapper(),
         prg_rom_size(0),
         chr_rom_size(0) {}
-  Cartridge(const std::vector<uint8_t>& raw) { load(raw); }
+
+  Cartridge(const std::vector<uint8_t>& raw) : Cartridge() { load(raw); }
 
   void load(const std::vector<uint8_t>& raw);
   uint8_t read_prg_rom(uint16_t addr);
   uint8_t read_chr_rom(uint16_t addr);
 
   bool isEmpty() { return empty; }
-  MirroringMode getMirroring() { 
-    return mirroring; 
-  }
+  MirroringMode getMirroring() { return mirroring; }
   void setMirroring(MirroringMode m) { this->mirroring = m; }
-  const uint8_t* get_chr_rom_addr() { 
+  const uint8_t* get_chr_rom_addr() {
     if (empty) {
       throw std::runtime_error("Error: no cartridge loaded.");
     }
-    return chr_rom.data(); 
+    return chr_rom.data();
   }
+
+  NESRegion getRegion() { return region; }
+
 };
 
 #endif
