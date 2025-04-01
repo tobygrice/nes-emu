@@ -21,26 +21,28 @@ class NES {
   Bus bus;
   CPU cpu;
   Clock clock;
-  Renderer renderer;
+  Renderer* renderer;
   // APU apu;
 
   /**
    * Instantiates all components with an empty cartridge.
    */
-  NES()
+  NES(Renderer* renderer)
       : log(),
         cart(),
         ppu(&cart),
         bus(&ppu, &cart),
         cpu(&bus, &log),
         clock(this),
-        renderer() {}
+        renderer(renderer) {}
 
   /**
    * Instantiates all components and loads romDump into cartridge.
    * @param romDump iNES 1.0 format NES ROM dump.
    */
-  NES(const std::vector<uint8_t>& romDump) : NES() { insertCartridge(romDump); }
+  NES(Renderer* renderer, const std::vector<uint8_t>& romDump) : NES(renderer) {
+    insertCartridge(romDump);
+  }
 
   /**
    * Loads romDump into cartridge.
@@ -52,18 +54,13 @@ class NES {
 
     // reset interrupt called on cartridge insertion
     // tick CPU past reset interrupt without PPU
-    cpu.triggerRES();  
+    cpu.triggerRES();
     for (int i = 0; i < 7; i++) cpu.tick();
   }
 
-  void start() {
-    clock.start();
-  }
+  void start() { clock.start(); }
 
-  void stop() {
-    clock.stop();
-  }
-
+  void stop() { clock.stop(); }
 };
 
 #endif  // NES_H

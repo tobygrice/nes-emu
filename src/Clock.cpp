@@ -37,8 +37,7 @@ void Clock::gameLoop() {
       if (frame) {
         // frame will shortly be deleted by PPU, give renderer a copy
         Frame* frameCopy = new Frame(*frame);
-        ppuThread = std::thread(&Clock::render, this, frameCopy);
-        std::cout << "rendering frame\n";
+        render(frameCopy);
       }
     }
   }
@@ -53,7 +52,7 @@ void Clock::stop() {
 }
 
 void Clock::render(Frame* frame) {
-  nes->renderer.render(frame);
+  nes->renderer->render(frame);
   delete frame;
 }
 

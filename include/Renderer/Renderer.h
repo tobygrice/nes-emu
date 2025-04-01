@@ -3,11 +3,11 @@
 
 #include <SDL3/SDL.h>
 
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <iostream>
 
 #include "Frame.h"
 
@@ -22,32 +22,8 @@ class Renderer {
 
  public:
   // Constructor: initializes SDL, creates a window, renderer, and texture.
-  Renderer() : sdlWindow(nullptr), sdlRenderer(nullptr), sdlTexture(nullptr) {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-      throw std::runtime_error(std::string("SDL_Init Error: ") +
-                               SDL_GetError());
-    }
-
-    SDL_CreateWindowAndRenderer("grice.software - NES EMU",
-                                WIDTH * SCALE,      // width, in pixels
-                                HEIGHT * SCALE,     // height, in pixels
-                                SDL_WINDOW_OPENGL,  // flags
-                                &sdlWindow, &sdlRenderer);
-    SDL_SetRenderScale(sdlRenderer, SCALE, SCALE);
-
-    // Create a streaming texture for updating pixel data
-    sdlTexture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGB24,
-                                   SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
-    if (!sdlTexture) {
-      SDL_DestroyRenderer(sdlRenderer);
-      SDL_DestroyWindow(sdlWindow);
-      SDL_Quit();
-      throw std::runtime_error(std::string("SDL_CreateTexture Error: ") +
-                               SDL_GetError());
-    }
-
-    std::cout << "initialised sdl\n";
-  }
+  Renderer(SDL_Window* w, SDL_Renderer* r, SDL_Texture* t)
+      : sdlWindow(w), sdlRenderer(r), sdlTexture(t) {}
 
   // Destructor: cleans up SDL resources.
   ~Renderer() {
