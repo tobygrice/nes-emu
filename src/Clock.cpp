@@ -23,7 +23,7 @@ void Clock::start() {
     throw std::runtime_error("No region set");
   } else {
     running = true;
-    coreThread = std::thread(&Clock::gameLoop, this);
+    gameLoop();
     // cpuThread = std::thread(&Clock::cpuLoop, this);
     // ppuThread = std::thread(&Clock::ppuLoop, this);
   }
