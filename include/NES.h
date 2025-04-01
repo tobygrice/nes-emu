@@ -7,6 +7,7 @@
 #include "Clock.h"
 #include "Logger.h"
 #include "PPU/PPU.h"
+#include "Renderer/Renderer.h"
 
 /**
  * Virtual implementation of an NES console. Instantiates and correctly links
@@ -20,6 +21,7 @@ class NES {
   Bus bus;
   CPU cpu;
   Clock clock;
+  Renderer renderer;
   // APU apu;
 
   /**
@@ -31,7 +33,8 @@ class NES {
         ppu(&cart),
         bus(&ppu, &cart),
         cpu(&bus, &log),
-        clock(this) {}
+        clock(this),
+        renderer() {}
 
   /**
    * Instantiates all components and loads romDump into cartridge.

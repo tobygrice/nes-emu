@@ -70,7 +70,7 @@ class PPUCtrl {
 
   // Returns the background pattern table address: 0 if the flag is not set,
   // 0x1000 if it is.
-  uint16_t bknd_pattern_addr() const {
+  uint16_t bg_pattern_addr() const {
     return !isSet(BACKGROUND_PATTERN_ADDR) ? 0 : 0x1000;
   }
 

@@ -1,0 +1,210 @@
+initialised sdl
+C033  A2 00     LDX #$00                        A:00 X:00 Y:00 P:24 SP:FD PPU:  0,  0 CYC:7
+C035  8E 00 20  STX $2000 = 00                  A:00 X:00 Y:00 P:26 SP:FD PPU:  6,  0 CYC:9
+C038  78        SEI                             A:00 X:00 Y:00 P:26 SP:FD PPU: 18,  0 CYC:13
+C039  D8        CLD                             A:00 X:00 Y:00 P:26 SP:FD PPU: 24,  0 CYC:15
+C03A  CA        DEX                             A:00 X:00 Y:00 P:26 SP:FD PPU: 30,  0 CYC:17
+C03B  9A        TXS                             A:00 X:FF Y:00 P:A4 SP:FD PPU: 36,  0 CYC:19
+C03C  EA        NOP                             A:00 X:FF Y:00 P:A4 SP:FF PPU: 42,  0 CYC:21
+C03D  EA        NOP                             A:00 X:FF Y:00 P:A4 SP:FF PPU: 48,  0 CYC:23
+C03E  EA        NOP                             A:00 X:FF Y:00 P:A4 SP:FF PPU: 54,  0 CYC:25
+C03F  A2 02     LDX #$02                        A:00 X:FF Y:00 P:A4 SP:FF PPU: 60,  0 CYC:27
+C041  A9 06     LDA #$06                        A:00 X:02 Y:00 P:24 SP:FF PPU: 66,  0 CYC:29
+C043  8D 01 20  STA $2001 = 00                  A:06 X:02 Y:00 P:24 SP:FF PPU: 72,  0 CYC:31
+C046  AD 02 20  LDA $2002 = 00                  A:06 X:02 Y:00 P:24 SP:FF PPU: 84,  0 CYC:35
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 96,  0 CYC:39
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:108,  0 CYC:43
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:117,  0 CYC:46
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:129,  0 CYC:50
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:138,  0 CYC:53
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:150,  0 CYC:57
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:159,  0 CYC:60
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:171,  0 CYC:64
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:180,  0 CYC:67
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:192,  0 CYC:71
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:201,  0 CYC:74
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:213,  0 CYC:78
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:222,  0 CYC:81
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:234,  0 CYC:85
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:243,  0 CYC:88
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:255,  0 CYC:92
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:264,  0 CYC:95
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:276,  0 CYC:99
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:285,  0 CYC:102
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:297,  0 CYC:106
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:306,  0 CYC:109
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:318,  0 CYC:113
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:327,  0 CYC:116
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:339,  0 CYC:120
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:  7,  1 CYC:123
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 19,  1 CYC:127
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 28,  1 CYC:130
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 40,  1 CYC:134
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 49,  1 CYC:137
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 61,  1 CYC:141
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 70,  1 CYC:144
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 82,  1 CYC:148
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 91,  1 CYC:151
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:103,  1 CYC:155
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:112,  1 CYC:158
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:124,  1 CYC:162
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:133,  1 CYC:165
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:145,  1 CYC:169
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:154,  1 CYC:172
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:166,  1 CYC:176
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:175,  1 CYC:179
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:187,  1 CYC:183
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:196,  1 CYC:186
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:208,  1 CYC:190
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:217,  1 CYC:193
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:229,  1 CYC:197
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:238,  1 CYC:200
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:250,  1 CYC:204
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:259,  1 CYC:207
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:271,  1 CYC:211
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:280,  1 CYC:214
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:292,  1 CYC:218
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:301,  1 CYC:221
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:313,  1 CYC:225
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:322,  1 CYC:228
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:334,  1 CYC:232
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:  2,  2 CYC:235
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 14,  2 CYC:239
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 23,  2 CYC:242
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 35,  2 CYC:246
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 44,  2 CYC:249
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 56,  2 CYC:253
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 65,  2 CYC:256
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 77,  2 CYC:260
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 86,  2 CYC:263
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 98,  2 CYC:267
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:107,  2 CYC:270
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:119,  2 CYC:274
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:128,  2 CYC:277
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:140,  2 CYC:281
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:149,  2 CYC:284
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:161,  2 CYC:288
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:170,  2 CYC:291
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:182,  2 CYC:295
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:191,  2 CYC:298
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:203,  2 CYC:302
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:212,  2 CYC:305
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:224,  2 CYC:309
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:233,  2 CYC:312
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:245,  2 CYC:316
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:254,  2 CYC:319
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:266,  2 CYC:323
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:275,  2 CYC:326
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:287,  2 CYC:330
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:296,  2 CYC:333
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:308,  2 CYC:337
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:317,  2 CYC:340
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:329,  2 CYC:344
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:338,  2 CYC:347
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:  9,  3 CYC:351
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 18,  3 CYC:354
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 30,  3 CYC:358
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 39,  3 CYC:361
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 51,  3 CYC:365
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 60,  3 CYC:368
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 72,  3 CYC:372
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 81,  3 CYC:375
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 93,  3 CYC:379
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:102,  3 CYC:382
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:114,  3 CYC:386
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:123,  3 CYC:389
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:135,  3 CYC:393
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:144,  3 CYC:396
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:156,  3 CYC:400
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:165,  3 CYC:403
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:177,  3 CYC:407
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:186,  3 CYC:410
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:198,  3 CYC:414
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:207,  3 CYC:417
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:219,  3 CYC:421
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:228,  3 CYC:424
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:240,  3 CYC:428
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:249,  3 CYC:431
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:261,  3 CYC:435
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:270,  3 CYC:438
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:282,  3 CYC:442
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:291,  3 CYC:445
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:303,  3 CYC:449
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:312,  3 CYC:452
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:324,  3 CYC:456
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:333,  3 CYC:459
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:  4,  4 CYC:463
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 13,  4 CYC:466
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 25,  4 CYC:470
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 34,  4 CYC:473
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 46,  4 CYC:477
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 55,  4 CYC:480
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 67,  4 CYC:484
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 76,  4 CYC:487
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 88,  4 CYC:491
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 97,  4 CYC:494
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:109,  4 CYC:498
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:118,  4 CYC:501
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:130,  4 CYC:505
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:139,  4 CYC:508
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:151,  4 CYC:512
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:160,  4 CYC:515
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:172,  4 CYC:519
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:181,  4 CYC:522
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:193,  4 CYC:526
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:202,  4 CYC:529
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:214,  4 CYC:533
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:223,  4 CYC:536
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:235,  4 CYC:540
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:244,  4 CYC:543
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:256,  4 CYC:547
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:265,  4 CYC:550
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:277,  4 CYC:554
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:286,  4 CYC:557
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:298,  4 CYC:561
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:307,  4 CYC:564
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:319,  4 CYC:568
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:328,  4 CYC:571
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:340,  4 CYC:575
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:  8,  5 CYC:578
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 20,  5 CYC:582
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 29,  5 CYC:585
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 41,  5 CYC:589
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 50,  5 CYC:592
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:0C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:120,  6 CYC:729
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:129,  6 CYC:732
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:141,  6 CYC:736:00 P:26 SP:FF PPU: 92,  5 CYC:606
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:104,  5 CYC:610
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:113,  5 CYC:613
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:125,  5 CYC:617
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:134,  5 CYC:620
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:146,  5 CYC:624
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:155,  5 CYC:627
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:167,  5 CYC:631
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:176,  5 CYC:634
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:188,  5 CYC:638
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:197,  5 CYC:641
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:209,  5 CYC:645
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:218,  5 CYC:648
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:230,  5 CYC:652
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:239,  5 CYC:655
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:251,  5 CYC:659
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:260,  5 CYC:662
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:272,  5 CYC:666
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:281,  5 CYC:669
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:293,  5 CYC:673
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:302,  5 CYC:676
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:314,  5 CYC:680
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:323,  5 CYC:683
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU:335,  5 CYC:687
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:  3,  6 CYC:690
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 15,  6 CYC:694
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 24,  6 CYC:697
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 36,  6 CYC:701
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 45,  6 CYC:704
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 57,  6 CYC:708
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 66,  6 CYC:711
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 78,  6 CYC:715
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU: 87,  6 CYC:718
+C04C  10 FB     BPL $C049                       A:00 X:02 Y:00 P:26 SP:FF PPU: 99,  6 CYC:722
+C049  AD 02 20  LDA $2002 = 00                  A:00 X:02 Y:00 P:26 SP:FF PPU:108,  6 CYC:725

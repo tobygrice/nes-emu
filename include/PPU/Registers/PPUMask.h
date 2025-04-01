@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <vector>
 
-enum class Colour { Red, Green, Blue };
-
 class PPUMask {
  private:
   uint8_t bits;
@@ -46,13 +44,13 @@ class PPUMask {
   std::vector<Colour> emphasise() const {
     std::vector<Colour> result;
     if (isSet(EMPHASISE_RED)) {
-      result.push_back(Colour::Red);
-    }
-    if (isSet(EMPHASISE_BLUE)) {
-      result.push_back(Colour::Blue);
+      result.push_back({1,0,0});
     }
     if (isSet(EMPHASISE_GREEN)) {
-      result.push_back(Colour::Green);
+      result.push_back({0,1,0});
+    }
+    if (isSet(EMPHASISE_BLUE)) {
+      result.push_back({0,0,1});
     }
     return result;
   }

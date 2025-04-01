@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "../Renderer/Frame.h"
 #include "../Cartridge.h"
 #include "Registers/PPUAddr.h"
 #include "Registers/PPUCtrl.h"
@@ -24,6 +25,14 @@ class PPU {
    * each flag for readability. The ADDR register also has a specific class to
    * allow for cycle-accurate read/writes.
    */
+  Frame* currentFrame;
+  uint8_t tileID = 0;
+  uint8_t attribute = 0;
+  uint8_t patternLow = 0;
+  uint8_t patternHigh = 0;
+  uint16_t v = 0;
+  uint8_t currentYQuadrant = 0;
+
   PPUCtrl ctrl;      // 0x2000
   PPUMask mask;      // 0x2001
   PPUStatus status;  // 0x2002
@@ -41,7 +50,7 @@ class PPU {
   Cartridge* cart;
 
   uint16_t cycles;
-  int scanline; // -1 scanline
+  int scanline;  // -1 scanline
   bool oddFrame = false;
   bool nmiInterrupt;
 
@@ -69,9 +78,22 @@ class PPU {
         nmiInterrupt(false),
         last_written_value(0) {}
 
-  void tick();  // returns true if frame generation complete
+  Frame* tick();  // returns true if frame generation complete
 
   uint16_t mirrorVRAMAddress(uint16_t addr);
+  uint8_t mirrorPaletteAddress(uint8_t addr) {
+    addr &= 0x1F;
+    if (addr == 0x10) {
+      addr = 0x00;
+    } else if (addr == 0x14) {
+      addr = 0x04;
+    } else if (addr == 0x18) {
+      addr = 0x08;
+    } else if (addr == 0x1C) {
+      addr = 0x0C;
+    }
+    return addr;
+  }
 
   bool getNMI() { return nmiInterrupt; }
   uint16_t getScanline() { return scanline; }

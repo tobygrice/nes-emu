@@ -16,11 +16,7 @@
  * | $3F20–$3FFF     | $00E0 | Mirrors of $3F00–$3F1F    | Internal to PPU   |
  */
 
-void PPU::tick() {
-  if (cycles == 0) {
-    cycles++;
-    return;  // idle cycle on odd frames
-  }
+Frame* PPU::tick() {
   /**  ============ BACKGROUND ============
    * cycle 1 fetch nametable byte, cycle 2 burn cycle (read takes two cycles)
    * cycle 3 fetch attribute table byte, cycle 4 burn cycle
@@ -28,42 +24,173 @@ void PPU::tick() {
    * cycle 7 pattern table tile high (+8 bytes from pattern table tile low)
    * cycle 8 burn cycle (process 8 pixels)
    */
-  if (scanline == -1) {
+  if (scanline == 0) {
     // fill the shift registers with the data for the first two tiles of the
     // next scanline
-  } else if (scanline <= 239) {
-    if (cycles <= 256) {
-      switch ((cycles - 1) % 8) {
+    if (cycles == 1) {
+      if (currentFrame) delete currentFrame;
+      currentFrame = new Frame();
+    }
+  } else if (scanline < 240) { // 0-239
+    // Note: this is not cycle accurate. In true hardware, each memory read
+    // takes two cycles and there are four memory reads per 8 pixels. All of the
+    // pixel rendering is done in the last cycle. However, I have decided to
+    // stray from this to balance computational load across cycles.
+    if (cycles < 256) {
+      switch (cycles % 8) {
         case 0: {
           // fetch nametable byte
+          uint16_t address = mirrorVRAMAddress(0x2000 | (v & 0x0FFF));
+          tileID = vram[address];
           break;
         }
         case 1: {
-          // burn
+          // fetch attribute table byte
+          uint16_t address = mirrorVRAMAddress(
+              0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07));
+          attribute = vram[address];
           break;
         }
         case 2: {
-          // fetch attribute table byte
+          // fetch pattern table tile low
+          uint8_t fineY = (v >> 12) & 0b0111;  // v register is 15 bits
+          uint16_t address = ctrl.bg_pattern_addr() + (tileID * 16) + fineY;
+          patternLow = cart->read_chr_rom(address);
           break;
         }
         case 3: {
-          // burn
+          // pattern table tile high (+8 bytes from pattern table tile low)
+          uint8_t fineY = (v >> 12) & 0x07;
+          uint16_t address = ctrl.bg_pattern_addr() + (tileID * 16) + fineY + 8;
+          patternHigh = cart->read_chr_rom(address);
           break;
         }
         case 4: {
-          // pattern table tile low
+          // compute pixels 11000000
+
+          // determine quadrant within tile
+          // (0b00 or 0b10 / top left or bottom left)
+          uint8_t quadrant = currentYQuadrant << 1;
+
+          // determine palette selection using attribute byte and quadrant
+          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+
+          // compute pixels 6/7 values:
+          uint8_t bit7Low = (patternLow >> 7) & 0b01;
+          uint8_t bit7High = (patternHigh >> 7) & 0b01;
+          uint8_t px7value = (bit7High << 1) | bit7Low;
+
+          uint8_t bit6Low = (patternLow >> 6) & 0b01;
+          uint8_t bit6High = (patternHigh >> 6) & 0b01;
+          uint8_t px6value = (bit6High << 1) | bit6Low;
+
+          uint8_t px7PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px7value);
+          uint8_t px6PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px6value);
+
+          uint8_t px7colour = palette_table[px7PaletteIndex];
+          uint8_t px6colour = palette_table[px6PaletteIndex];
+
+          currentFrame->push(px7colour);
+          currentFrame->push(px6colour);
+
           break;
         }
         case 5: {
-          // burn
+          // compute pixels 00110000
+          // determine quadrant within tile
+          // (0b00 or 0b10 / top left or bottom left)
+          uint8_t quadrant = currentYQuadrant << 1;
+
+          // determine palette selection using attribute byte and quadrant
+          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+
+          // compute pixels 6/7 values:
+          uint8_t bit5Low = (patternLow >> 5) & 0b01;
+          uint8_t bit5High = (patternHigh >> 5) & 0b01;
+          uint8_t px5value = (bit5High << 1) | bit5Low;
+
+          uint8_t bit4Low = (patternLow >> 4) & 0b01;
+          uint8_t bit4High = (patternHigh >> 4) & 0b01;
+          uint8_t px4value = (bit4High << 1) | bit4Low;
+
+          uint8_t px5PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px5value);
+          uint8_t px4PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px4value);
+
+          uint8_t px5colour = palette_table[px5PaletteIndex];
+          uint8_t px4colour = palette_table[px4PaletteIndex];
+
+          currentFrame->push(px5colour);
+          currentFrame->push(px4colour);
+
           break;
         }
         case 6: {
-          // pattern table tile high (+8 bytes from pattern table tile low)
+          // compute pixels 00001100
+
+          // determine quadrant within tile
+          // (0b01 or 0b11 / top right or bottom right)
+          uint8_t quadrant = (currentYQuadrant << 1) | 0b01;
+
+          // determine palette selection using attribute byte and quadrant
+          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+
+          // compute pixels 6/7 values:
+          uint8_t bit3Low = (patternLow >> 3) & 0b01;
+          uint8_t bit3High = (patternHigh >> 3) & 0b01;
+          uint8_t px3value = (bit3High << 1) | bit3Low;
+
+          uint8_t bit2Low = (patternLow >> 2) & 0b01;
+          uint8_t bit2High = (patternHigh >> 2) & 0b01;
+          uint8_t px2value = (bit2High << 1) | bit2Low;
+
+          uint8_t px3PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px3value);
+          uint8_t px2PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px2value);
+
+          uint8_t px3colour = palette_table[px3PaletteIndex];
+          uint8_t px2colour = palette_table[px2PaletteIndex];
+
+          currentFrame->push(px3colour);
+          currentFrame->push(px2colour);
+
           break;
         }
         case 7: {
-          // burn
+          // compute pixels 00000011
+          // compute pixels 00001100
+
+          // determine quadrant within tile
+          // (0b01 or 0b11 / top right or bottom right)
+          uint8_t quadrant = (currentYQuadrant << 1) | 0b01;
+
+          // determine palette selection using attribute byte and quadrant
+          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+
+          // compute pixels 6/7 values:
+          uint8_t bit1Low = (patternLow >> 1) & 0b01;
+          uint8_t bit1High = (patternHigh >> 1) & 0b01;
+          uint8_t px1value = (bit1High << 1) | bit1Low;
+
+          uint8_t bit0Low = patternLow & 0b01;
+          uint8_t bit0High = patternHigh & 0b01;
+          uint8_t px0value = (bit0High << 1) | bit0Low;
+
+          uint8_t px1PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px1value);
+          uint8_t px0PaletteIndex =
+              mirrorPaletteAddress((paletteSelection * 4) + px0value);
+
+          uint8_t px1colour = palette_table[px1PaletteIndex];
+          uint8_t px0colour = palette_table[px0PaletteIndex];
+
+          currentFrame->push(px1colour);
+          currentFrame->push(px0colour);
+
           break;
         }
       }
@@ -75,7 +202,7 @@ void PPU::tick() {
       // two bytes are fetched, but the purpose for this is unknown
     }
   } else if (scanline == 241) {
-    // 240 is idle scanline
+    // 240 is idle scanline, nothing happens
     // vblank is triggered on second tick of scanline 241
     if (cycles == 1) {
       status.set_vblank_status(true);
@@ -84,21 +211,25 @@ void PPU::tick() {
       if (ctrl.generate_vblank_nmi()) {
         nmiInterrupt = true;
       }
+      cycles++;
+      return currentFrame;
     }
-  } else if (scanline == 261) {
+  } else if (scanline == 262) {
     // clear vblank
     status.set_vblank_status(false);
     nmiInterrupt = false;
     cycles = 0;
-    scanline = -1;
-    return;
+    scanline = 0;
+    return nullptr;
   }
 
   cycles++;
   if (cycles == 341) {
     cycles = 0;
     scanline++;
+    currentYQuadrant = ((scanline % 8) < 4) ? 0 : 1;
   }
+  return nullptr; // return nullptr until frame completed
 }
 
 uint8_t PPU::cpuRead() {
@@ -119,16 +250,7 @@ uint8_t PPU::cpuRead() {
   } else if (addr_val >= 0x3F00 && addr_val <= 0x3FFF) {
     // palette table read
     uint8_t index = (addr_val - 0x3F00) & 0x1F;
-    if (index == 0x10)
-      index = 0x00;
-    else if (index == 0x14)
-      index = 0x04;
-    else if (index == 0x18)
-      index = 0x08;
-    else if (index == 0x1C)
-      index = 0x0C;
-
-    return palette_table[index];
+    return palette_table[mirrorPaletteAddress(index)];
   } else {
     throw std::runtime_error("PPU attempt to read from unsupported address: " +
                              std::to_string(addr_val));
@@ -149,16 +271,7 @@ void PPU::cpuWrite(uint8_t value) {
   } else if (addr_val >= 0x3F00 && addr_val <= 0x3FFF) {
     // palette table read
     uint8_t index = (addr_val - 0x3F00) & 0x1F;
-    if (index == 0x10)
-      index = 0x00;
-    else if (index == 0x14)
-      index = 0x04;
-    else if (index == 0x18)
-      index = 0x08;
-    else if (index == 0x1C)
-      index = 0x0C;
-
-    palette_table[index] = value;
+    palette_table[mirrorPaletteAddress(index)] = value;
   } else {
     throw std::runtime_error("PPU attempt to write to unsupported address: " +
                              std::to_string(addr_val));
