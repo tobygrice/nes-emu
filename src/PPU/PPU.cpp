@@ -215,7 +215,9 @@ Frame* PPU::tick() {
       return currentFrame;
     }
   } else if (scanline == 262) {
-    // clear vblank
+    // prerender scanline
+    status.set_sprite_overflow(false);
+    status.set_sprite_zero_hit(false);
     status.set_vblank_status(false);
     nmiInterrupt = false;
     cycles = 0;

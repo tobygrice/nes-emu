@@ -39,6 +39,6 @@ ctest --test-dir build --verbose -R runAPUTests   # Runs only APU tests
 ```
 To run nestest and compare logs:
 ```bash
-./build/nesemu test_roms/nestest.nes > logs/actual.log
-./logs/cmplogs.sh logs/nestest_cpu_exp.log logs/nestest_cpu_act.log
+./build/nesemu rom_testing/nestest.nes > logs/actual.log
+./logs/cmplogs.sh logs/nestest_ppu_exp.log logs/actual.log
 ```

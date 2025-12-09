@@ -5,3 +5,4 @@ docs/.obsidian
 build
 tests/CPU/nes6502-TESTS
 rom_testing
+*.log

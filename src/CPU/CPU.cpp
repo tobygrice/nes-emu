@@ -13,21 +13,19 @@
 void CPU::tick() {
   cycleCount++;
 
-  if (initiatingInterrupt) {
-    // interrupt has been triggered
-    switch (activeInterrupt) {
-      case Interrupt::NMI:
-      case Interrupt::IRQ:
-        in_NMI_IRQ();
-        break;
-      case Interrupt::RES:
-        in_RES();
-        break;
-      default:
-        initiatingInterrupt = false;
-        break;
+  switch (activeInterrupt) {
+    case Interrupt::NONE: {
+      break;
     }
-    return;
+    case Interrupt::NMI:
+    case Interrupt::IRQ: {
+      in_NMI_IRQ();
+      return;
+    }
+    case Interrupt::RES: {
+      in_RES();
+      return;
+    }
   }
 
   if (cyclesRemainingInCurrentInstr == 0) {
@@ -440,7 +438,7 @@ void CPU::in_NMI_IRQ() {
       uint16_t address = (activeInterrupt == Interrupt::NMI) ? 0xFFFB : 0xFFFF;
       pc |= (static_cast<uint16_t>(bus->read(address)) << 8);
       cyclesRemainingInCurrentInterrupt = 7;  // reset for next interrupt
-      initiatingInterrupt = false;
+      activeInterrupt = Interrupt::NONE;
       break;
     }
   }
@@ -476,7 +474,7 @@ void CPU::in_RES() {
     case 0:
       pc |= (static_cast<uint16_t>(bus->read(0xFFFD)) << 8);
       cyclesRemainingInCurrentInterrupt = 7;  // reset for next interrupt
-      initiatingInterrupt = false;
+      activeInterrupt = Interrupt::NONE;
       break;
   }
 }

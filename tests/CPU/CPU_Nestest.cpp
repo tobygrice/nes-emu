@@ -25,7 +25,7 @@ std::vector<uint8_t> readNestestROM() {
 TEST(CPUNestest, runNestest) {
 
   std::vector<uint8_t> romDump = readNestestROM();
-  NES nes = NES(romDump);  // instantiate a virtual NES console
+  NES nes = NES(nullptr, romDump);  // instantiate a virtual NES console
   // NES(cart) calls reset interrupt
 
   nes.cpu.TEST_setPC(0xC000);

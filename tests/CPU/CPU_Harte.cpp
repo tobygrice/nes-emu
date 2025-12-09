@@ -64,7 +64,7 @@ CPUTestState parse_state(const json &j) {
 
 TEST_F(CPUHarteTests, runAllHarteTests) {
   uint num_passed_tests = 0;
-  logger.mute();
+  // logger.mute();
 
   for (uint16_t opcode = 0x00; opcode <= 0xFF; opcode++) {
     const OpCode *op = OpCode::getOpCode(opcode);  // look up opcode
@@ -140,7 +140,6 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
       }
       num_passed_tests++;
     }
-    std::cout << "PASSED TEST " << std::format("{:#04x}\n", opcode);
   }
 }
 

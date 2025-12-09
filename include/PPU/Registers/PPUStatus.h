@@ -23,7 +23,7 @@ class PPUStatus {
   static constexpr uint8_t SPRITE_ZERO_HIT = 0b01000000;
   static constexpr uint8_t VBLANK_STARTED =  0b10000000;
 
-  PPUStatus() : bits(0) {}
+  PPUStatus() : bits(0xFF) {}
 
   // Sets or clears the VBLANK_STARTED flag.
   void set_vblank_status(bool status) { set(VBLANK_STARTED, status); }

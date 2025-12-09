@@ -1,6 +1,6 @@
-#include "Clock.h"
+#include "../include/Clock.h"
 
-#include "NES.h"
+#include "../include/NES.h"
 
 Clock::Clock(NES* nes) : nes(nes), region(NESRegion::None), running(false) {}
 

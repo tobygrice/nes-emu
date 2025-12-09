@@ -13,13 +13,13 @@ include(FetchContent)
 # ------------------------------------------------
 # Fetch GoogleTest
 # ------------------------------------------------
-# FetchContent_Declare(
-#   googletest
-#   GIT_REPOSITORY https://github.com/google/googletest.git
-#   GIT_TAG v1.15.2
-#   GIT_SHALLOW OFF
-# )
-# FetchContent_MakeAvailable(googletest)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.15.2
+  GIT_SHALLOW OFF
+)
+FetchContent_MakeAvailable(googletest)
 
 # ------------------------------------------------
 # Fetch nlohmann/json
@@ -62,41 +62,45 @@ target_link_libraries(nesemu PRIVATE nlohmann_json::nlohmann_json SDL3::SDL3)
 # ------------------------------------------------
 # Helper function to create tests
 # ------------------------------------------------
-# function(add_nes_test TEST_NAME TEST_SRC)
-#   add_executable(${TEST_NAME} ${TEST_SRC} ${ARGN})
+function(add_nes_test TEST_NAME TEST_SRC)
+  add_executable(${TEST_NAME} ${TEST_SRC} ${ARGN})
 
-#   target_link_libraries(${TEST_NAME}
-#     PRIVATE
-#     gtest_main
-#     nlohmann_json::nlohmann_json
-#     SDL3::SDL3
-#   )
+  target_link_libraries(${TEST_NAME}
+    PRIVATE
+    gtest_main
+    nlohmann_json::nlohmann_json
+    SDL3::SDL3
+  )
 
-#   add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
-# endfunction()
+  add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+endfunction()
 
 # # ------------------------------------------------
 # # Create your test targets
 # # ------------------------------------------------
-# add_nes_test(runCPUHarteTests
-#   src/CPU/CPU.cpp
-#   src/CPU/OpCode.cpp
-#   src/PPU/PPU.cpp
-#   src/PPU/Registers/PPUAddr.cpp
-#   src/Logger.cpp
-#   src/Cartridge.cpp
-#   tests/CPU/CPU_Harte.cpp
-# )
+add_nes_test(runCPUHarteTests
+  src/CPU/CPU.cpp
+  src/CPU/OpCode.cpp
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
+  src/Renderer/Renderer.cpp
+  src/Logger.cpp
+  src/Cartridge.cpp
+  src/Clock.cpp
+  tests/CPU/CPU_Harte.cpp
+)
 
-# add_nes_test(runCPUNestest
-#   src/CPU/CPU.cpp
-#   src/CPU/OpCode.cpp
-#   src/PPU/PPU.cpp
-#   src/PPU/Registers/PPUAddr.cpp
-#   src/Logger.cpp
-#   src/Cartridge.cpp
-#   tests/CPU/CPU_Nestest.cpp
-# )
+add_nes_test(runCPUNestest
+  src/CPU/CPU.cpp
+  src/CPU/OpCode.cpp
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
+  src/Renderer/Renderer.cpp
+  src/Logger.cpp
+  src/Cartridge.cpp
+  src/Clock.cpp
+  tests/CPU/CPU_Nestest.cpp
+)
 
 # add_nes_test(runPPUTests
 #   src/Cartridge.cpp
