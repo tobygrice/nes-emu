@@ -34,6 +34,7 @@ class Logger {
 
   void mute() { silenced = true; };
   void unmute() { silenced = false; };
+  bool isMuted() const { return silenced; }
 
   std::string disassembleInstr(const CPUState& state);
   void log(const CPUState& state);

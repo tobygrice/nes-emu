@@ -23,9 +23,18 @@ std::vector<uint8_t> readROM(char* filename) {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 2) {
+  if (argc < 2 || argc > 3) {
     throw std::invalid_argument(
-        "Expected single argument specifiying name of .nes file");
+        "Usage: nesemu <rom.nes> [--trace]");
+  }
+
+  bool enableTrace = false;
+  if (argc == 3) {
+    if (std::string(argv[2]) == "--trace") {
+      enableTrace = true;
+    } else {
+      throw std::invalid_argument("Unknown option: " + std::string(argv[2]));
+    }
   }
 
   SDL_Window* sdlWindow = nullptr;
@@ -42,13 +51,17 @@ int main(int argc, char* argv[]) {
   if (!SDL_CreateWindowAndRenderer("grice.software - NES EMU",
                                    WIDTH * SCALE,      // width, in pixels
                                    HEIGHT * SCALE,     // height, in pixels
-                                   SDL_WINDOW_OPENGL,  // flags
+                                   0,                  // flags
                                    &sdlWindow, &sdlRenderer)) {
     SDL_Quit();
     throw std::runtime_error(std::string("SDL_CreateWindowAndRenderer Error: ") +
                              SDL_GetError());
   }
   SDL_SetRenderScale(sdlRenderer, SCALE, SCALE);
+  if (!SDL_SetRenderVSync(sdlRenderer, 1)) {
+    std::cerr << "Warning: could not enable VSync: " << SDL_GetError()
+              << std::endl;
+  }
 
   // Create a streaming texture for updating pixel data
   sdlTexture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGB24,
@@ -66,6 +79,9 @@ int main(int argc, char* argv[]) {
 
   std::vector<uint8_t> romDump = readROM(argv[1]);  // read ROM from file
   NES nes(renderer);        // instantiate a virtual NES console
+  if (!enableTrace) {
+    nes.log.mute();
+  }
 
   // load cartridge (triggers reset interrupt on CPU)
   nes.insertCartridge(romDump);

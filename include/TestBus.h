@@ -19,6 +19,9 @@ struct TestBus : public BusInterface {
   virtual uint8_t read(uint16_t addr) override {
     return memory[addr];
   }
+  virtual uint8_t peek(uint16_t addr) override {
+    return memory[addr];
+  }
   virtual void write(uint16_t addr, uint8_t value) override {
     memory[addr] = value;
   }

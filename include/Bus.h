@@ -21,10 +21,22 @@ class Bus : public BusInterface {
   // std::array<uint8_t, 0x2000> s_ram;    // $6000 – $7FFF: save RAM
   Cartridge& cart;  // $8000 - $FFFF: cartridge ROM
   PPU& ppu;
+  uint8_t joypad1Buttons = 0x00;
+  uint8_t joypad1Shift = 0x00;
+  bool joypadStrobe = false;
 
   uint64_t cycles = 0;  // global cycle counter
 
  public:
+  static constexpr uint8_t JOYPAD_A = 0x01;
+  static constexpr uint8_t JOYPAD_B = 0x02;
+  static constexpr uint8_t JOYPAD_SELECT = 0x04;
+  static constexpr uint8_t JOYPAD_START = 0x08;
+  static constexpr uint8_t JOYPAD_UP = 0x10;
+  static constexpr uint8_t JOYPAD_DOWN = 0x20;
+  static constexpr uint8_t JOYPAD_LEFT = 0x40;
+  static constexpr uint8_t JOYPAD_RIGHT = 0x80;
+
   Bus(const Bus&) = delete;
   Bus& operator=(const Bus&) = delete;
   Bus(Bus&&) = delete;
@@ -48,6 +60,12 @@ class Bus : public BusInterface {
 
   inline uint64_t getCycleCount() const { return cycles; }
   inline void resetCycles() { cycles = 0; }
+  inline void setJoypad1Buttons(uint8_t buttons) {
+    joypad1Buttons = buttons;
+    if (joypadStrobe) {
+      joypad1Shift = joypad1Buttons;
+    }
+  }
 
   inline uint8_t read(uint16_t addr) override {
     // cycles++;
@@ -73,14 +91,39 @@ class Bus : public BusInterface {
     } else if (addr >= 0x4000 && addr <= 0x4015) {
       return 0;  // apu->readRegister(addr);
     } else if (addr == 0x4016) {
-      return 0;  // joypad 1
+      uint8_t value = 0;
+      if (joypadStrobe) {
+        value = joypad1Buttons & 0x01;
+      } else {
+        value = joypad1Shift & 0x01;
+        joypad1Shift = static_cast<uint8_t>((joypad1Shift >> 1) | 0x80);
+      }
+      return static_cast<uint8_t>(0x40 | value);
     } else if (addr == 0x4017) {
-      return 0;  // joypad 2
+      return 0x40;
     } else if (addr >= 0x8000 && addr <= 0xFFFF) {
       return cart.read_prg_rom(addr);
     } else {
       // error point / TO-DO: missing exp_rom, s_ram and apu_io
       // cartridge PRG_ROM space: 0x8000 to 0xFFFF
+      return 0;
+    }
+  }
+
+  inline uint8_t peek(uint16_t addr) override {
+    // Side-effect-free read used for tracing/logging.
+    if (addr <= 0x1FFF) {
+      addr &= 0b0000011111111111;
+      return cpu_ram[addr];
+    } else if (addr >= 0x2000 && addr <= 0x3FFF) {
+      // Nintendulator-style trace convention for I/O space.
+      return 0xFF;
+    } else if (addr >= 0x4000 && addr <= 0x401F) {
+      // Nintendulator-style trace convention for I/O space.
+      return 0xFF;
+    } else if (addr >= 0x8000 && addr <= 0xFFFF) {
+      return cart.read_prg_rom(addr);
+    } else {
       return 0;
     }
   }
@@ -127,7 +170,14 @@ class Bus : public BusInterface {
     } else if (addr >= 0x4000 && addr <= 0x4015) {
       // apu write
     } else if (addr == 0x4016) {
-      // joypad 1
+      bool newStrobe = (value & 0x01) != 0;
+      if (!newStrobe && joypadStrobe) {
+        // Latch controller state when strobe falls.
+        joypad1Shift = joypad1Buttons;
+      } else if (newStrobe) {
+        joypad1Shift = joypad1Buttons;
+      }
+      joypadStrobe = newStrobe;
     } else if (addr == 0x4017) {
       // joypad 2
     } else {

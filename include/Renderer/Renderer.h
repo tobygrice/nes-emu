@@ -3,6 +3,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -42,6 +43,10 @@ class Renderer {
   std::unique_ptr<SDL_Renderer, RendererDeleter> sdlRenderer;
   std::unique_ptr<SDL_Texture, TextureDeleter> sdlTexture;
   const int WIDTH = 256;
+  const int HEIGHT = 240;
+  uint64_t fpsWindowStartMs = 0;
+  uint32_t framesInCurrentWindow = 0;
+  float currentFps = 0.0f;
 
  public:
   // Constructor: initializes SDL, creates a window, renderer, and texture.

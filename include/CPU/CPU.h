@@ -35,18 +35,9 @@ class CPU {
 
   void tick();
 
-  void triggerRES() {
-    initiatingInterrupt = true;
-    activeInterrupt = Interrupt::RES;
-  }
-  void triggerNMI() {
-    initiatingInterrupt = true;
-    activeInterrupt = Interrupt::NMI;
-  }
-  void triggerIRQ() {
-    initiatingInterrupt = true;
-    activeInterrupt = Interrupt::IRQ;
-  }
+  void triggerRES() { pendingRES = true; }
+  void triggerNMI() { pendingNMI = true; }
+  void triggerIRQ() { pendingIRQ = true; }
 
   Interrupt checkInterrupt() { return activeInterrupt; }
 
@@ -59,6 +50,9 @@ class CPU {
   uint8_t TEST_getCyclesRemainingInCurrentInstr() {
     return cyclesRemainingInCurrentInstr;
   };
+  bool completedTakenBranchLastTick() const {
+    return completedTakenBranchInLastTick;
+  }
   void TEST_setA(uint8_t value) { a_register = value; };
   void TEST_setX(uint8_t value) { x_register = value; };
   void TEST_setY(uint8_t value) { y_register = value; };
@@ -92,17 +86,21 @@ class CPU {
   uint8_t cyclesRemainingInCurrentInstr = 0;
   uint8_t cyclesRemainingInCurrentInterrupt = 7;
   AddressResolveInfo currAddrResCtx;  // current address resolution context
-  uint8_t currentValueAtAddress = 0;
+  uint8_t currentValueAtAddress = 0xFF;
   std::unique_ptr<CPUState> logState;
 
-  bool initiatingInterrupt = false;
   Interrupt activeInterrupt = Interrupt::NONE;
+  bool pendingRES = false;
+  bool pendingNMI = false;
+  bool pendingIRQ = false;
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
   uint8_t currentHighByte = 0;
 
   uint64_t cycleCount = 0;
+  bool branchTakenInCurrentInstr = false;
+  bool completedTakenBranchInLastTick = false;
 
   // helpers
   void branch();

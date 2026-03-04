@@ -10,7 +10,7 @@ class NES;
 class Frame;
 enum class NESRegion;
 
-const double TARGET_SPEED = 0.1;  // game speed to target (1 = full speed 60fps)
+const double TARGET_SPEED = 1;  // game speed to target (1 = full speed 60fps)
 
 // NTSC clock speed is 236.25 MHz ÷ 11 by definition
 // PAL clock speed is 26.6017125 MHz by definition
@@ -30,6 +30,7 @@ class Clock {
   // std::thread apuThread;
   std::atomic<bool> running;
   bool lastNMIState;
+  bool pendingNMIEdge;
 
   double cpuTickInterval;
   double ppuTickInterval;

@@ -4,7 +4,19 @@ project(NES_EMU VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-g -Wall")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+  Debug
+  Release
+  RelWithDebInfo
+  MinSizeRel
+)
+
+string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O0 -g")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -DNDEBUG")
 
 enable_testing()
 
@@ -32,7 +44,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ------------------------------------------------
-# Fetch SDL https://www.libsdl.org 
+# Fetch SDL https://www.libsdl.org
 # ------------------------------------------------
 FetchContent_Declare(
   SDL3
@@ -56,7 +68,7 @@ add_executable(nesemu
   src/Logger.cpp
 )
 target_include_directories(nesemu PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_options(nesemu PRIVATE -g -Wall)
+target_compile_options(nesemu PRIVATE -Wall)
 target_link_libraries(nesemu PRIVATE nlohmann_json::nlohmann_json SDL3::SDL3)
 
 # ------------------------------------------------
@@ -64,6 +76,7 @@ target_link_libraries(nesemu PRIVATE nlohmann_json::nlohmann_json SDL3::SDL3)
 # ------------------------------------------------
 function(add_nes_test TEST_NAME TEST_SRC)
   add_executable(${TEST_NAME} ${TEST_SRC} ${ARGN})
+  target_compile_options(${TEST_NAME} PRIVATE -Wall)
 
   target_link_libraries(${TEST_NAME}
     PRIVATE
@@ -100,6 +113,13 @@ add_nes_test(runCPUNestest
   src/Cartridge.cpp
   src/Clock.cpp
   tests/CPU/CPU_Nestest.cpp
+)
+
+add_nes_test(runPPUTimingTests
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
+  src/Cartridge.cpp
+  tests/PPU/PPU_Timing.cpp
 )
 
 # add_nes_test(runPPUTests

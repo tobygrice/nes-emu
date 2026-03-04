@@ -23,21 +23,18 @@ I put down this project last year to focus on university. I intend to pick it ba
 ## Building & Testing
 To compile:
 ```bash
-rm build/CMakeCache.txt
-cmake -S . -B build
-cmake --build build
+cmake --preset release
+cmake --build --preset release -j
 ```
 To execute a ROM file (.nes):
 ``` bash
-./build/nesemu game.nes > out.log
+./build/nesemu game.nes
 ```
 To run tests:
 ```bash
 ctest --test-dir build --verbose # run all tests
 ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests
 ctest --test-dir build --verbose --output-on-failure -R runCPUNestest
-ctest --test-dir build --verbose -R runPPUTests   # Runs only PPU tests
-ctest --test-dir build --verbose -R runAPUTests   # Runs only APU tests
 ```
 To run nestest and compare logs:
 ```bash

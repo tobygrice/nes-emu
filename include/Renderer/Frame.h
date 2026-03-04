@@ -1,16 +1,19 @@
 #ifndef FRAME_H
 #define FRAME_H
 
+#include <array>
 #include <cassert>
+#include <stdexcept>
 #include <tuple>
 #include <vector>
+#include <cstdint>
 
 #include "../Constants.h"
 
 using Colour = std::tuple<uint8_t, uint8_t, uint8_t>;
 
 // NES palette lookup table: index 0x00 to 0x3F.
-const std::array<Colour, 64> NES_PALETTE = {{
+inline constexpr std::array<Colour, 64> NES_PALETTE = {{
     {84, 84, 84},  // 0x00
     {0, 30, 116},  // 0x01
     {8, 16, 144},  // 0x02
@@ -83,23 +86,33 @@ const std::array<Colour, 64> NES_PALETTE = {{
 class Frame {
  public:
   std::vector<uint8_t> pixelData;
-  int currentPixel;
+  std::vector<uint8_t> backgroundOpaque;
+  std::size_t currentPixel;
+  std::size_t currentPixelIndex;
 
-  Frame() : pixelData(SCREEN_WIDTH * SCREEN_HEIGHT * 3, 0), currentPixel(0) {}
+  Frame()
+      : pixelData(SCREEN_WIDTH * SCREEN_HEIGHT * 3, 0),
+        backgroundOpaque(SCREEN_WIDTH * SCREEN_HEIGHT, 0),
+        currentPixel(0),
+        currentPixelIndex(0) {}
 
   // PPU determines colour and sets pixel
-  void push(uint8_t colour) {
-    // int index = (y * SCREEN_WIDTH) + x;
-    // TO-DO: remove out-of-range check once stable for performance
+  void push(uint8_t colour, bool isBackgroundOpaque = false) {
+#ifndef NDEBUG
     if (currentPixel + 2 >= pixelData.size()) {
       throw std::runtime_error("Attempt to set Frame pixel out of range");
     }
-    uint8_t r, g, b;
-    std::tie(r, g, b) = NES_PALETTE[colour & 0x3F]; // 0-63
-    pixelData.at(currentPixel + 0) = r;
-    pixelData.at(currentPixel + 1) = g;
-    pixelData.at(currentPixel + 2) = b;
+    if (currentPixelIndex >= backgroundOpaque.size()) {
+      throw std::runtime_error("Attempt to set Frame background opacity out of range");
+    }
+#endif
+    const auto& [r, g, b] = NES_PALETTE[colour & 0x3F];  // 0-63
+    pixelData[currentPixel] = r;
+    pixelData[currentPixel + 1] = g;
+    pixelData[currentPixel + 2] = b;
+    backgroundOpaque[currentPixelIndex] = static_cast<uint8_t>(isBackgroundOpaque ? 1 : 0);
     currentPixel += 3;
+    currentPixelIndex++;
   }
 };
 

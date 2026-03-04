@@ -1,32 +1,66 @@
 #include "../include/Cartridge.h"
 
-#include <iomanip>  // for std::setw and std::setfill
-#include <iostream>
+namespace {
 
-// error point: not checking addr out of bounds -> seg fault
-// should not be an issue iff provided rom adheres to expectactions
+constexpr uint32_t CRC32_POLY = 0xEDB88320u;
+constexpr uint32_t PACMAN_MIRROR_OVERRIDE_CRC32 = 0x9E4E9CC2u;
+
+uint32_t crc32(const uint8_t* data, size_t size) {
+  uint32_t crc = 0xFFFFFFFFu;
+  for (size_t i = 0; i < size; i++) {
+    crc ^= data[i];
+    for (int bit = 0; bit < 8; bit++) {
+      const uint32_t lsb = crc & 1u;
+      crc >>= 1;
+      if (lsb) {
+        crc ^= CRC32_POLY;
+      }
+    }
+  }
+  return ~crc;
+}
+
+}  // namespace
+
 uint8_t Cartridge::read_prg_rom(uint16_t addr) {
   if (empty) {
     throw std::runtime_error("Error: no cartridge loaded.");
   }
-
-  addr -= 0x8000;
-
-  // mirror if prg_rom is 16KiB:
-  if ((prg_rom.size() == 0x4000) && (addr >= 0x4000)) {
-    addr %= 0x4000;
+  if (prg_rom.empty()) {
+    throw std::runtime_error("Error: cartridge PRG ROM is empty.");
   }
 
-  return prg_rom[addr];
+  size_t index = static_cast<size_t>(addr - 0x8000);
+
+  // mirror if prg_rom is 16KiB:
+  if ((prg_rom.size() == 0x4000) && (index >= 0x4000)) {
+    index %= 0x4000;
+  }
+
+  if (index >= prg_rom.size()) {
+    throw std::out_of_range("PRG ROM read out of range");
+  }
+  return prg_rom[index];
 }
 
-// error point: not checking addr out of bounds -> seg fault
-// should not be an issue iff provided rom adheres to expectactions
 uint8_t Cartridge::read_chr_rom(uint16_t addr) {
   if (empty) {
     throw std::runtime_error("Error: no cartridge loaded.");
   }
-  return chr_rom[addr];
+  if (chr_rom.empty()) {
+    throw std::runtime_error("Error: CHR memory is empty.");
+  }
+  return chr_rom[addr % chr_rom.size()];
+}
+
+void Cartridge::write_chr_rom(uint16_t addr, uint8_t value) {
+  if (empty) {
+    throw std::runtime_error("Error: no cartridge loaded.");
+  }
+  if (!chr_is_ram || chr_rom.empty()) {
+    return;
+  }
+  chr_rom[addr % chr_rom.size()] = value;
 }
 
 void Cartridge::load(const std::vector<uint8_t>& romDump) {
@@ -72,15 +106,32 @@ void Cartridge::load(const std::vector<uint8_t>& romDump) {
 
   size_t prg_rom_start = 16 + (skip_trainer ? 512 : 0);
   size_t chr_rom_start = prg_rom_start + prg_rom_size;
+  size_t rom_payload_size = prg_rom_size + chr_rom_size;
 
-  if (romDump.size() < chr_rom_start + chr_rom_size) {
+  if (romDump.size() < prg_rom_start + rom_payload_size) {
     throw std::invalid_argument("Invalid ROM file: insufficient data");
+  }
+
+  // Compatibility quirk: this mapper-0 Pacman dump has the mirroring bit set
+  // opposite to how the game data is laid out.
+  const uint32_t payload_crc = crc32(romDump.data() + prg_rom_start,
+                                     rom_payload_size);
+  if (mapper == 0x00 && mirroring == MirroringMode::Horizontal &&
+      payload_crc == PACMAN_MIRROR_OVERRIDE_CRC32) {
+    mirroring = MirroringMode::Vertical;
   }
 
   prg_rom.assign(romDump.begin() + prg_rom_start,
                  romDump.begin() + prg_rom_start + prg_rom_size);
-  chr_rom.assign(romDump.begin() + chr_rom_start,
-                 romDump.begin() + chr_rom_start + chr_rom_size);
+  if (chr_rom_size == 0) {
+    // iNES uses CHR size 0 to indicate 8 KiB of CHR-RAM.
+    chr_rom.assign(8192, 0);
+    chr_is_ram = true;
+  } else {
+    chr_rom.assign(romDump.begin() + chr_rom_start,
+                   romDump.begin() + chr_rom_start + chr_rom_size);
+    chr_is_ram = false;
+  }
 
   empty = false;
 }

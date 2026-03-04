@@ -1,12 +1,7 @@
 #include "../../include/CPU/CPU.h"
 
 #include <cstdint>
-#include <iostream>
-#include <sstream>
-#include <string>
 #include <vector>
-
-#include "../../include/Bus.h"
 
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
@@ -31,6 +26,7 @@ inline bool modeHasReadableOperand(AddressingMode mode) {
 
 void CPU::tick() {
   cycleCount++;
+  completedTakenBranchInLastTick = false;
 
   switch (activeInterrupt) {
     case Interrupt::NONE: {
@@ -47,10 +43,35 @@ void CPU::tick() {
     }
   }
 
+  // 6502 takes maskable/non-maskable interrupts between instructions only.
+  if (cyclesRemainingInCurrentInstr == 0) {
+    if (pendingRES) {
+      pendingRES = false;
+      activeInterrupt = Interrupt::RES;
+      in_RES();
+      return;
+    }
+    if (pendingNMI) {
+      pendingNMI = false;
+      activeInterrupt = Interrupt::NMI;
+      in_NMI_IRQ();
+      return;
+    }
+    if (pendingIRQ && !(status & FLAG_INTERRUPT)) {
+      pendingIRQ = false;
+      activeInterrupt = Interrupt::IRQ;
+      in_NMI_IRQ();
+      return;
+    }
+  }
+
   if (cyclesRemainingInCurrentInstr == 0) {
     // new instruction
+    const bool traceEnabled = !logger.isMuted();
     if (logState) {
-      logger.log(*logState);  // log previous instruction
+      if (traceEnabled) {
+        logger.log(*logState);  // log previous instruction
+      }
       logState.reset();
     }
 
@@ -63,10 +84,12 @@ void CPU::tick() {
     // - all other elements of logState are locked to their current state
     // - call logger.log(logState) once currentOpBytes, currAddrResCtx, and
     //   currentValueAtAddress have been computed
-    logState = std::make_unique<CPUState>(
-        pc, *currentOpCode, currentOpBytes, currAddrResCtx, currentValueAtAddress,
-        a_register, x_register, y_register, status, sp, bus.getPPUCycle(),
-        bus.getPPUScanline(), cycleCount - 1);
+    if (traceEnabled) {
+      logState = std::make_unique<CPUState>(
+          pc, *currentOpCode, currentOpBytes, currAddrResCtx,
+          currentValueAtAddress, a_register, x_register, y_register, status, sp,
+          bus.getPPUCycle(), bus.getPPUScanline(), cycleCount - 1);
+    }
 
     // increment PC to point at first operand
     pc++;
@@ -74,7 +97,7 @@ void CPU::tick() {
 
     // reset values for new instruction
     currentHighByte = 0;
-    currentValueAtAddress = 0;
+    branchTakenInCurrentInstr = false;
     currentOpBytes.clear();
     currentOpBytes.push_back(opcode);
     currAddrResCtx.reset(currentOpCode->mode);
@@ -115,6 +138,9 @@ void CPU::tick() {
   (this->*(currentOpCode->handler))(currAddrResCtx.address);
 
   cyclesRemainingInCurrentInstr--;
+  if (cyclesRemainingInCurrentInstr == 0) {
+    completedTakenBranchInLastTick = branchTakenInCurrentInstr;
+  }
   return;
 }
 
@@ -408,10 +434,13 @@ void CPU::computeAbsoluteAddress() {
       throw std::runtime_error("Addressing mode not supported");
     }
   }
-  if (currAddrResCtx.state == ResolutionState::Done &&
-      modeHasReadableOperand(currentOpCode->mode) &&
-      !isSideEffectReadAddress(currAddrResCtx.address)) {
-    currentValueAtAddress = bus.read(currAddrResCtx.address);
+  if (logState && currAddrResCtx.state == ResolutionState::Done &&
+      modeHasReadableOperand(currentOpCode->mode)) {
+    if (isSideEffectReadAddress(currAddrResCtx.address)) {
+      currentValueAtAddress = bus.peek(currAddrResCtx.address);
+    } else {
+      currentValueAtAddress = bus.read(currAddrResCtx.address);
+    }
   }
 }
 
@@ -539,6 +568,7 @@ void CPU::branch() {
         cyclesRemainingInCurrentInstr++;
       }
       pc = currAddrResCtx.address;  // update pc
+      branchTakenInCurrentInstr = true;
       currAddrResCtx.state = ResolutionState::Done;
       break;
     }

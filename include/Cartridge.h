@@ -39,6 +39,8 @@
 #ifndef CARTRIDGE_H
 #define CARTRIDGE_H
 
+#include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -51,6 +53,7 @@ class Cartridge {
   bool empty;
   std::vector<uint8_t> prg_rom;
   std::vector<uint8_t> chr_rom;
+  bool chr_is_ram;
   MirroringMode mirroring;
   NESRegion region;
   uint8_t mapper;
@@ -62,6 +65,7 @@ class Cartridge {
       : empty(true),
         prg_rom{},
         chr_rom{},
+        chr_is_ram(false),
         mirroring(MirroringMode::Horizontal),
         region(NESRegion::None),
         mapper(),
@@ -73,6 +77,7 @@ class Cartridge {
   void load(const std::vector<uint8_t>& raw);
   uint8_t read_prg_rom(uint16_t addr);
   uint8_t read_chr_rom(uint16_t addr);
+  void write_chr_rom(uint16_t addr, uint8_t value);
 
   bool isEmpty() { return empty; }
   MirroringMode getMirroring() { return mirroring; }

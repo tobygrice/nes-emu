@@ -1,6 +1,43 @@
 #include "../../include/PPU/PPU.h"
 
+#include <bitset>
+
 #include "../../include/Renderer/Frame.h"
+
+namespace {
+
+inline void setFramePixel(Frame& frame, int x, int y, uint8_t colour) {
+  if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) {
+    return;
+  }
+
+  const std::size_t index =
+      (static_cast<std::size_t>(y) * SCREEN_WIDTH + static_cast<std::size_t>(x)) * 3;
+  if (index + 2 >= frame.pixelData.size()) {
+    return;
+  }
+
+  uint8_t r, g, b;
+  std::tie(r, g, b) = NES_PALETTE[colour & 0x3F];
+  frame.pixelData[index] = r;
+  frame.pixelData[index + 1] = g;
+  frame.pixelData[index + 2] = b;
+}
+
+inline bool frameBackgroundPixelOpaque(const Frame& frame, int x, int y) {
+  if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) {
+    return false;
+  }
+
+  const std::size_t index =
+      (static_cast<std::size_t>(y) * SCREEN_WIDTH + static_cast<std::size_t>(x));
+  if (index >= frame.backgroundOpaque.size()) {
+    return false;
+  }
+  return frame.backgroundOpaque[index] != 0;
+}
+
+}  // namespace
 
 /**
  * | Address Range   | Size  | Description               | Mapped by         |
@@ -24,55 +61,76 @@ std::unique_ptr<Frame> PPU::tick() {
    * cycle 7 pattern table tile high (+8 bytes from pattern table tile low)
    * cycle 8 burn cycle (process 8 pixels)
    */
-  if (scanline == 0) {
-    // fill the shift registers with the data for the first two tiles of the
-    // next scanline
-    if (cycles == 1) {
-      currentFrame = std::make_unique<Frame>();
-    }
-  } else if (scanline < 240) { // 0-239
+  if (scanline == 0 && cycles == 1) {
+    currentFrame = std::make_unique<Frame>();
+  }
+
+  if (scanline < 240) {  // visible scanlines 0-239
     // Note: this is not cycle accurate. In true hardware, each memory read
     // takes two cycles and there are four memory reads per 8 pixels. All of the
     // pixel rendering is done in the last cycle. However, I have decided to
     // stray from this to balance computational load across cycles.
     if (cycles < 256) {
+      // Approximate coarse/fine scroll and nametable selection for background
+      // fetches.
+      const int scrolledX = static_cast<int>(cycles) + scroll.scroll_x;
+      const int scrolledY = scanline + scroll.scroll_y;
+
+      const int ntXOffset = scrolledX / SCREEN_WIDTH;
+      const int ntYOffset = scrolledY / SCREEN_HEIGHT;
+
+      const uint8_t pixelX = static_cast<uint8_t>(scrolledX % SCREEN_WIDTH);
+      const uint8_t pixelY = static_cast<uint8_t>(scrolledY % SCREEN_HEIGHT);
+
+      const uint8_t coarseX = static_cast<uint8_t>(pixelX >> 3);
+      const uint8_t coarseY = static_cast<uint8_t>(pixelY >> 3);
+      const uint8_t fineY = static_cast<uint8_t>(pixelY & 0x07);
+
+      const uint16_t baseNametable = ctrl.nametable_addr();
+      const uint8_t baseNtX =
+          static_cast<uint8_t>((baseNametable == 0x2400 || baseNametable == 0x2C00) ? 1 : 0);
+      const uint8_t baseNtY = static_cast<uint8_t>((baseNametable >= 0x2800) ? 1 : 0);
+
+      const uint8_t ntX = static_cast<uint8_t>((baseNtX + ntXOffset) & 0x01);
+      const uint8_t ntY = static_cast<uint8_t>((baseNtY + ntYOffset) & 0x01);
+      const uint16_t effectiveNametableBase =
+          static_cast<uint16_t>(0x2000 + (((ntY << 1) | ntX) * 0x400));
+
+      const uint16_t nametableAddress = mirrorVRAMAddress(
+          static_cast<uint16_t>(effectiveNametableBase + (coarseY * 32) + coarseX));
+      const uint16_t attributeAddress = mirrorVRAMAddress(
+          static_cast<uint16_t>(effectiveNametableBase + 0x03C0 +
+                                ((coarseY / 4) * 8) + (coarseX / 4)));
+      const uint8_t attributeQuadrant = static_cast<uint8_t>(
+          ((coarseY & 0x02) ? 2 : 0) | ((coarseX & 0x02) ? 1 : 0));
+
       switch (cycles % 8) {
         case 0: {
           // fetch nametable byte
-          uint16_t address = mirrorVRAMAddress(0x2000 | (v & 0x0FFF));
-          tileID = vram[address];
+          tileID = vram[nametableAddress];
           break;
         }
         case 1: {
           // fetch attribute table byte
-          uint16_t address = mirrorVRAMAddress(
-              0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07));
-          attribute = vram[address];
+          attribute = vram[attributeAddress];
           break;
         }
         case 2: {
           // fetch pattern table tile low
-          uint8_t fineY = (v >> 12) & 0b0111;  // v register is 15 bits
           uint16_t address = ctrl.bg_pattern_addr() + (tileID * 16) + fineY;
           patternLow = cart.read_chr_rom(address);
           break;
         }
         case 3: {
           // pattern table tile high (+8 bytes from pattern table tile low)
-          uint8_t fineY = (v >> 12) & 0x07;
           uint16_t address = ctrl.bg_pattern_addr() + (tileID * 16) + fineY + 8;
           patternHigh = cart.read_chr_rom(address);
           break;
         }
         case 4: {
           // compute pixels 11000000
-
-          // determine quadrant within tile
-          // (0b00 or 0b10 / top left or bottom left)
-          uint8_t quadrant = currentYQuadrant << 1;
-
-          // determine palette selection using attribute byte and quadrant
-          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+          uint8_t paletteSelection =
+              (attribute >> (attributeQuadrant * 2)) & 0b11;
 
           // compute pixels 6/7 values:
           uint8_t bit7Low = (patternLow >> 7) & 0b01;
@@ -91,19 +149,15 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t px7colour = palette_table[px7PaletteIndex];
           uint8_t px6colour = palette_table[px6PaletteIndex];
 
-          currentFrame->push(px7colour);
-          currentFrame->push(px6colour);
+          currentFrame->push(px7colour, px7value != 0);
+          currentFrame->push(px6colour, px6value != 0);
 
           break;
         }
         case 5: {
           // compute pixels 00110000
-          // determine quadrant within tile
-          // (0b00 or 0b10 / top left or bottom left)
-          uint8_t quadrant = currentYQuadrant << 1;
-
-          // determine palette selection using attribute byte and quadrant
-          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+          uint8_t paletteSelection =
+              (attribute >> (attributeQuadrant * 2)) & 0b11;
 
           // compute pixels 6/7 values:
           uint8_t bit5Low = (patternLow >> 5) & 0b01;
@@ -122,20 +176,15 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t px5colour = palette_table[px5PaletteIndex];
           uint8_t px4colour = palette_table[px4PaletteIndex];
 
-          currentFrame->push(px5colour);
-          currentFrame->push(px4colour);
+          currentFrame->push(px5colour, px5value != 0);
+          currentFrame->push(px4colour, px4value != 0);
 
           break;
         }
         case 6: {
           // compute pixels 00001100
-
-          // determine quadrant within tile
-          // (0b01 or 0b11 / top right or bottom right)
-          uint8_t quadrant = (currentYQuadrant << 1) | 0b01;
-
-          // determine palette selection using attribute byte and quadrant
-          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+          uint8_t paletteSelection =
+              (attribute >> (attributeQuadrant * 2)) & 0b11;
 
           // compute pixels 6/7 values:
           uint8_t bit3Low = (patternLow >> 3) & 0b01;
@@ -154,21 +203,15 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t px3colour = palette_table[px3PaletteIndex];
           uint8_t px2colour = palette_table[px2PaletteIndex];
 
-          currentFrame->push(px3colour);
-          currentFrame->push(px2colour);
+          currentFrame->push(px3colour, px3value != 0);
+          currentFrame->push(px2colour, px2value != 0);
 
           break;
         }
         case 7: {
           // compute pixels 00000011
-          // compute pixels 00001100
-
-          // determine quadrant within tile
-          // (0b01 or 0b11 / top right or bottom right)
-          uint8_t quadrant = (currentYQuadrant << 1) | 0b01;
-
-          // determine palette selection using attribute byte and quadrant
-          uint8_t paletteSelection = (attribute >> (quadrant * 2)) & 0b11;
+          uint8_t paletteSelection =
+              (attribute >> (attributeQuadrant * 2)) & 0b11;
 
           // compute pixels 6/7 values:
           uint8_t bit1Low = (patternLow >> 1) & 0b01;
@@ -187,8 +230,8 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t px1colour = palette_table[px1PaletteIndex];
           uint8_t px0colour = palette_table[px0PaletteIndex];
 
-          currentFrame->push(px1colour);
-          currentFrame->push(px0colour);
+          currentFrame->push(px1colour, px1value != 0);
+          currentFrame->push(px0colour, px0value != 0);
 
           break;
         }
@@ -204,30 +247,154 @@ std::unique_ptr<Frame> PPU::tick() {
     // 240 is idle scanline, nothing happens
     // vblank is triggered on second tick of scanline 241
     if (cycles == 1) {
-      status.set_vblank_status(true);
-      status.set_sprite_zero_hit(false);
-      // trigger vblank
-      if (ctrl.generate_vblank_nmi()) {
-        nmiInterrupt = true;
+      if (currentFrame && mask.show_sprites()) {
+        // Draw sprites over the background frame after visible scanlines are
+        // complete. This is not cycle-accurate but is sufficient for visual
+        // output.
+        const uint8_t spriteHeight = ctrl.sprite_size();
+        std::array<uint8_t, SCREEN_HEIGHT> spritesPerScanline{};
+        std::array<std::bitset<SCREEN_HEIGHT>, 64> spriteScanlineVisible{};
+
+        // NES can render a maximum of 8 sprites per scanline, selected in OAM
+        // order (lower index first).
+        for (int sprite = 0; sprite < 64; ++sprite) {
+          const int base = sprite * 4;
+          const int spriteY = static_cast<int>(oam_data[base]) + 1;
+          for (int py = 0; py < spriteHeight; ++py) {
+            const int screenY = spriteY + py;
+            if (screenY < 0 || screenY >= SCREEN_HEIGHT) {
+              continue;
+            }
+            if (spritesPerScanline[screenY] < 8) {
+              spriteScanlineVisible[sprite].set(static_cast<std::size_t>(screenY));
+              spritesPerScanline[screenY]++;
+            }
+          }
+        }
+
+        // Render back-to-front so lower OAM indices have priority.
+        for (int sprite = 63; sprite >= 0; --sprite) {
+          const int base = sprite * 4;
+          const int spriteY = static_cast<int>(oam_data[base]) + 1;
+          const uint8_t tileIndex = oam_data[base + 1];
+          const uint8_t attributes = oam_data[base + 2];
+          const int spriteX = static_cast<int>(oam_data[base + 3]);
+
+          const bool flipHorizontal = (attributes & 0x40) != 0;
+          const bool flipVertical = (attributes & 0x80) != 0;
+          const bool behindBackground = (attributes & 0x20) != 0;
+          const uint8_t paletteSelection = attributes & 0x03;
+
+          for (int py = 0; py < spriteHeight; py++) {
+            const int screenY = spriteY + py;
+            if (screenY < 0 || screenY >= SCREEN_HEIGHT) {
+              continue;
+            }
+            if (!spriteScanlineVisible[sprite].test(
+                    static_cast<std::size_t>(screenY))) {
+              continue;
+            }
+
+            const int spriteRow = flipVertical ? (spriteHeight - 1 - py) : py;
+
+            uint16_t patternBase = 0;
+            uint8_t tileNumber = tileIndex;
+            uint8_t fineY = 0;
+
+            if (spriteHeight == 16) {
+              patternBase = (tileIndex & 0x01) ? 0x1000 : 0x0000;
+              tileNumber = static_cast<uint8_t>(tileIndex & 0xFE);
+              if (spriteRow >= 8) {
+                tileNumber = static_cast<uint8_t>(tileNumber + 1);
+                fineY = static_cast<uint8_t>(spriteRow - 8);
+              } else {
+                fineY = static_cast<uint8_t>(spriteRow);
+              }
+            } else {
+              patternBase = ctrl.sprite_pattern_addr();
+              fineY = static_cast<uint8_t>(spriteRow & 0x07);
+            }
+
+            const uint16_t patternAddress =
+                static_cast<uint16_t>(patternBase + (tileNumber * 16) + fineY);
+            const uint8_t patternLow = cart.read_chr_rom(patternAddress);
+            const uint8_t patternHigh = cart.read_chr_rom(patternAddress + 8);
+
+            for (int px = 0; px < 8; px++) {
+              const int screenX = spriteX + px;
+              if (screenX < 0 || screenX >= SCREEN_WIDTH) {
+                continue;
+              }
+              if (!mask.leftmost_8pxl_sprite() && screenX < 8) {
+                continue;
+              }
+
+              const int bit = flipHorizontal ? px : (7 - px);
+              const uint8_t lowBit = (patternLow >> bit) & 0x01;
+              const uint8_t highBit = (patternHigh >> bit) & 0x01;
+              const uint8_t spritePixel = (highBit << 1) | lowBit;
+              if (spritePixel == 0) {
+                continue;
+              }
+
+              if (behindBackground && mask.show_background()) {
+                // Behind-background sprites only appear through transparent
+                // background pixels.
+                if (frameBackgroundPixelOpaque(*currentFrame, screenX,
+                                               screenY)) {
+                  continue;
+                }
+              }
+
+              const uint8_t paletteIndex = mirrorPaletteAddress(
+                  static_cast<uint8_t>(0x10 + (paletteSelection * 4) + spritePixel));
+              const uint8_t spriteColour = palette_table[paletteIndex];
+              setFramePixel(*currentFrame, screenX, screenY, spriteColour);
+            }
+          }
+        }
       }
+
+      if (!suppressVblankThisFrame) {
+        status.set_vblank_status(true);
+        status.set_sprite_zero_hit(false);
+        // trigger vblank
+        if (ctrl.generate_vblank_nmi()) {
+          nmiInterrupt = true;
+        }
+      }
+      suppressVblankThisFrame = false;
       cycles++;
       return std::move(currentFrame);
     }
-  } else if (scanline == 262) {
+  } else if (scanline == 261) {
     // prerender scanline
-    status.set_sprite_overflow(false);
-    status.set_sprite_zero_hit(false);
-    status.set_vblank_status(false);
-    nmiInterrupt = false;
-    cycles = 0;
-    scanline = 0;
-    return nullptr;
+    if (cycles == 1) {
+      status.set_sprite_overflow(false);
+      status.set_sprite_zero_hit(false);
+      status.set_vblank_status(false);
+      nmiInterrupt = false;
+    }
   }
 
   cycles++;
+  // NTSC odd-frame cycle skip: when rendering is enabled, prerender scanline
+  // drops one PPU cycle on odd frames (skip cycle 340).
+  if (scanline == 261 && cycles == 340 && oddFrame &&
+      (mask.show_background() || mask.show_sprites())) {
+    cycles = 0;
+    scanline = 0;
+    oddFrame = !oddFrame;
+    currentYQuadrant = ((scanline % 8) < 4) ? 0 : 1;
+    return nullptr;
+  }
   if (cycles == 341) {
     cycles = 0;
     scanline++;
+    if (scanline == 262) {
+      scanline = 0;
+      oddFrame = !oddFrame;
+    }
     currentYQuadrant = ((scanline % 8) < 4) ? 0 : 1;
   }
   return nullptr; // return nullptr until frame completed
@@ -241,17 +408,21 @@ uint8_t PPU::cpuRead() {
     // CHR-ROM read
     uint8_t result = data_buf;
     data_buf = cart.read_chr_rom(addr_val);
+    last_written_value = result;
     return result;
   } else if (addr_val <= 0x3EFF) {
     // RAM read
     addr_val &= 0x2FFF;  // mirror down address
     uint8_t result = data_buf;
     data_buf = vram[mirrorVRAMAddress(addr_val)];
+    last_written_value = result;
     return result;
   } else if (addr_val >= 0x3F00 && addr_val <= 0x3FFF) {
     // palette table read
     uint8_t index = (addr_val - 0x3F00) & 0x1F;
-    return palette_table[mirrorPaletteAddress(index)];
+    uint8_t result = palette_table[mirrorPaletteAddress(index)];
+    last_written_value = result;
+    return result;
   } else {
     throw std::runtime_error("PPU attempt to read from unsupported address: " +
                              std::to_string(addr_val));
@@ -265,7 +436,7 @@ void PPU::cpuWrite(uint8_t value) {
   addr.increment(ctrl.vram_addr_increment());
 
   if (addr_val <= 0x1FFF) {
-    // error point: write to CHR-RAM??
+    cart.write_chr_rom(addr_val, value);
   } else if (addr_val <= 0x3EFF) {
     addr_val &= 0x2FFF;  // mirror down address
     vram[mirrorVRAMAddress(addr_val)] = value;
@@ -364,9 +535,25 @@ void PPU::write_to_mask(uint8_t value) {
 
 // reads the status register snapshot and resets various latches.
 uint8_t PPU::read_status() {
-  // Approximate open-bus behavior for lower 5 bits with last CPU-written value.
-  uint8_t data = static_cast<uint8_t>((status.snapshot() & 0xE0) |
+  uint8_t statusSnapshot = status.snapshot();
+
+  // In this core's CPU<->PPU phase alignment, a read at (240,338) lands in the
+  // "one tick before vblank" window and suppresses vblank for this frame.
+  if (scanline == 240 && cycles == 338) {
+    suppressVblankThisFrame = true;
+  }
+
+  // A read on the first tick of scanline 241 races with vblank set:
+  // return bit 7 as set, clear it immediately, and suppress vblank/NMI.
+  if (scanline == 241 && cycles == 0 && !suppressVblankThisFrame) {
+    statusSnapshot |= 0x80;
+    suppressVblankThisFrame = true;
+  }
+
+  // Approximate open-bus behavior for lower 5 bits with PPU I/O bus latch.
+  uint8_t data = static_cast<uint8_t>((statusSnapshot & 0xE0) |
                                       (last_written_value & 0x1F));
+  last_written_value = data;
   status.set_vblank_status(false);
   nmiInterrupt = false;
   addr.reset_latch();
@@ -389,7 +576,10 @@ void PPU::write_to_oam_data(uint8_t value) {
 }
 
 // Reads the OAM data at the current address.
-uint8_t PPU::read_oam_data() const { return oam_data[oam_addr]; }
+uint8_t PPU::read_oam_data() {
+  last_written_value = oam_data[oam_addr];
+  return oam_data[oam_addr];
+}
 
 // Writes to the scroll register.
 void PPU::write_to_scroll(uint8_t value) {

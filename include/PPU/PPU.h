@@ -54,7 +54,10 @@ class PPU {
   int scanline;  // -1 scanline
   bool oddFrame = false;
   bool nmiInterrupt;
+  bool suppressVblankThisFrame;
 
+  // PPU I/O data bus latch ("open bus"). Lower bits of PPUSTATUS reads come
+  // from this latch.
   uint8_t last_written_value;
 
  public:
@@ -83,7 +86,11 @@ class PPU {
         cycles(0),
         scanline(0),
         nmiInterrupt(false),
-        last_written_value(0) {}
+        suppressVblankThisFrame(false),
+        last_written_value(0) {
+    // Uninitialized OAM bytes should default off-screen in this core.
+    oam_data.fill(0xFF);
+  }
 
   std::unique_ptr<Frame> tick();
 
@@ -117,7 +124,7 @@ class PPU {
   uint8_t read_status();
   void write_to_oam_addr(uint8_t value);
   void write_to_oam_data(uint8_t value);
-  uint8_t read_oam_data() const;
+  uint8_t read_oam_data();
   void write_to_scroll(uint8_t value);
   void write_to_ppu_addr(uint8_t value);
   void write_oam_dma(const std::array<uint8_t, 256>& data);
