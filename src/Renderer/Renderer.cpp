@@ -1,7 +1,8 @@
 #include "../../include/Renderer/Renderer.h"
 
-#include <cstdio>
-#include <cstring>
+// for fps counter:
+// #include <cstdio>
+// #include <cstring>
 
 void Renderer::render(const Frame& frame) {
   constexpr float OVERSCAN_LEFT = 8.0f;
@@ -35,30 +36,31 @@ void Renderer::render(const Frame& frame) {
                              SDL_GetError());
   }
 
-  const uint64_t nowMs = SDL_GetTicks();
-  if (fpsWindowStartMs == 0) {
-    fpsWindowStartMs = nowMs;
-  }
-  framesInCurrentWindow++;
-  const uint64_t elapsedMs = nowMs - fpsWindowStartMs;
-  if (elapsedMs >= 500) {
-    currentFps = static_cast<float>(framesInCurrentWindow) * 1000.0f /
-                 static_cast<float>(elapsedMs);
-    framesInCurrentWindow = 0;
-    fpsWindowStartMs = nowMs;
-  }
-
-  char fpsText[16];
-  std::snprintf(fpsText, sizeof(fpsText), "FPS:%3.0f", currentFps);
-  const int textWidth = static_cast<int>(
-      std::strlen(fpsText) * SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE);
-  const float textX = static_cast<float>(WIDTH - textWidth - 2);
-
-  if (!SDL_SetRenderDrawColor(sdlRenderer.get(), 255, 255, 255, 255)) {
-    throw std::runtime_error(std::string("SDL_SetRenderDrawColor Error: ") +
-                             SDL_GetError());
-  }
-  SDL_RenderDebugText(sdlRenderer.get(), textX, 2.0f, fpsText);
+  // FPS counter overlay disabled.
+  // const uint64_t nowMs = SDL_GetTicks();
+  // if (fpsWindowStartMs == 0) {
+  //   fpsWindowStartMs = nowMs;
+  // }
+  // framesInCurrentWindow++;
+  // const uint64_t elapsedMs = nowMs - fpsWindowStartMs;
+  // if (elapsedMs >= 500) {
+  //   currentFps = static_cast<float>(framesInCurrentWindow) * 1000.0f /
+  //                static_cast<float>(elapsedMs);
+  //   framesInCurrentWindow = 0;
+  //   fpsWindowStartMs = nowMs;
+  // }
+  //
+  // char fpsText[16];
+  // std::snprintf(fpsText, sizeof(fpsText), "FPS:%3.0f", currentFps);
+  // const int textWidth = static_cast<int>(
+  //     std::strlen(fpsText) * SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE);
+  // const float textX = static_cast<float>(WIDTH - textWidth - 2);
+  //
+  // if (!SDL_SetRenderDrawColor(sdlRenderer.get(), 255, 255, 255, 255)) {
+  //   throw std::runtime_error(std::string("SDL_SetRenderDrawColor Error: ") +
+  //                            SDL_GetError());
+  // }
+  // SDL_RenderDebugText(sdlRenderer.get(), textX, 2.0f, fpsText);
 
   SDL_RenderPresent(sdlRenderer.get());
 }
