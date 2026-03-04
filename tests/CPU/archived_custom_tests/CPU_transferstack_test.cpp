@@ -16,7 +16,7 @@ class CPUTransferStackTest : public ::testing::Test {
   CPU cpu;      // CPU instance that uses the shared bus
   Logger logger;
 
-  CPUTransferStackTest() : bus(), cpu(&bus, &logger) {}
+  CPUTransferStackTest() : bus(), cpu(bus, logger) {}
 };
 
 TEST_F(CPUTransferStackTest, PHATest) {

@@ -21,7 +21,7 @@ const double MASTER_SPEED_PAL =
 
 class Clock {
  private:
-  NES* nes;
+  NES& nes;
   NESRegion region;
   std::thread coreThread;
   std::thread cpuThread;
@@ -29,15 +29,21 @@ class Clock {
   std::thread rendererThread;
   // std::thread apuThread;
   std::atomic<bool> running;
+  bool lastNMIState;
 
   double cpuTickInterval;
   double ppuTickInterval;
 
  public:
+  Clock(const Clock&) = delete;
+  Clock& operator=(const Clock&) = delete;
+  Clock(Clock&&) = delete;
+  Clock& operator=(Clock&&) = delete;
+
   /**
    * Region MUST be set using setRegion() before starting
    */
-  Clock(NES* nes);
+  explicit Clock(NES& nes);
 
   void setRegion(NESRegion region);
 
@@ -51,7 +57,7 @@ class Clock {
   void gameLoop();
   void cpuLoop();
   void ppuLoop();
-  void render(Frame* frame);
+  void render(const Frame& frame);
 };
 
 #endif  // CLOCK_H

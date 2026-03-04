@@ -16,7 +16,7 @@ class CPUTest : public ::testing::Test {
   CPU cpu;  // CPU instance that uses the shared bus
   Logger logger;
 
-  CPUTest() : bus(), cpu(&bus, &logger) {}
+  CPUTest() : bus(), cpu(bus, logger) {}
 };
 
 // Test memory read/write for single bytes.

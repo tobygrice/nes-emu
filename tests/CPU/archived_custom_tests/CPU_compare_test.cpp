@@ -16,5 +16,5 @@ class CPUCompareTest : public ::testing::Test {
   CPU cpu;  // CPU instance that uses the shared bus
   Logger logger;
 
-  CPUCompareTest() : bus(), cpu(&bus, &logger) {}
+  CPUCompareTest() : bus(), cpu(bus, logger) {}
 };

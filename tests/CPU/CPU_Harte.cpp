@@ -25,7 +25,7 @@ class CPUHarteTests : public ::testing::Test {
   TestBus bus;
   CPU cpu;
 
-  CPUHarteTests() : logger(), bus(), cpu(&bus, &logger) {}
+  CPUHarteTests() : logger(), bus(), cpu(bus, logger) {}
 };
 
 struct CPUTestState {

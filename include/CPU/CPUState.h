@@ -9,12 +9,10 @@
 
 struct CPUState {
   uint16_t pc;
-  OpCode op;
-  std::vector<uint8_t>* opBytes;  // vector at this pointer will be updated
-                                  // every instruction, but the log should be
-                                  // completed before it updates
-  AddressResolveInfo* addrInfo;  // as above, will be updated every instruction
-  uint8_t* valueAtAddr;
+  const OpCode& op;
+  const std::vector<uint8_t>& opBytes;  // updated as instruction executes
+  const AddressResolveInfo& addrInfo;   // updated as instruction executes
+  const uint8_t& valueAtAddr;
   uint8_t A;
   uint8_t X;
   uint8_t Y;
@@ -24,8 +22,9 @@ struct CPUState {
   uint16_t ppuY;
   uint64_t cycles;
 
-  CPUState(uint16_t pc, OpCode op, std::vector<uint8_t>* opBytes,
-           AddressResolveInfo* addrInfo, uint8_t* valueAtAddr, uint8_t A,
+  CPUState(uint16_t pc, const OpCode& op, const std::vector<uint8_t>& opBytes,
+           const AddressResolveInfo& addrInfo, const uint8_t& valueAtAddr,
+           uint8_t A,
            uint8_t X, uint8_t Y, uint8_t P, uint8_t SP, int ppuX, int ppuY,
            uint64_t cycles)
       : pc(pc),

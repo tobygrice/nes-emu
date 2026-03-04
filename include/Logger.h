@@ -13,6 +13,8 @@ class Logger {
  private:
   bool silenced;
  public:
+  Logger() : silenced(false) {}
+
   /**
    * Log a single CPU instruction/state line. Written with a LLM.
    *
@@ -33,8 +35,8 @@ class Logger {
   void mute() { silenced = true; };
   void unmute() { silenced = false; };
 
-  std::string disassembleInstr(CPUState* state);
-  void log(CPUState* state);
+  std::string disassembleInstr(const CPUState& state);
+  void log(const CPUState& state);
 };
 
 #endif

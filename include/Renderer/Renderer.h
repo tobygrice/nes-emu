@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -13,12 +14,34 @@
 
 class Renderer {
  private:
-  SDL_Window* sdlWindow;
-  SDL_Renderer* sdlRenderer;
-  SDL_Texture* sdlTexture;
+  struct WindowDeleter {
+    void operator()(SDL_Window* window) const {
+      if (window != nullptr) {
+        SDL_DestroyWindow(window);
+      }
+    }
+  };
+
+  struct RendererDeleter {
+    void operator()(SDL_Renderer* renderer) const {
+      if (renderer != nullptr) {
+        SDL_DestroyRenderer(renderer);
+      }
+    }
+  };
+
+  struct TextureDeleter {
+    void operator()(SDL_Texture* texture) const {
+      if (texture != nullptr) {
+        SDL_DestroyTexture(texture);
+      }
+    }
+  };
+
+  std::unique_ptr<SDL_Window, WindowDeleter> sdlWindow;
+  std::unique_ptr<SDL_Renderer, RendererDeleter> sdlRenderer;
+  std::unique_ptr<SDL_Texture, TextureDeleter> sdlTexture;
   const int WIDTH = 256;
-  const int HEIGHT = 240;
-  const int SCALE = 3;
 
  public:
   // Constructor: initializes SDL, creates a window, renderer, and texture.
@@ -27,14 +50,14 @@ class Renderer {
 
   // Destructor: cleans up SDL resources.
   ~Renderer() {
-    if (sdlTexture) SDL_DestroyTexture(sdlTexture);
-    if (sdlRenderer) SDL_DestroyRenderer(sdlRenderer);
-    if (sdlWindow) SDL_DestroyWindow(sdlWindow);
+    sdlTexture.reset();
+    sdlRenderer.reset();
+    sdlWindow.reset();
     SDL_Quit();
   }
 
   // Render function: converts a Frame's pixel data into an image on the window.
-  void render(Frame* frame);
+  void render(const Frame& frame);
 };
 
 #endif  // RENDERER_H

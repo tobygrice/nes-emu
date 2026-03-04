@@ -2,7 +2,8 @@
 
 #include "../include/NES.h"
 
-Clock::Clock(NES* nes) : nes(nes), region(NESRegion::None), running(false) {}
+Clock::Clock(NES& nes)
+    : nes(nes), region(NESRegion::None), running(false), lastNMIState(false) {}
 
 void Clock::setRegion(NESRegion region) {
   this->region = region;
@@ -23,6 +24,7 @@ void Clock::start() {
     throw std::runtime_error("No region set");
   } else {
     running = true;
+    lastNMIState = false;
     gameLoop();
     // cpuThread = std::thread(&Clock::cpuLoop, this);
     // ppuThread = std::thread(&Clock::ppuLoop, this);
@@ -31,13 +33,16 @@ void Clock::start() {
 
 void Clock::gameLoop() {
   while (running) {
-    nes->cpu.tick();
+    nes.cpu.tick();
     for (int i = 0; i < 3; i++) {
-      Frame* frame = nes->ppu.tick();
+      std::unique_ptr<Frame> frame = nes.ppu.tick();
+      const bool nmiState = nes.bus.ppuNMI();
+      if (nmiState && !lastNMIState) {
+        nes.cpu.triggerNMI();
+      }
+      lastNMIState = nmiState;
       if (frame) {
-        // frame will shortly be deleted by PPU, give renderer a copy
-        Frame* frameCopy = new Frame(*frame);
-        render(frameCopy);
+        render(*frame);
       }
     }
   }
@@ -51,9 +56,11 @@ void Clock::stop() {
   if (rendererThread.joinable()) rendererThread.join();
 }
 
-void Clock::render(Frame* frame) {
-  nes->renderer->render(frame);
-  delete frame;
+void Clock::render(const Frame& frame) {
+  if (!nes.renderer.has_value()) {
+    return;
+  }
+  nes.renderer->get().render(frame);
 }
 
 
@@ -64,7 +71,7 @@ void Clock::cpuLoop() {
   auto startTime = clock::now();
   unsigned long long cpuCycleCount = 0;
   while (running) {
-    nes->cpu.tick();
+    nes.cpu.tick();
     cpuCycleCount++;
     auto nextTick = startTime + cpuCycleCount * tickDuration;
     std::this_thread::sleep_until(nextTick);
@@ -79,11 +86,14 @@ void Clock::ppuLoop() {
   unsigned long long ppuCycleCount = 0;
   while (running) {
     std::cout << "started ppu tick\n";
-    Frame* frame = nes->ppu.tick();
+    std::unique_ptr<Frame> frame = nes.ppu.tick();
+    const bool nmiState = nes.bus.ppuNMI();
+    if (nmiState && !lastNMIState) {
+      nes.cpu.triggerNMI();
+    }
+    lastNMIState = nmiState;
     if (frame) {
-      // frame will shortly be deleted by PPU, give renderer a copy
-      Frame* frameCopy = new Frame(*frame);
-      ppuThread = std::thread(&Clock::render, this, frameCopy);
+      render(*frame);
     }
 
     ppuCycleCount++;

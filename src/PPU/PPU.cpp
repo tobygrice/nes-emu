@@ -16,7 +16,7 @@
  * | $3F20–$3FFF     | $00E0 | Mirrors of $3F00–$3F1F    | Internal to PPU   |
  */
 
-Frame* PPU::tick() {
+std::unique_ptr<Frame> PPU::tick() {
   /**  ============ BACKGROUND ============
    * cycle 1 fetch nametable byte, cycle 2 burn cycle (read takes two cycles)
    * cycle 3 fetch attribute table byte, cycle 4 burn cycle
@@ -28,8 +28,7 @@ Frame* PPU::tick() {
     // fill the shift registers with the data for the first two tiles of the
     // next scanline
     if (cycles == 1) {
-      if (currentFrame) delete currentFrame;
-      currentFrame = new Frame();
+      currentFrame = std::make_unique<Frame>();
     }
   } else if (scanline < 240) { // 0-239
     // Note: this is not cycle accurate. In true hardware, each memory read
@@ -55,14 +54,14 @@ Frame* PPU::tick() {
           // fetch pattern table tile low
           uint8_t fineY = (v >> 12) & 0b0111;  // v register is 15 bits
           uint16_t address = ctrl.bg_pattern_addr() + (tileID * 16) + fineY;
-          patternLow = cart->read_chr_rom(address);
+          patternLow = cart.read_chr_rom(address);
           break;
         }
         case 3: {
           // pattern table tile high (+8 bytes from pattern table tile low)
           uint8_t fineY = (v >> 12) & 0x07;
           uint16_t address = ctrl.bg_pattern_addr() + (tileID * 16) + fineY + 8;
-          patternHigh = cart->read_chr_rom(address);
+          patternHigh = cart.read_chr_rom(address);
           break;
         }
         case 4: {
@@ -212,7 +211,7 @@ Frame* PPU::tick() {
         nmiInterrupt = true;
       }
       cycles++;
-      return currentFrame;
+      return std::move(currentFrame);
     }
   } else if (scanline == 262) {
     // prerender scanline
@@ -241,7 +240,7 @@ uint8_t PPU::cpuRead() {
   if (addr_val <= 0x1FFF) {
     // CHR-ROM read
     uint8_t result = data_buf;
-    data_buf = cart->read_chr_rom(addr_val);
+    data_buf = cart.read_chr_rom(addr_val);
     return result;
   } else if (addr_val <= 0x3EFF) {
     // RAM read
@@ -298,7 +297,7 @@ void PPU::cpuWrite(uint8_t value) {
  */
 uint16_t PPU::mirrorVRAMAddress(uint16_t addr) {
   addr &= 0x0FFF;
-  switch (cart->getMirroring()) {
+  switch (cart.getMirroring()) {
     case MirroringMode::Vertical: {
       // Vertical mirroring layout:
       //   NT0: $2000-$23FF and $2800-$2BFF → maps to first 1K (0x000–0x3FF)
@@ -349,6 +348,9 @@ void PPU::write_to_ctrl(uint8_t value) {
   last_written_value = value;
   bool priorNMI = ctrl.generate_vblank_nmi();
   ctrl.update(value);
+  if (priorNMI && !ctrl.generate_vblank_nmi()) {
+    nmiInterrupt = false;
+  }
   if (!priorNMI && ctrl.generate_vblank_nmi() && status.is_in_vblank()) {
     nmiInterrupt = true;
   }
@@ -362,8 +364,11 @@ void PPU::write_to_mask(uint8_t value) {
 
 // reads the status register snapshot and resets various latches.
 uint8_t PPU::read_status() {
-  uint8_t data = status.snapshot();
+  // Approximate open-bus behavior for lower 5 bits with last CPU-written value.
+  uint8_t data = static_cast<uint8_t>((status.snapshot() & 0xE0) |
+                                      (last_written_value & 0x1F));
   status.set_vblank_status(false);
+  nmiInterrupt = false;
   addr.reset_latch();
   scroll.reset_latch();
   return data;

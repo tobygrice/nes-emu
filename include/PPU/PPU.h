@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "../Renderer/Frame.h"
@@ -25,7 +26,7 @@ class PPU {
    * each flag for readability. The ADDR register also has a specific class to
    * allow for cycle-accurate read/writes.
    */
-  Frame* currentFrame;
+  std::unique_ptr<Frame> currentFrame;
   uint8_t tileID = 0;
   uint8_t attribute = 0;
   uint8_t patternLow = 0;
@@ -47,7 +48,7 @@ class PPU {
 
   // chr_rom and mirroring mode in cartridge, accessed via bus
   std::array<uint8_t, 2048> vram;  // 2048 bytes of vram
-  Cartridge* cart;
+  Cartridge& cart;
 
   uint16_t cycles;
   int scanline;  // -1 scanline
@@ -57,8 +58,14 @@ class PPU {
   uint8_t last_written_value;
 
  public:
-  PPU(Cartridge* cart)
-      : ctrl(),
+  PPU(const PPU&) = delete;
+  PPU& operator=(const PPU&) = delete;
+  PPU(PPU&&) = delete;
+  PPU& operator=(PPU&&) = delete;
+
+  explicit PPU(Cartridge& cart)
+      : currentFrame(nullptr),
+        ctrl(),
         mask(),
         status(),
         scroll(),
@@ -78,7 +85,7 @@ class PPU {
         nmiInterrupt(false),
         last_written_value(0) {}
 
-  Frame* tick();  // returns true if frame generation complete
+  std::unique_ptr<Frame> tick();
 
   uint16_t mirrorVRAMAddress(uint16_t addr);
   uint8_t mirrorPaletteAddress(uint8_t addr) {

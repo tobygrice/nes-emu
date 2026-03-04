@@ -1,6 +1,10 @@
 #ifndef NES_H
 #define NES_H
 
+#include <functional>
+#include <optional>
+#include <vector>
+
 #include "Bus.h"
 #include "CPU/CPU.h"
 #include "Cartridge.h"
@@ -21,26 +25,38 @@ class NES {
   Bus bus;
   CPU cpu;
   Clock clock;
-  Renderer* renderer;
+  std::optional<std::reference_wrapper<Renderer>> renderer;
   // APU apu;
+
+  NES(const NES&) = delete;
+  NES& operator=(const NES&) = delete;
+  NES(NES&&) = delete;
+  NES& operator=(NES&&) = delete;
 
   /**
    * Instantiates all components with an empty cartridge.
    */
-  NES(Renderer* renderer)
+  NES()
       : log(),
         cart(),
-        ppu(&cart),
-        bus(&ppu, &cart),
-        cpu(&bus, &log),
-        clock(this),
-        renderer(renderer) {}
+        ppu(cart),
+        bus(ppu, cart),
+        cpu(bus, log),
+        clock(*this),
+        renderer(std::nullopt) {}
+
+  explicit NES(Renderer& renderer) : NES() { this->renderer = std::ref(renderer); }
+
+  explicit NES(const std::vector<uint8_t>& romDump) : NES() {
+    insertCartridge(romDump);
+  }
 
   /**
    * Instantiates all components and loads romDump into cartridge.
    * @param romDump iNES 1.0 format NES ROM dump.
    */
-  NES(Renderer* renderer, const std::vector<uint8_t>& romDump) : NES(renderer) {
+  NES(Renderer& renderer, const std::vector<uint8_t>& romDump)
+      : NES(renderer) {
     insertCartridge(romDump);
   }
 

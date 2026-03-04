@@ -16,7 +16,7 @@ class CPUShiftRotateTest : public ::testing::Test {
   CPU cpu;      // CPU instance that uses the shared bus
   Logger logger;
 
-  CPUShiftRotateTest() : bus(), cpu(&bus, &logger) {}
+  CPUShiftRotateTest() : bus(), cpu(bus, logger) {}
 };
 
 // Test ASL flag cleared

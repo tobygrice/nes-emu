@@ -39,11 +39,15 @@ int main(int argc, char* argv[]) {
     throw std::runtime_error(std::string("SDL_Init Error: ") + SDL_GetError());
   }
 
-  SDL_CreateWindowAndRenderer("grice.software - NES EMU",
-                              WIDTH * SCALE,      // width, in pixels
-                              HEIGHT * SCALE,     // height, in pixels
-                              SDL_WINDOW_OPENGL,  // flags
-                              &sdlWindow, &sdlRenderer);
+  if (!SDL_CreateWindowAndRenderer("grice.software - NES EMU",
+                                   WIDTH * SCALE,      // width, in pixels
+                                   HEIGHT * SCALE,     // height, in pixels
+                                   SDL_WINDOW_OPENGL,  // flags
+                                   &sdlWindow, &sdlRenderer)) {
+    SDL_Quit();
+    throw std::runtime_error(std::string("SDL_CreateWindowAndRenderer Error: ") +
+                             SDL_GetError());
+  }
   SDL_SetRenderScale(sdlRenderer, SCALE, SCALE);
 
   // Create a streaming texture for updating pixel data
@@ -58,15 +62,14 @@ int main(int argc, char* argv[]) {
                              SDL_GetError());
   }
 
-  Renderer* renderer = new Renderer(sdlWindow, sdlRenderer, sdlTexture);
+  Renderer renderer(sdlWindow, sdlRenderer, sdlTexture);
 
   std::vector<uint8_t> romDump = readROM(argv[1]);  // read ROM from file
-  NES nes = NES(renderer);  // instantiate a virtual NES console
+  NES nes(renderer);        // instantiate a virtual NES console
 
   // load cartridge (triggers reset interrupt on CPU)
   nes.insertCartridge(romDump);
   nes.start();
 
-  delete renderer;
   return 0;
 }

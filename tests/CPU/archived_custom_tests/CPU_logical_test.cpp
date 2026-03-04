@@ -15,7 +15,7 @@ class CPULogicalTest : public ::testing::Test {
   CPU cpu;      // CPU instance that uses the shared bus
   Logger logger;
 
-  CPULogicalTest() : bus(), cpu(&bus, &logger) {}
+  CPULogicalTest() : bus(), cpu(bus, logger) {}
 };
 
 // Test AND with Immediate addressing and zero/neg false

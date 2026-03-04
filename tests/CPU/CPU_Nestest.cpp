@@ -9,7 +9,7 @@
 #include "../../include/NES.h"
 
 std::vector<uint8_t> readNestestROM() {
-  char *filename = "../tests/CPU/nestest.nes";
+  const char* filename = "../tests/CPU/nestest.nes";
   std::ifstream file(filename, std::ios::binary);
   if (!file) {
     throw std::runtime_error("Could not open file: " + std::string(filename));
@@ -25,7 +25,7 @@ std::vector<uint8_t> readNestestROM() {
 TEST(CPUNestest, runNestest) {
 
   std::vector<uint8_t> romDump = readNestestROM();
-  NES nes = NES(nullptr, romDump);  // instantiate a virtual NES console
+  NES nes(romDump);                 // instantiate a virtual NES console
   // NES(cart) calls reset interrupt
 
   nes.cpu.TEST_setPC(0xC000);

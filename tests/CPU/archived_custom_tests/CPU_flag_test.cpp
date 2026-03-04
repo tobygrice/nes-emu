@@ -15,7 +15,7 @@ class CPUFlagTest : public ::testing::Test {
   CPU cpu;      // CPU instance that uses the shared bus
   Logger logger;
 
-  CPUFlagTest() : bus(), cpu(&bus, &logger) {}
+  CPUFlagTest() : bus(), cpu(bus, logger) {}
 };
 
 #include <gtest/gtest.h>

@@ -31,7 +31,7 @@ class PPUCoreLogicTest : public ::testing::Test {
   PPUCoreLogicTest()
       : testRom(readTestRom()),
         cart(testRom),
-        ppu(&cart) {}
+        ppu(cart) {}
 };
 
 // Test 1: PPU VRAM writes

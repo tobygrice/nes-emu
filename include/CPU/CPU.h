@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "../Bus.h"
@@ -16,7 +17,12 @@ class CPU {
   friend class OpCode;
 
  public:
-  CPU(BusInterface* bus, Logger* logger)
+  CPU(const CPU&) = delete;
+  CPU& operator=(const CPU&) = delete;
+  CPU(CPU&&) = delete;
+  CPU& operator=(CPU&&) = delete;
+
+  CPU(BusInterface& bus, Logger& logger)
       : a_register(0),       // accumulator starts at 0
         x_register(0),       // X starts at 0
         y_register(0),       // Y starts at 0
@@ -77,8 +83,8 @@ class CPU {
   uint8_t status;      // processor status (p)
   uint16_t pc;         // program counter
   uint8_t sp;          // stack pointer
-  BusInterface* bus;   // bus
-  Logger* logger;      // logger
+  BusInterface& bus;   // bus
+  Logger& logger;      // logger
 
   const OpCode* currentOpCode = nullptr;
   uint8_t readBuffer;
@@ -87,7 +93,7 @@ class CPU {
   uint8_t cyclesRemainingInCurrentInterrupt = 7;
   AddressResolveInfo currAddrResCtx;  // current address resolution context
   uint8_t currentValueAtAddress = 0;
-  CPUState* logState = nullptr;
+  std::unique_ptr<CPUState> logState;
 
   bool initiatingInterrupt = false;
   Interrupt activeInterrupt = Interrupt::NONE;
@@ -106,7 +112,7 @@ class CPU {
    * Pushes value to the stack. Consumes 1 cycle.
    */
   inline void push(uint8_t value) {
-    bus->write(0x0100 + sp, value);
+    bus.write(0x0100 + sp, value);
     sp--;
   }
 
@@ -115,7 +121,7 @@ class CPU {
    */
   inline uint8_t pop() {
     sp++;
-    return bus->read(0x100 + sp);
+    return bus.read(0x100 + sp);
   }
 
   // addressing mode handling
@@ -126,7 +132,7 @@ class CPU {
   }
 
   inline void readOperand() {
-    currentOpBytes.push_back(bus->read(pc));
+    currentOpBytes.push_back(bus.read(pc));
     pc++;
   }
 

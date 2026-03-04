@@ -16,7 +16,7 @@ class CPULoadStoreTest : public ::testing::Test {
   CPU cpu;  // CPU instance that uses the shared bus
   Logger logger;
 
-  CPULoadStoreTest() : bus(), cpu(&bus, &logger) {}
+  CPULoadStoreTest() : bus(), cpu(bus, logger) {}
 };
 
 /* ========================= LDA ========================= */

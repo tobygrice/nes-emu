@@ -17,7 +17,7 @@ class CPUBranchingTest : public ::testing::Test {
   CPU cpu;  // CPU instance that uses the shared bus
   Logger logger;
 
-  CPUBranchingTest() : bus(), cpu(&bus, &logger) {}
+  CPUBranchingTest() : bus(), cpu(bus, logger) {}
 };
 
 //

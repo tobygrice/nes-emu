@@ -16,7 +16,7 @@ class CPUControlTest : public ::testing::Test {
   CPU cpu;  // CPU instance that uses the shared bus
   Logger logger;
 
-  CPUControlTest() : bus(), cpu(&bus, &logger) {}
+  CPUControlTest() : bus(), cpu(bus, logger) {}
 };
 
 // Test the BRK handler by calling the BRK opcode directly.
