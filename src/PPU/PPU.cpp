@@ -1,7 +1,5 @@
 #include "../../include/PPU/PPU.h"
 
-#include <bitset>
-
 #include "../../include/Renderer/Frame.h"
 
 namespace {
@@ -141,10 +139,18 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t bit6High = (patternHigh >> 6) & 0b01;
           uint8_t px6value = (bit6High << 1) | bit6Low;
 
-          uint8_t px7PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px7value);
-          uint8_t px6PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px6value);
+          if (!mask.show_background() ||
+              (!mask.leftmost_8pxl_background() && cycles < 8)) {
+            px7value = 0;
+            px6value = 0;
+          }
+
+          uint8_t px7PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px7value == 0 ? 0
+                                                 : (paletteSelection * 4) + px7value));
+          uint8_t px6PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px6value == 0 ? 0
+                                                 : (paletteSelection * 4) + px6value));
 
           uint8_t px7colour = palette_table[px7PaletteIndex];
           uint8_t px6colour = palette_table[px6PaletteIndex];
@@ -168,10 +174,18 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t bit4High = (patternHigh >> 4) & 0b01;
           uint8_t px4value = (bit4High << 1) | bit4Low;
 
-          uint8_t px5PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px5value);
-          uint8_t px4PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px4value);
+          if (!mask.show_background() ||
+              (!mask.leftmost_8pxl_background() && cycles < 8)) {
+            px5value = 0;
+            px4value = 0;
+          }
+
+          uint8_t px5PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px5value == 0 ? 0
+                                                 : (paletteSelection * 4) + px5value));
+          uint8_t px4PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px4value == 0 ? 0
+                                                 : (paletteSelection * 4) + px4value));
 
           uint8_t px5colour = palette_table[px5PaletteIndex];
           uint8_t px4colour = palette_table[px4PaletteIndex];
@@ -195,10 +209,18 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t bit2High = (patternHigh >> 2) & 0b01;
           uint8_t px2value = (bit2High << 1) | bit2Low;
 
-          uint8_t px3PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px3value);
-          uint8_t px2PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px2value);
+          if (!mask.show_background() ||
+              (!mask.leftmost_8pxl_background() && cycles < 8)) {
+            px3value = 0;
+            px2value = 0;
+          }
+
+          uint8_t px3PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px3value == 0 ? 0
+                                                 : (paletteSelection * 4) + px3value));
+          uint8_t px2PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px2value == 0 ? 0
+                                                 : (paletteSelection * 4) + px2value));
 
           uint8_t px3colour = palette_table[px3PaletteIndex];
           uint8_t px2colour = palette_table[px2PaletteIndex];
@@ -222,10 +244,18 @@ std::unique_ptr<Frame> PPU::tick() {
           uint8_t bit0High = patternHigh & 0b01;
           uint8_t px0value = (bit0High << 1) | bit0Low;
 
-          uint8_t px1PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px1value);
-          uint8_t px0PaletteIndex =
-              mirrorPaletteAddress((paletteSelection * 4) + px0value);
+          if (!mask.show_background() ||
+              (!mask.leftmost_8pxl_background() && cycles < 8)) {
+            px1value = 0;
+            px0value = 0;
+          }
+
+          uint8_t px1PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px1value == 0 ? 0
+                                                 : (paletteSelection * 4) + px1value));
+          uint8_t px0PaletteIndex = mirrorPaletteAddress(
+              static_cast<uint8_t>(px0value == 0 ? 0
+                                                 : (paletteSelection * 4) + px0value));
 
           uint8_t px1colour = palette_table[px1PaletteIndex];
           uint8_t px0colour = palette_table[px0PaletteIndex];
@@ -252,25 +282,6 @@ std::unique_ptr<Frame> PPU::tick() {
         // complete. This is not cycle-accurate but is sufficient for visual
         // output.
         const uint8_t spriteHeight = ctrl.sprite_size();
-        std::array<uint8_t, SCREEN_HEIGHT> spritesPerScanline{};
-        std::array<std::bitset<SCREEN_HEIGHT>, 64> spriteScanlineVisible{};
-
-        // NES can render a maximum of 8 sprites per scanline, selected in OAM
-        // order (lower index first).
-        for (int sprite = 0; sprite < 64; ++sprite) {
-          const int base = sprite * 4;
-          const int spriteY = static_cast<int>(oam_data[base]) + 1;
-          for (int py = 0; py < spriteHeight; ++py) {
-            const int screenY = spriteY + py;
-            if (screenY < 0 || screenY >= SCREEN_HEIGHT) {
-              continue;
-            }
-            if (spritesPerScanline[screenY] < 8) {
-              spriteScanlineVisible[sprite].set(static_cast<std::size_t>(screenY));
-              spritesPerScanline[screenY]++;
-            }
-          }
-        }
 
         // Render back-to-front so lower OAM indices have priority.
         for (int sprite = 63; sprite >= 0; --sprite) {
@@ -288,10 +299,6 @@ std::unique_ptr<Frame> PPU::tick() {
           for (int py = 0; py < spriteHeight; py++) {
             const int screenY = spriteY + py;
             if (screenY < 0 || screenY >= SCREEN_HEIGHT) {
-              continue;
-            }
-            if (!spriteScanlineVisible[sprite].test(
-                    static_cast<std::size_t>(screenY))) {
               continue;
             }
 

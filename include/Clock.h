@@ -15,7 +15,7 @@ const double TARGET_SPEED = 1;  // game speed to target (1 = full speed 60fps)
 // NTSC clock speed is 236.25 MHz ÷ 11 by definition
 // PAL clock speed is 26.6017125 MHz by definition
 const double MASTER_SPEED_NTSC =
-    TARGET_SPEED * 1000000 * (236.25 / 11);  // ~21.477 MHz
+    TARGET_SPEED * 1000000 * (236.25 / 11.0);  // ~21.477 MHz
 const double MASTER_SPEED_PAL =
     TARGET_SPEED * 1000000 * 26.6017125;  // ~26.601 MHz
 

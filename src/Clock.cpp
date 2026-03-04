@@ -54,14 +54,6 @@ void Clock::gameLoop() {
   auto nextFrameDeadline = clock::now() + frameDuration;
 
   uint8_t joypad1State = 0;
-  auto setButtonState = [&](uint8_t mask, bool pressed) {
-    if (pressed) {
-      joypad1State |= mask;
-    } else {
-      joypad1State = static_cast<uint8_t>(joypad1State & ~mask);
-    }
-    nes.bus.setJoypad1Buttons(joypad1State);
-  };
 
   auto processEvents = [&]() {
     SDL_Event event;
@@ -70,46 +62,53 @@ void Clock::gameLoop() {
         running = false;
       } else if (event.type == SDL_EVENT_KEY_DOWN ||
                  event.type == SDL_EVENT_KEY_UP) {
-        const bool pressed = (event.type == SDL_EVENT_KEY_DOWN);
-        if (event.key.repeat) {
-          continue;
-        }
         switch (event.key.key) {
           case SDLK_ESCAPE:
-            if (pressed) {
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
               running = false;
             }
-            break;
-          case SDLK_Z:
-            setButtonState(Bus::JOYPAD_A, pressed);
-            break;
-          case SDLK_X:
-            setButtonState(Bus::JOYPAD_B, pressed);
-            break;
-          case SDLK_RETURN:
-            setButtonState(Bus::JOYPAD_START, pressed);
-            break;
-          case SDLK_RSHIFT:
-          case SDLK_LSHIFT:
-            setButtonState(Bus::JOYPAD_SELECT, pressed);
-            break;
-          case SDLK_UP:
-            setButtonState(Bus::JOYPAD_UP, pressed);
-            break;
-          case SDLK_DOWN:
-            setButtonState(Bus::JOYPAD_DOWN, pressed);
-            break;
-          case SDLK_LEFT:
-            setButtonState(Bus::JOYPAD_LEFT, pressed);
-            break;
-          case SDLK_RIGHT:
-            setButtonState(Bus::JOYPAD_RIGHT, pressed);
             break;
           default:
             break;
         }
       }
     }
+
+    int keyCount = 0;
+    const bool* keys = SDL_GetKeyboardState(&keyCount);
+    auto isPressed = [&](SDL_Scancode code) -> bool {
+      const int idx = static_cast<int>(code);
+      return idx >= 0 && idx < keyCount && keys[idx];
+    };
+
+    joypad1State = 0;
+    if (isPressed(SDL_SCANCODE_Z) || isPressed(SDL_SCANCODE_K)) {
+      joypad1State |= Bus::JOYPAD_A;
+    }
+    if (isPressed(SDL_SCANCODE_X) || isPressed(SDL_SCANCODE_J)) {
+      joypad1State |= Bus::JOYPAD_B;
+    }
+    if (isPressed(SDL_SCANCODE_RETURN) || isPressed(SDL_SCANCODE_KP_ENTER) ||
+        isPressed(SDL_SCANCODE_SPACE)) {
+      joypad1State |= Bus::JOYPAD_START;
+    }
+    if (isPressed(SDL_SCANCODE_TAB) || isPressed(SDL_SCANCODE_LSHIFT) ||
+        isPressed(SDL_SCANCODE_RSHIFT)) {
+      joypad1State |= Bus::JOYPAD_SELECT;
+    }
+    if (isPressed(SDL_SCANCODE_UP) || isPressed(SDL_SCANCODE_W)) {
+      joypad1State |= Bus::JOYPAD_UP;
+    }
+    if (isPressed(SDL_SCANCODE_DOWN) || isPressed(SDL_SCANCODE_S)) {
+      joypad1State |= Bus::JOYPAD_DOWN;
+    }
+    if (isPressed(SDL_SCANCODE_LEFT) || isPressed(SDL_SCANCODE_A)) {
+      joypad1State |= Bus::JOYPAD_LEFT;
+    }
+    if (isPressed(SDL_SCANCODE_RIGHT) || isPressed(SDL_SCANCODE_D)) {
+      joypad1State |= Bus::JOYPAD_RIGHT;
+    }
+    nes.bus.setJoypad1Buttons(joypad1State);
   };
 
   uint32_t cpuTicksUntilEventPoll = 1024;
