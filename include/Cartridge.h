@@ -40,8 +40,6 @@
 #define CARTRIDGE_H
 
 #include <cstdint>
-#include <stdexcept>
-#include <string>
 #include <vector>
 
 // enum class for addressing modes
@@ -73,16 +71,8 @@ class Cartridge {
     uint8_t read_chr_rom(uint16_t addr);
     void write_chr_ram(uint16_t addr, uint8_t value);
 
-    bool isEmpty() { return empty; }
     MirroringMode getMirroring() { return mirroring; }
     void setMirroring(MirroringMode m) { this->mirroring = m; }
-    const uint8_t *get_chr_rom_addr() {
-        if (empty) {
-            throw std::runtime_error("Error: no cartridge loaded.");
-        }
-        return chr_rom.data();
-    }
-
     NESRegion getRegion() { return region; }
 };
 

@@ -122,6 +122,22 @@ add_nes_test(runPPUTimingTests
   tests/PPU/PPU_Timing.cpp
 )
 
+add_nes_test(runPPUNestest
+  src/CPU/CPU.cpp
+  src/CPU/OpCode.cpp
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
+  src/Renderer/Renderer.cpp
+  src/Logger.cpp
+  src/Cartridge.cpp
+  src/Clock.cpp
+  tests/PPU/PPU_Nestest.cpp
+)
+target_compile_definitions(runPPUNestest
+  PRIVATE
+  NES_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 # add_nes_test(runPPUTests
 #   src/Cartridge.cpp
 #   src/PPU/PPU.cpp

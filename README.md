@@ -8,36 +8,43 @@ This project is an experiment in parallel processing to see if this overhead can
 
 I put down this project last year to focus on university. I intend to pick it back up at some point, but for now, it remains unfinished and I have moved on to other projects.
 
-## Development progress:
+## Development Progress:
 - [x] CPU official opcodes
 - [x] Bus
 - [x] Nintendulator formatted logs
 - [x] CPU unofficial opcodes
 - [x] Convert CPU to single-cycle accuracy
-- [ ] PPU
-- [ ] Input
-- [ ] PPU Scrolling
-- [ ] APU
-- [ ] Mappers
+- [x] PPU
+- [x] Input
+- [x] PPU Scrolling
+
+## Usage
+To run a ROM, use:
+```bash
+./nesemu <rom.nes>
+```
+To print CPU log to stdout, include the `--trace` flag:
+```bash
+./nesemu <rom.nes> --trace
+```
 
 ## Building & Testing
-To compile:
+To compile (compiles to build/release/nesemu):
 ```bash
+cmake -S . -B build
 cmake --preset release
 cmake --build --preset release -j
 ```
-To execute a ROM file (.nes):
-``` bash
-./build/nesemu game.nes
+If you also wish to compile tests, use:
+```bash
+cmake -S . -B build
+cmake --build build -j
 ```
 To run tests:
 ```bash
 ctest --test-dir build --verbose # run all tests
-ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests
-ctest --test-dir build --verbose --output-on-failure -R runCPUNestest
-```
-To run nestest and compare logs:
-```bash
-./build/nesemu rom_testing/nestest.nes > logs/actual.log
-./logs/cmplogs.sh logs/nestest_ppu_exp.log logs/actual.log
+ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests # runs 256,000 instructions, expect to take a while
+ctest --test-dir build --verbose --output-on-failure -R runCPUNestest # runs independent of PPU
+ctest --test-dir build --verbose --output-on-failure -R runPPUNestest # will fail if CPU is not correct
+ctest --test-dir build --verbose --output-on-failure -R runPPUTimingTests
 ```

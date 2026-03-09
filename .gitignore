@@ -1,9 +1,9 @@
-.DS_Store
 .gitignore
+.DS_Store
 .vscode
 docs/.obsidian
 build
-tests/CPU/nes6502-TESTS
 romtests
 logs
-*.log
+build-debug
+build-release

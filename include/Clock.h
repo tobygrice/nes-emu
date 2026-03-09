@@ -1,10 +1,7 @@
 #ifndef CLOCK_H
 #define CLOCK_H
 
-#include <atomic>
 #include <chrono>
-#include <iostream>
-#include <thread>
 
 class NES;
 class Frame;
@@ -43,16 +40,10 @@ class Clock {
 
     void setRegion(NESRegion region);
 
-    // Start the clock threads
     void start();
-
-    // Signal the threads to stop and join them
-    void stop();
 
   private:
     void gameLoop();
-    void cpuLoop();
-    void ppuLoop();
     void processEvents();
     void render(const Frame &frame);
 };

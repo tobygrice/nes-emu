@@ -1,7 +1,10 @@
 #include "../include/Cartridge.h"
 
+#include <stdexcept>
+
 /**
- * Read from PRG ROM, panics if no cartridge is loaded or PRG ROM is empty. Mirrors down address if PRG ROM is 16KiB.
+ * Read from PRG ROM, panics if no cartridge is loaded or PRG ROM is empty.
+ * Mirrors down address if PRG ROM is 16KiB.
  */
 uint8_t Cartridge::read_prg_rom(uint16_t addr) {
     if (empty) {
@@ -13,7 +16,8 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
 
     size_t index = static_cast<size_t>(addr - 0x8000);
 
-    // mirror if prg_rom is 16KiB. Will need to modify this if additional mappers are implemented.
+    // mirror if prg_rom is 16KiB. Will need to modify this if additional
+    // mappers are implemented.
     if ((prg_rom.size() == 0x4000) && (index >= 0x4000)) {
         index %= 0x4000;
     }
@@ -30,10 +34,12 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
  */
 uint8_t Cartridge::read_chr_rom(uint16_t addr) {
     if (empty) {
-        throw std::runtime_error("Error: attempted to read from CHR ROM with no cartridge loaded.");
+        throw std::runtime_error(
+            "Error: attempted to read from CHR ROM with no cartridge loaded.");
     }
     if (chr_rom.empty()) {
-        throw std::runtime_error("Error: attempted to read from CHR memory but CHR ROM is empty.");
+        throw std::runtime_error(
+            "Error: attempted to read from CHR memory but CHR ROM is empty.");
     }
     return chr_rom[addr % chr_rom.size()];
 }
@@ -43,10 +49,14 @@ uint8_t Cartridge::read_chr_rom(uint16_t addr) {
  */
 void Cartridge::write_chr_ram(uint16_t addr, uint8_t value) {
     if (empty) {
-        throw std::runtime_error("Error: attempted to write to CHR RAM with no cartridge loaded.");
+        throw std::runtime_error(
+            "Error: attempted to write to CHR RAM with no cartridge loaded.");
     }
-    if (!chr_is_ram || chr_rom.empty()) {
-        throw std::runtime_error("Error: attempted to write to CHR ROM.");
+    // if (!chr_is_ram) {
+    //     throw std::runtime_error("Error: attempted to write to CHR ROM.");
+    // }
+    if (chr_rom.empty()) {
+        throw std::runtime_error("Error: attempted to write to empty CHR RAM.");
     }
     chr_rom[addr % chr_rom.size()] = value;
 }

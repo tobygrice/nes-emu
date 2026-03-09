@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 #include <cstdint>
+#include <thread>
 
 #include "../include/NES.h"
 
@@ -47,7 +48,7 @@ void Clock::gameLoop() {
     while (running) {
         // tick CPU
         nes.cpu.tick();
-        
+
         // process input events every 1024 CPU ticks
         if (--cpuTicksUntilEventPoll == 0) {
             this->processEvents();
@@ -56,7 +57,7 @@ void Clock::gameLoop() {
                 break;
             }
         }
-        
+
         // trigger NMI if pending
         if (pendingNMIEdge) {
             nes.cpu.triggerNMI();

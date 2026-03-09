@@ -1,5 +1,9 @@
 #include "../include/Logger.h"
 
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+
 std::string Logger::disassembleInstr(const CPUState &state) {
     // helper to print 2-digit hex (uppercase) with leading zeros
     auto hex2 = [&](uint8_t v) {

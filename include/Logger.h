@@ -1,22 +1,16 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <iomanip>
-#include <iostream>
-#include <sstream>
 #include <string>
-#include <vector>
 
 #include "CPU/CPUState.h"
 
 class Logger {
   private:
-    bool silenced;
+    bool silenced = false;
     std::string disassembleInstr(const CPUState &state);
 
   public:
-    Logger() : silenced(false) {}
-
     /**
      * Log a single CPU instruction/state line. Written with a LLM.
      *
