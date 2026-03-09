@@ -10,34 +10,35 @@
 #include "CPU/CPUState.h"
 
 class Logger {
- private:
-  bool silenced;
- public:
-  Logger() : silenced(false) {}
+  private:
+    bool silenced;
+    std::string disassembleInstr(const CPUState &state);
 
-  /**
-   * Log a single CPU instruction/state line. Written with a LLM.
-   *
-   * Parameters:
-   *   pc          - Program Counter (16-bit)
-   *   op          - OpCode* containing information about the operation
-   *   opBytes     - Up to 3 opcode bytes for this instruction
-   *   addrInfo    - Struct containing info required to build disassembly
-   *   valueAtAddr - Required for disassembly
-   *   A, X, Y     - CPU registers
-   *   P           - Processor status (flags)
-   *   SP          - Stack pointer
-   *   ppuX, ppuY  - Current PPU X/Y scanline position
-   *   cycles      - Cycle count
-   *
-   */
+  public:
+    Logger() : silenced(false) {}
 
-  void mute() { silenced = true; };
-  void unmute() { silenced = false; };
-  bool isMuted() const { return silenced; }
+    /**
+     * Log a single CPU instruction/state line. Written with a LLM.
+     *
+     * Parameters:
+     *   pc          - Program Counter (16-bit)
+     *   op          - OpCode* containing information about the operation
+     *   opBytes     - Up to 3 opcode bytes for this instruction
+     *   addrInfo    - Struct containing info required to build disassembly
+     *   valueAtAddr - Required for disassembly
+     *   A, X, Y     - CPU registers
+     *   P           - Processor status (flags)
+     *   SP          - Stack pointer
+     *   ppuX, ppuY  - Current PPU X/Y scanline position
+     *   cycles      - Cycle count
+     *
+     */
 
-  std::string disassembleInstr(const CPUState& state);
-  void log(const CPUState& state);
+    void mute() { silenced = true; };
+    void unmute() { silenced = false; };
+    bool isMuted() const { return silenced; }
+
+    void log(const CPUState &state);
 };
 
 #endif
