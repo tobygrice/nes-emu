@@ -10,55 +10,51 @@ class NES;
 class Frame;
 enum class NESRegion;
 
-const double TARGET_SPEED = 1;  // game speed to target (1 = full speed 60fps)
+const double TARGET_SPEED = 1; // game speed to target (1 = full speed 60fps)
 
 // NTSC clock speed is 236.25 MHz ÷ 11 by definition
 // PAL clock speed is 26.6017125 MHz by definition
 const double MASTER_SPEED_NTSC =
-    TARGET_SPEED * 1000000 * (236.25 / 11.0);  // ~21.477 MHz
+    TARGET_SPEED * 1000000 * (236.25 / 11.0); // ~21.477 MHz
 const double MASTER_SPEED_PAL =
-    TARGET_SPEED * 1000000 * 26.6017125;  // ~26.601 MHz
+    TARGET_SPEED * 1000000 * 26.6017125; // ~26.601 MHz
 
 class Clock {
- private:
-  NES& nes;
-  NESRegion region;
-  std::thread coreThread;
-  std::thread cpuThread;
-  std::thread ppuThread;
-  std::thread rendererThread;
-  // std::thread apuThread;
-  std::atomic<bool> running;
-  bool lastNMIState;
-  bool pendingNMIEdge;
+  private:
+    NES &nes;
+    NESRegion region;
 
-  double cpuTickInterval;
-  double ppuTickInterval;
+    bool running;
+    bool lastNMIState;
+    bool pendingNMIEdge;
 
- public:
-  Clock(const Clock&) = delete;
-  Clock& operator=(const Clock&) = delete;
-  Clock(Clock&&) = delete;
-  Clock& operator=(Clock&&) = delete;
+    std::chrono::steady_clock::duration frameDuration;
 
-  /**
-   * Region MUST be set using setRegion() before starting
-   */
-  explicit Clock(NES& nes);
+  public:
+    Clock(const Clock &) = delete;
+    Clock &operator=(const Clock &) = delete;
+    Clock(Clock &&) = delete;
+    Clock &operator=(Clock &&) = delete;
 
-  void setRegion(NESRegion region);
+    /**
+     * Region MUST be set using setRegion() before starting
+     */
+    explicit Clock(NES &nes);
 
-  // Start the clock threads
-  void start();
+    void setRegion(NESRegion region);
 
-  // Signal the threads to stop and join them
-  void stop();
+    // Start the clock threads
+    void start();
 
- private:
-  void gameLoop();
-  void cpuLoop();
-  void ppuLoop();
-  void render(const Frame& frame);
+    // Signal the threads to stop and join them
+    void stop();
+
+  private:
+    void gameLoop();
+    void cpuLoop();
+    void ppuLoop();
+    void processEvents();
+    void render(const Frame &frame);
 };
 
-#endif  // CLOCK_H
+#endif // CLOCK_H
