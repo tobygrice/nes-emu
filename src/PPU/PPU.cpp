@@ -443,7 +443,7 @@ void PPU::cpuWrite(uint8_t value) {
   addr.increment(ctrl.vram_addr_increment());
 
   if (addr_val <= 0x1FFF) {
-    cart.write_chr_rom(addr_val, value);
+    cart.write_chr_ram(addr_val, value);
   } else if (addr_val <= 0x3EFF) {
     addr_val &= 0x2FFF;  // mirror down address
     vram[mirrorVRAMAddress(addr_val)] = value;

@@ -5,8 +5,5 @@ docs/.obsidian
 build
 tests/CPU/nes6502-TESTS
 romtests
-buildclean
 logs
 *.log
-.editorconfig
-.clangformat

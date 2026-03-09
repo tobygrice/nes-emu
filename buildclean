@@ -1,0 +1,4 @@
+rm build/release/CMakeCache.txt
+cmake -S . -B build
+cmake --preset release
+cmake --build --preset release -j
