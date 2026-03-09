@@ -49,16 +49,25 @@ class Renderer {
   float currentFps = 0.0f;
 
  public:
+  Renderer(const Renderer&) = delete;
+  Renderer& operator=(const Renderer&) = delete;
+  Renderer(Renderer&&) noexcept = default;
+  Renderer& operator=(Renderer&&) = delete;
+
   // Constructor: initializes SDL, creates a window, renderer, and texture.
   Renderer(SDL_Window* w, SDL_Renderer* r, SDL_Texture* t)
       : sdlWindow(w), sdlRenderer(r), sdlTexture(t) {}
 
   // Destructor: cleans up SDL resources.
   ~Renderer() {
+    const bool ownsSDL =
+        (sdlWindow != nullptr || sdlRenderer != nullptr || sdlTexture != nullptr);
     sdlTexture.reset();
     sdlRenderer.reset();
     sdlWindow.reset();
-    SDL_Quit();
+    if (ownsSDL) {
+      SDL_Quit();
+    }
   }
 
   // Render function: converts a Frame's pixel data into an image on the window.

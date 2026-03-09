@@ -165,10 +165,7 @@ void Clock::stop() {
 }
 
 void Clock::render(const Frame& frame) {
-  if (!nes.renderer.has_value()) {
-    return;
-  }
-  nes.renderer->get().render(frame);
+  nes.renderer.render(frame);
 }
 
 

@@ -8,3 +8,5 @@ romtests
 buildclean
 logs
 *.log
+.editorconfig
+.clangformat

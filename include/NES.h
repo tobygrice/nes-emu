@@ -1,8 +1,7 @@
 #ifndef NES_H
 #define NES_H
 
-#include <functional>
-#include <optional>
+#include <utility>
 #include <vector>
 
 #include "Bus.h"
@@ -24,8 +23,8 @@ class NES {
   PPU ppu;
   Bus bus;
   CPU cpu;
+  Renderer renderer;
   Clock clock;
-  std::optional<std::reference_wrapper<Renderer>> renderer;
   // APU apu;
 
   NES(const NES&) = delete;
@@ -34,29 +33,18 @@ class NES {
   NES& operator=(NES&&) = delete;
 
   /**
-   * Instantiates all components with an empty cartridge.
+   * Instantiates all components and loads romDump into cartridge.
+   * @param renderer Renderer ownership is transferred to NES.
+   * @param romDump iNES 1.0 format NES ROM dump.
    */
-  NES()
+  NES(Renderer renderer, const std::vector<uint8_t>& romDump)
       : log(),
         cart(),
         ppu(cart),
         bus(ppu, cart),
         cpu(bus, log),
-        clock(*this),
-        renderer(std::nullopt) {}
-
-  explicit NES(Renderer& renderer) : NES() { this->renderer = std::ref(renderer); }
-
-  explicit NES(const std::vector<uint8_t>& romDump) : NES() {
-    insertCartridge(romDump);
-  }
-
-  /**
-   * Instantiates all components and loads romDump into cartridge.
-   * @param romDump iNES 1.0 format NES ROM dump.
-   */
-  NES(Renderer& renderer, const std::vector<uint8_t>& romDump)
-      : NES(renderer) {
+        renderer(std::move(renderer)),
+        clock(*this) {
     insertCartridge(romDump);
   }
 

@@ -4,6 +4,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../../include/NES.h"
@@ -25,8 +26,8 @@ std::vector<uint8_t> readNestestROM() {
 TEST(CPUNestest, runNestest) {
 
   std::vector<uint8_t> romDump = readNestestROM();
-  NES nes(romDump);                 // instantiate a virtual NES console
-  // NES(cart) calls reset interrupt
+  Renderer renderer(nullptr, nullptr, nullptr);
+  NES nes(std::move(renderer), romDump);  // instantiate a virtual NES console
 
   nes.cpu.TEST_setPC(0xC000);
   // up to 0xC6B3 -> official instructions
