@@ -43,9 +43,12 @@ cmake --build build -j
 
 > Avoid using `build/nesemu`, use release build instead.
 
-To run tests:
+To run all tests:
 ```bash
-ctest --test-dir build --verbose # run all tests
+ctest --test-dir build --verbose
+```
+To run specific tests:
+```bash
 ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests # runs 2,560,000 instructions, expect to take a while
 ctest --test-dir build --verbose --output-on-failure -R runCPUNestest # runs independent of PPU
 ctest --test-dir build --verbose --output-on-failure -R runPPUNestest # will fail if CPU is not correct
