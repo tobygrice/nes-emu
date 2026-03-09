@@ -21,15 +21,15 @@ I put down this project last year to focus on university. I intend to pick it ba
 ## Usage
 To run a ROM, use:
 ```bash
-./nesemu <rom.nes>
+./nesemu rom.nes
 ```
 To print CPU log to stdout, include the `--trace` flag:
 ```bash
-./nesemu <rom.nes> --trace
+./nesemu rom.nes --trace
 ```
 
 ## Building & Testing
-To compile (compiles to build/release/nesemu):
+To compile (compiles to `build/release/nesemu`):
 ```bash
 cmake -S . -B build
 cmake --preset release
