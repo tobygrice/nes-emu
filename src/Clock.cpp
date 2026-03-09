@@ -5,6 +5,8 @@
 
 #include "../include/NES.h"
 
+using steady_clock = std::chrono::steady_clock;
+
 Clock::Clock(NES &nes)
     : nes(nes), region(NESRegion::None), running(false), lastNMIState(false),
       pendingNMIEdge(false),
@@ -17,14 +19,13 @@ void Clock::setRegion(NESRegion region) {
 
     this->region = region;
 
-    double cycles_per_frame = (region == NESRegion::NTSC) ? 29780.5 : 33247.5;
+    double cyclesPerFrame = (region == NESRegion::NTSC) ? 29780.5 : 33247.5;
     double cpuHz = (region == NESRegion::NTSC) ? MASTER_SPEED_NTSC / 12.0
                                                : MASTER_SPEED_PAL / 16.0;
 
     // calculate frame duration
-    using clock = std::chrono::steady_clock;
-    const double framerate = cpuHz / cycles_per_frame;
-    this->frameDuration = std::chrono::duration_cast<clock::duration>(
+    const double framerate = cpuHz / cyclesPerFrame;
+    this->frameDuration = std::chrono::duration_cast<steady_clock::duration>(
         std::chrono::duration<double>(1.0 / framerate));
 }
 
@@ -41,14 +42,12 @@ void Clock::start() {
 }
 
 void Clock::gameLoop() {
-    using clock = std::chrono::steady_clock;
-    auto nextFrameDeadline = clock::now() + frameDuration;
-
+    auto nextFrameTime = steady_clock::now() + frameDuration;
     uint32_t cpuTicksUntilEventPoll = 1024;
-
     while (running) {
         // tick CPU
         nes.cpu.tick();
+        
         // process input events every 1024 CPU ticks
         if (--cpuTicksUntilEventPoll == 0) {
             this->processEvents();
@@ -57,6 +56,7 @@ void Clock::gameLoop() {
                 break;
             }
         }
+        
         // trigger NMI if pending
         if (pendingNMIEdge) {
             nes.cpu.triggerNMI();
@@ -86,13 +86,13 @@ void Clock::gameLoop() {
                     break;
                 }
                 // maintain frame timing:
-                const auto now = clock::now();
-                if (now < nextFrameDeadline) {
-                    std::this_thread::sleep_until(nextFrameDeadline);
+                const auto now = steady_clock::now();
+                if (now < nextFrameTime) {
+                    std::this_thread::sleep_until(nextFrameTime);
                 } else {
-                    nextFrameDeadline = now;
+                    nextFrameTime = now;
                 }
-                nextFrameDeadline += frameDuration;
+                nextFrameTime += frameDuration;
             }
         }
     }
