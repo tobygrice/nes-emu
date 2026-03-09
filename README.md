@@ -23,27 +23,30 @@ To run a ROM, use:
 ```bash
 ./nesemu rom.nes
 ```
-To print CPU log to stdout, include the `--trace` flag:
+If you want to print trace to stdout, include the `--trace` flag:
 ```bash
-./nesemu rom.nes --trace
+./nesemu rom.nes --trace > trace.log
 ```
 
 ## Building & Testing
-To compile (compiles to `build/release/nesemu`):
+To compile with optimisations (compiles to `build/release/nesemu`):
 ```bash
 cmake -S . -B build
 cmake --preset release
 cmake --build --preset release -j
 ```
-If you also wish to compile tests, use:
+If you wish to compile tests, use:
 ```bash
 cmake -S . -B build
 cmake --build build -j
 ```
+
+> Avoid using `build/nesemu`, use release build instead.
+
 To run tests:
 ```bash
 ctest --test-dir build --verbose # run all tests
-ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests # runs 256,000 instructions, expect to take a while
+ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests # runs 2,560,000 instructions, expect to take a while
 ctest --test-dir build --verbose --output-on-failure -R runCPUNestest # runs independent of PPU
 ctest --test-dir build --verbose --output-on-failure -R runPPUNestest # will fail if CPU is not correct
 ctest --test-dir build --verbose --output-on-failure -R runPPUTimingTests
