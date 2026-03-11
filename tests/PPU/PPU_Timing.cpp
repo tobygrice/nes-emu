@@ -45,6 +45,27 @@ TEST(PPUTiming, FrameWrapDoesNotDropOneTick) {
     EXPECT_EQ(ppu.getCycle(), 4);
 }
 
+TEST(PPUTiming, TickReturnsOptionalFrameOnlyWhenReady) {
+    Cartridge cart;
+    cart.load(makeMinimalNrom128());
+    PPU ppu(cart);
+
+    EXPECT_FALSE(ppu.tick().has_value());
+
+    constexpr int maxTicks = 300000;
+    for (int ticks = 1; ticks < maxTicks; ticks++) {
+        auto frame = ppu.tick();
+        if (frame.has_value()) {
+            EXPECT_EQ(frame->pixelData.size(), SCREEN_WIDTH * SCREEN_HEIGHT * 3);
+            EXPECT_EQ(frame->backgroundOpaque.size(),
+                      SCREEN_WIDTH * SCREEN_HEIGHT);
+            return;
+        }
+    }
+
+    FAIL() << "PPU did not produce a frame within " << maxTicks << " ticks";
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

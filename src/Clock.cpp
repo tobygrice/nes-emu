@@ -66,7 +66,7 @@ void Clock::gameLoop() {
 
         // tick PPU three times for each CPU tick
         for (int i = 0; i < 3; i++) {
-            std::unique_ptr<Frame> frame = nes.ppu.tick();
+            auto frame = nes.ppu.tick();
             const bool nmiState = nes.bus.ppuNMI();
             // check if NMI has just been raised:
             if (nmiState && !lastNMIState) {

@@ -7,3 +7,5 @@ romtests
 logs
 build-debug
 build-release
+buildclean
+buildfast

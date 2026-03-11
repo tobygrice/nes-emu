@@ -3,7 +3,7 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
+#include <optional>
 #include <vector>
 
 #include "../Renderer/Frame.h"
@@ -26,7 +26,7 @@ class PPU {
    * each flag for readability. The ADDR register also has a specific class to
    * allow for cycle-accurate read/writes.
    */
-  std::unique_ptr<Frame> currentFrame;
+  std::optional<Frame> currentFrame;
   uint8_t tileID = 0;
   uint8_t attribute = 0;
   uint8_t patternLow = 0;
@@ -67,7 +67,7 @@ class PPU {
   PPU& operator=(PPU&&) = delete;
 
   explicit PPU(Cartridge& cart)
-      : currentFrame(nullptr),
+      : currentFrame(std::nullopt),
         ctrl(),
         mask(),
         status(),
@@ -92,7 +92,7 @@ class PPU {
     oam_data.fill(0xFF);
   }
 
-  std::unique_ptr<Frame> tick();
+  std::optional<Frame> tick();
 
   uint16_t mirrorVRAMAddress(uint16_t addr);
   uint8_t mirrorPaletteAddress(uint8_t addr) {
