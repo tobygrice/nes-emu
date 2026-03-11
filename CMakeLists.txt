@@ -5,17 +5,9 @@ project(NES_EMU VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+if(NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-  Debug
-  Release
-  RelWithDebInfo
-  MinSizeRel
-)
-
-string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O0 -g")
 string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -DNDEBUG")
 
 enable_testing()
@@ -89,7 +81,7 @@ function(add_nes_test TEST_NAME TEST_SRC)
 endfunction()
 
 # # ------------------------------------------------
-# # Create your test targets
+# # Create test targets
 # # ------------------------------------------------
 add_nes_test(runCPUHarteTests
   src/CPU/CPU.cpp
@@ -137,13 +129,3 @@ target_compile_definitions(runPPUNestest
   PRIVATE
   NES_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
-
-# add_nes_test(runPPUTests
-#   src/Cartridge.cpp
-#   src/PPU/PPU.cpp
-#   src/PPU/Registers/PPUAddr.cpp
-#   tests/PPU/PPU_core_logic_test.cpp
-# )
-
-# add_nes_test(runPPUTests tests/PPU_test.cpp src/PPU.cpp)
-# add_nes_test(runAPUTests tests/APU_test.cpp src/APU.cpp)

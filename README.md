@@ -29,19 +29,11 @@ If you want to print trace to stdout, include the `--trace` flag:
 ```
 
 ## Building & Testing
-To compile with optimisations (compiles to `build/release/nesemu`):
-```bash
-cmake -S . -B build
-cmake --preset release
-cmake --build --preset release -j
-```
-If you wish to compile tests, use:
+The project always configures with release optimisations and compiles to `build/nesemu`:
 ```bash
 cmake -S . -B build
 cmake --build build -j
 ```
-
-> Avoid using `build/nesemu`, use release build instead.
 
 To run all tests:
 ```bash
