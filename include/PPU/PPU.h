@@ -4,136 +4,96 @@
 #include <array>
 #include <cstdint>
 #include <optional>
-#include <vector>
 
-#include "../Renderer/Frame.h"
 #include "../Cartridge.h"
+#include "../Renderer/Frame.h"
 #include "Registers/PPUAddr.h"
 #include "Registers/PPUCtrl.h"
 #include "Registers/PPUMask.h"
 #include "Registers/PPUScroll.h"
 #include "Registers/PPUStatus.h"
 
-class Renderer;
-
 class PPU {
-  friend class Renderer;
+  private:
+    std::optional<Frame> currentFrame = std::nullopt;
 
- private:
-  // REGISTERS:
-  /**
-   * CTRL, MASK, and STATUS registers have a struct for explicit named access to
-   * each flag for readability. The ADDR register also has a specific class to
-   * allow for cycle-accurate read/writes.
-   */
-  std::optional<Frame> currentFrame;
-  uint8_t tileID = 0;
-  uint8_t attribute = 0;
-  uint8_t patternLow = 0;
-  uint8_t patternHigh = 0;
-  uint16_t v = 0;
-  uint8_t currentYQuadrant = 0;
+    // Background tile fetch state
+    uint8_t tileID = 0;
+    uint8_t attribute = 0;
+    uint8_t patternLow = 0;
+    uint8_t patternHigh = 0;
 
-  PPUCtrl ctrl;      // 0x2000
-  PPUMask mask;      // 0x2001
-  PPUStatus status;  // 0x2002
-  PPUScroll scroll;  // 0x2005
-  PPUAddr addr;      // 0x2006
-  uint8_t data_buf;  // 0x2007 buffer
-  uint8_t oam_dma;   // 0x4014
+    // Registers
+    PPUCtrl ctrl;         // 0x2000
+    PPUMask mask;         // 0x2001
+    PPUStatus status;     // 0x2002
+    PPUScroll scroll;     // 0x2005
+    PPUAddr addr;         // 0x2006
+    uint8_t data_buf = 0; // 0x2007 read buffer
 
-  uint8_t oam_addr;                       // 0x2003
-  std::array<uint8_t, 256> oam_data;      // 0x2004 256 bytes of sprite memory
-  std::array<uint8_t, 32> palette_table;  // 32 bytes
+    uint8_t oam_addr = 0;                // 0x2003
+    std::array<uint8_t, 256> oam_data{}; // 0x2004 sprite memory
+    std::array<uint8_t, 32> palette_table{};
 
-  // chr_rom and mirroring mode in cartridge, accessed via bus
-  std::array<uint8_t, 2048> vram;  // 2048 bytes of vram
-  Cartridge& cart;
+    // CIRAM backing the mirrored nametable space at $2000-$2FFF.
+    std::array<uint8_t, 2048> vram{};
+    Cartridge &cart;
 
-  uint16_t cycles;
-  int scanline;  // -1 scanline
-  bool oddFrame = false;
-  bool nmiInterrupt;
-  bool suppressVblankThisFrame;
+    uint16_t cycles = 0;
+    int scanline = 0;
+    bool nmiInterrupt = false;
+    bool suppressVblankThisFrame = false;
 
-  // PPU I/O data bus latch ("open bus"). Lower bits of PPUSTATUS reads come
-  // from this latch.
-  uint8_t last_written_value;
+    // PPU I/O data bus latch ("open bus"). Lower bits of PPUSTATUS reads come
+    // from this latch.
+    uint8_t last_written_value = 0;
 
- public:
-  PPU(const PPU&) = delete;
-  PPU& operator=(const PPU&) = delete;
-  PPU(PPU&&) = delete;
-  PPU& operator=(PPU&&) = delete;
+    // Private helpers
+    uint16_t mirrorVRAMAddress(uint16_t addr);
+    static uint8_t mirrorPaletteAddress(uint8_t addr);
+    void pushBackgroundPixelPair(Frame &frame, uint8_t attributeQuadrant,
+                                 uint8_t leftBit,
+                                 bool backgroundRenderingEnabled);
+    void renderSprites(Frame &frame);
 
-  explicit PPU(Cartridge& cart)
-      : currentFrame(std::nullopt),
-        ctrl(),
-        mask(),
-        status(),
-        scroll(),
-        addr(),
-        data_buf(0),
-        oam_dma(0),
+  public:
+    PPU(const PPU &) = delete;
+    PPU &operator=(const PPU &) = delete;
+    PPU(PPU &&) = delete;
+    PPU &operator=(PPU &&) = delete;
 
-        oam_addr(0),
-        oam_data{},
-        palette_table{},
+    explicit PPU(Cartridge &cart) : cart(cart) { oam_data.fill(0xFF); }
 
-        vram{},
-        cart(cart),
+    std::optional<Frame> tick();
 
-        cycles(0),
-        scanline(0),
-        nmiInterrupt(false),
-        suppressVblankThisFrame(false),
-        last_written_value(0) {
-    // Uninitialized OAM bytes should default off-screen in this core.
-    oam_data.fill(0xFF);
-  }
+    bool getNMI() const { return nmiInterrupt; }
+    uint16_t getScanline() const { return static_cast<uint16_t>(scanline); }
+    uint16_t getCycle() const { return cycles; }
+    uint8_t lastWrittenValue() const { return last_written_value; }
 
-  std::optional<Frame> tick();
+    uint8_t cpuRead();
+    void cpuWrite(uint8_t value);
 
-  uint16_t mirrorVRAMAddress(uint16_t addr);
-  uint8_t mirrorPaletteAddress(uint8_t addr) {
-    addr &= 0x1F;
-    if (addr == 0x10) {
-      addr = 0x00;
-    } else if (addr == 0x14) {
-      addr = 0x04;
-    } else if (addr == 0x18) {
-      addr = 0x08;
-    } else if (addr == 0x1C) {
-      addr = 0x0C;
+    // register read/writes
+    void write_to_ctrl(uint8_t value);
+    void write_to_mask(uint8_t value);
+    uint8_t read_status();
+    void write_to_oam_addr(uint8_t value);
+    void write_to_oam_data(uint8_t value);
+    uint8_t read_oam_data();
+    void write_to_scroll(uint8_t value);
+    void write_to_ppu_addr(uint8_t value);
+    void write_oam_dma(const std::array<uint8_t, 256> &data);
+
+    // getters/setters for testing only
+    // read/writes without implementing additional expected behaviour
+    uint8_t TEST_getvram(uint16_t address) const { return vram[address]; }
+    void TEST_setvram(uint16_t address, uint8_t value) {
+        vram[address] = value;
     }
-    return addr;
-  }
-
-  bool getNMI() { return nmiInterrupt; }
-  uint16_t getScanline() { return scanline; }
-  uint16_t getCycle() { return cycles; }
-  uint8_t lastWrittenValue() { return last_written_value; }
-
-  // read/writes to 0x2007
-  uint8_t cpuRead();
-  void cpuWrite(uint8_t value);
-
-  // register READ/WRITES:
-  void write_to_ctrl(uint8_t value);
-  void write_to_mask(uint8_t value);
-  uint8_t read_status();
-  void write_to_oam_addr(uint8_t value);
-  void write_to_oam_data(uint8_t value);
-  uint8_t read_oam_data();
-  void write_to_scroll(uint8_t value);
-  void write_to_ppu_addr(uint8_t value);
-  void write_oam_dma(const std::array<uint8_t, 256>& data);
-
-  uint8_t TEST_getvram(uint16_t address) { return vram[address]; }
-  void TEST_setvram(uint16_t address, uint8_t value) { vram[address] = value; }
-  uint8_t TEST_getstatus() { return status.snapshot(); }
-  uint16_t TEST_getaddr() { return addr.get(); }
-  void TEST_set_vblank_status(bool val) { status.set_vblank_status(val); }
+    uint8_t TEST_getstatus() const { return status.snapshot(); }
+    uint16_t TEST_getaddr() const { return addr.get(); }
+    void TEST_set_vblank_status(bool val) { status.set_vblank_status(val); }
 };
 
 #endif

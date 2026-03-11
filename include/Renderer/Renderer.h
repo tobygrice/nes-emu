@@ -70,8 +70,7 @@ class Renderer {
         }
     }
 
-    // Render function: converts a Frame's pixel data into an image on the
-    // window.
+    // Renders a Frame object onto the SDL window
     void render(const Frame &frame);
 };
 
