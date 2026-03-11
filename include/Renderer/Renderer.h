@@ -42,8 +42,8 @@ class Renderer {
     std::unique_ptr<SDL_Window, WindowDeleter> sdlWindow;
     std::unique_ptr<SDL_Renderer, RendererDeleter> sdlRenderer;
     std::unique_ptr<SDL_Texture, TextureDeleter> sdlTexture;
-    const int WIDTH = 256;
-    const int HEIGHT = 240;
+    std::vector<uint8_t> upscaledPixelData =
+        std::vector<uint8_t>(RENDER_WIDTH * RENDER_HEIGHT * 3, 0);
     uint64_t fpsWindowStartMs = 0;
     uint32_t framesInCurrentWindow = 0;
     float currentFps = 0.0f;

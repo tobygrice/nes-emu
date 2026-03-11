@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "../include/Constants.h"
 #include "../include/NES.h"
 #include "../include/Renderer/Renderer.h" // includes SDH.h
 
@@ -26,18 +27,14 @@ std::vector<uint8_t> readROM(char *filename) {
 
 void initialise_SDL(SDL_Window *&sdlWindow, SDL_Renderer *&sdlRenderer,
                     SDL_Texture *&sdlTexture) {
-    const int WIDTH = 256;
-    const int HEIGHT = 240;
-    const int SCALE = 3;
-
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         throw std::runtime_error(std::string("SDL_Init Error: ") +
                                  SDL_GetError());
     }
 
     if (!SDL_CreateWindowAndRenderer("grice.software - NES EMU",
-                                     WIDTH * SCALE,  // width, in pixels
-                                     HEIGHT * SCALE, // height, in pixels
+                                     RENDER_WIDTH,  // width, in pixels
+                                     RENDER_HEIGHT, // height, in pixels
                                      0,              // flags
                                      &sdlWindow, &sdlRenderer)) {
         SDL_Quit();
@@ -45,7 +42,6 @@ void initialise_SDL(SDL_Window *&sdlWindow, SDL_Renderer *&sdlRenderer,
             std::string("SDL_CreateWindowAndRenderer Error: ") +
             SDL_GetError());
     }
-    SDL_SetRenderScale(sdlRenderer, SCALE, SCALE);
     if (!SDL_SetRenderVSync(sdlRenderer, 1)) {
         std::cerr << "Warning: could not enable VSync: " << SDL_GetError()
                   << std::endl;
@@ -53,7 +49,8 @@ void initialise_SDL(SDL_Window *&sdlWindow, SDL_Renderer *&sdlRenderer,
 
     // Create a streaming texture for updating pixel data
     sdlTexture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGB24,
-                                   SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
+                                   SDL_TEXTUREACCESS_STREAMING, RENDER_WIDTH,
+                                   RENDER_HEIGHT);
 
     if (!sdlTexture) {
         SDL_DestroyRenderer(sdlRenderer);
@@ -61,6 +58,15 @@ void initialise_SDL(SDL_Window *&sdlWindow, SDL_Renderer *&sdlRenderer,
         SDL_Quit();
         throw std::runtime_error(std::string("SDL_CreateTexture Error: ") +
                                  SDL_GetError());
+    }
+
+    if (!SDL_SetTextureScaleMode(sdlTexture, SDL_SCALEMODE_NEAREST)) {
+        SDL_DestroyTexture(sdlTexture);
+        SDL_DestroyRenderer(sdlRenderer);
+        SDL_DestroyWindow(sdlWindow);
+        SDL_Quit();
+        throw std::runtime_error(
+            std::string("SDL_SetTextureScaleMode Error: ") + SDL_GetError());
     }
 }
 
