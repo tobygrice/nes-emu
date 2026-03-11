@@ -114,6 +114,13 @@ add_nes_test(runPPUTimingTests
   tests/PPU/PPU_Timing.cpp
 )
 
+add_nes_test(runPPUSpriteZeroTests
+  src/PPU/PPU.cpp
+  src/PPU/Registers/PPUAddr.cpp
+  src/Cartridge.cpp
+  tests/PPU/PPU_SpriteZero.cpp
+)
+
 add_nes_test(runPPUNestest
   src/CPU/CPU.cpp
   src/CPU/OpCode.cpp

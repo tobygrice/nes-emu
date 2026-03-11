@@ -41,6 +41,7 @@ class PPU {
 
     uint16_t cycles = 0;
     int scanline = 0;
+    bool oddFrame = false;
     bool nmiInterrupt = false;
     bool suppressVblankThisFrame = false;
 
@@ -54,6 +55,9 @@ class PPU {
     void pushBackgroundPixelPair(Frame &frame, uint8_t attributeQuadrant,
                                  uint8_t leftBit,
                                  bool backgroundRenderingEnabled);
+    bool spriteZeroPixelOpaque(int screenX, int screenY) const;
+    void evaluateSpriteZeroHit(int screenX, int screenY,
+                               bool backgroundOpaque);
     void renderSprites(Frame &frame);
 
   public:

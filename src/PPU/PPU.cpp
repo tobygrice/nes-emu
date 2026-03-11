@@ -72,6 +72,81 @@ void PPU::pushBackgroundPixelPair(Frame &frame, uint8_t attributeQuadrant,
         const uint8_t paletteIndex = mirrorPaletteAddress(static_cast<uint8_t>(
             pixelValue == 0 ? 0 : (paletteSelection * 4) + pixelValue));
         frame.push(palette_table[paletteIndex], pixelValue != 0);
+
+        const std::size_t pixelIndex = frame.currentPixelIndex - 1;
+        const int screenX = static_cast<int>(pixelIndex % SCREEN_WIDTH);
+        const int screenY = static_cast<int>(pixelIndex / SCREEN_WIDTH);
+        evaluateSpriteZeroHit(screenX, screenY, pixelValue != 0);
+    }
+}
+
+bool PPU::spriteZeroPixelOpaque(int screenX, int screenY) const {
+    const uint8_t spriteHeight = ctrl.sprite_size();
+    const int spriteY = static_cast<int>(oam_data[0]) + 1;
+    const int spriteX = static_cast<int>(oam_data[3]);
+
+    if (screenX < spriteX || screenX >= spriteX + 8 || screenY < spriteY ||
+        screenY >= spriteY + spriteHeight) {
+        return false;
+    }
+
+    const uint8_t tileIndex = oam_data[1];
+    const uint8_t attributes = oam_data[2];
+    const bool flipHorizontal = (attributes & 0x40) != 0;
+    const bool flipVertical = (attributes & 0x80) != 0;
+
+    int spriteRow = screenY - spriteY;
+    const int spriteColumn = screenX - spriteX;
+    if (flipVertical) {
+        spriteRow = spriteHeight - 1 - spriteRow;
+    }
+
+    uint16_t patternBase = 0;
+    uint8_t tileNumber = tileIndex;
+    uint8_t fineY = 0;
+
+    if (spriteHeight == 16) {
+        patternBase = (tileIndex & 0x01) ? 0x1000 : 0x0000;
+        tileNumber = static_cast<uint8_t>(tileIndex & 0xFE);
+        if (spriteRow >= 8) {
+            tileNumber = static_cast<uint8_t>(tileNumber + 1);
+            fineY = static_cast<uint8_t>(spriteRow - 8);
+        } else {
+            fineY = static_cast<uint8_t>(spriteRow);
+        }
+    } else {
+        patternBase = ctrl.sprite_pattern_addr();
+        fineY = static_cast<uint8_t>(spriteRow & 0x07);
+    }
+
+    const uint16_t patternAddress =
+        static_cast<uint16_t>(patternBase + (tileNumber * 16) + fineY);
+    const uint8_t patternLow = cart.read_chr_rom(patternAddress);
+    const uint8_t patternHigh = cart.read_chr_rom(patternAddress + 8);
+    const int bit = flipHorizontal ? spriteColumn : (7 - spriteColumn);
+
+    return decodePatternPixel(patternLow, patternHigh,
+                              static_cast<uint8_t>(bit)) != 0;
+}
+
+void PPU::evaluateSpriteZeroHit(int screenX, int screenY,
+                                bool backgroundOpaque) {
+    if ((status.snapshot() & PPUStatus::SPRITE_ZERO_HIT) != 0 ||
+        !backgroundOpaque || !mask.show_background() || !mask.show_sprites()) {
+        return;
+    }
+
+    if (screenX == 255) {
+        return;
+    }
+
+    if (screenX < 8 && (!mask.leftmost_8pxl_background() ||
+                        !mask.leftmost_8pxl_sprite())) {
+        return;
+    }
+
+    if (spriteZeroPixelOpaque(screenX, screenY)) {
+        status.set_sprite_zero_hit(true);
     }
 }
 
@@ -257,7 +332,6 @@ std::optional<Frame> PPU::tick() {
 
             if (!suppressVblankThisFrame) {
                 status.set_vblank_status(true);
-                status.set_sprite_zero_hit(false);
                 if (ctrl.generate_vblank_nmi()) {
                     nmiInterrupt = true;
                 }
@@ -280,6 +354,14 @@ std::optional<Frame> PPU::tick() {
     // this point is reached on all scanlines/cycles except for (241, 1), which
     // returns a completed frame (see above)
 
+    if (scanline == 261 && cycles == 339 && oddFrame &&
+        (mask.show_background() || mask.show_sprites())) {
+        scanline = 0;
+        cycles = 0;
+        oddFrame = false;
+        return std::nullopt;
+    }
+
     cycles++;
 
     // check end of scanline reached
@@ -290,6 +372,7 @@ std::optional<Frame> PPU::tick() {
         // check end of frame reached
         if (scanline > 261) {
             scanline = 0;
+            oddFrame = !oddFrame;
         }
     }
 

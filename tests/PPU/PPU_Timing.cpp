@@ -5,6 +5,7 @@
 
 #include "../../include/Cartridge.h"
 #include "../../include/PPU/PPU.h"
+#include "../../include/PPU/Registers/PPUMask.h"
 
 namespace {
 std::vector<uint8_t> makeMinimalNrom128() {
@@ -64,6 +65,36 @@ TEST(PPUTiming, TickReturnsOptionalFrameOnlyWhenReady) {
     }
 
     FAIL() << "PPU did not produce a frame within " << maxTicks << " ticks";
+}
+
+TEST(PPUTiming, OddFrameWithRenderingEnabledSkipsOneTick) {
+    Cartridge cart;
+    cart.load(makeMinimalNrom128());
+    PPU ppu(cart);
+    ppu.write_to_mask(PPUMask::SHOW_BACKGROUND);
+
+    constexpr int maxTicks = 300000;
+    int prerender339Sightings = 0;
+
+    for (int ticks = 0; ticks < maxTicks; ticks++) {
+        if (ppu.getScanline() == 261 && ppu.getCycle() == 339) {
+            prerender339Sightings++;
+            ppu.tick();
+
+            if (prerender339Sightings == 2) {
+                EXPECT_EQ(ppu.getScanline(), 0);
+                EXPECT_EQ(ppu.getCycle(), 0);
+                return;
+            }
+
+            continue;
+        }
+
+        ppu.tick();
+    }
+
+    FAIL() << "PPU did not reach the odd-frame prerender skip within "
+           << maxTicks << " ticks";
 }
 
 int main(int argc, char **argv) {
