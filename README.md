@@ -30,7 +30,7 @@ If you want to print trace to stdout, include the `--trace` flag:
 
 ## Controls
 
-| Joypad | Input Key      |
+| Joypad | Input Key/s    |
 | ------ | -------------- |
 | A      | Z, J           |
 | B      | X, K           |
