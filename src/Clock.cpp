@@ -127,10 +127,10 @@ void Clock::processEvents() {
     };
 
     uint8_t joypad1State = 0;
-    if (isPressed(SDL_SCANCODE_Z) || isPressed(SDL_SCANCODE_K)) {
+    if (isPressed(SDL_SCANCODE_Z) || isPressed(SDL_SCANCODE_J)) {
         joypad1State |= Bus::JOYPAD_A;
     }
-    if (isPressed(SDL_SCANCODE_X) || isPressed(SDL_SCANCODE_J)) {
+    if (isPressed(SDL_SCANCODE_X) || isPressed(SDL_SCANCODE_K)) {
         joypad1State |= Bus::JOYPAD_B;
     }
     if (isPressed(SDL_SCANCODE_RETURN) || isPressed(SDL_SCANCODE_KP_ENTER) ||

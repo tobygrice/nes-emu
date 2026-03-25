@@ -1,14 +1,13 @@
 # NES Emulator
 
-This NES emulator is a personal project to experiment with distributed systems and parallel programming in C++. The goal is to have each processing unit of the NES console running
-in parallel with single-tick granularity, coordinated by a single shared clock (as in actual hardware).
+This NES emulator is a personal project to experiment with distributed systems and parallel programming in C++. The goal was to have each processing unit of the NES console running in parallel with single-tick granularity, coordinated by a single shared clock (as in actual hardware).
 
-Running an emulator with single-tick granularity will cause a huge amount of overhead due to constant context-switching between components (the PPU ticks over 5 million times per second, the CPU over 1.5 million). 
-This project is an experiment in parallel processing to see if this overhead can be mitigated or even removed (hardware allowing).
+I found that parallelising the system used around 3 times as much compute, due to the significant overhead required for scheduling and component coordination. Furthermore, CPU schedulers are too imprecise to coordinate each component to a single tick, so component operations had to be batched. This resulted in a less performant *and* less accurate emulator. As such, I decided to revert it to a serial implementation that runs with single-tick granularity.
 
-I put down this project last year to focus on university. I intend to pick it back up at some point, but for now, it remains unfinished and I have moved on to other projects.
+The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). There are significant scrolling bugs, so while Super Mario Bros. runs, it crashes shortly into 1-1. Early titles without scrolling run great (eg. Pacman).
 
-## Development Progress:
+## Development Progress
+
 - [x] CPU official opcodes
 - [x] Bus
 - [x] Nintendulator formatted logs
@@ -19,6 +18,7 @@ I put down this project last year to focus on university. I intend to pick it ba
 - [x] PPU Scrolling
 
 ## Usage
+
 To run a ROM, use:
 ```bash
 ./nesemu rom.nes
@@ -28,8 +28,23 @@ If you want to print trace to stdout, include the `--trace` flag:
 ./nesemu rom.nes --trace > trace.log
 ```
 
+## Controls
+
+| Joypad | Input Key      |
+| ------ | -------------- |
+| A      | Z, J           |
+| B      | X, K           |
+| START  | ENTER, SPACE   |
+| SELECT | TAB, SHIFT     |
+| ↑      | W, Up arrow    |
+| ↓      | S, Down arrow  |
+| ←      | A, Left arrow  |
+| →      | D, Right arrow |
+
+
 ## Building & Testing
-The project always configures with release optimisations and compiles to `build/nesemu`:
+
+Compilation uses cmake:
 ```bash
 cmake -S . -B build
 cmake --build build -j
