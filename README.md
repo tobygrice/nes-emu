@@ -17,15 +17,51 @@ The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). T
 - [x] Input
 - [x] PPU Scrolling
 
+
+## Building & Testing
+
+Clone the repo:
+
+```bash
+git clone https://github.com/tobygrice/nes-emu
+```
+
+Compilation uses cmake.
+
+```bash
+cmake -S . -B build
+cmake --build build -j
+```
+
+Executable will be built as `./build/nesemu`.
+
+To run all tests:
+
+```bash
+ctest --test-dir build --verbose
+```
+
+To run specific tests:
+
+```bash
+ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests # runs 2,560,000 instructions, expect to take a while
+ctest --test-dir build --verbose --output-on-failure -R runCPUNestest # runs independent of PPU
+ctest --test-dir build --verbose --output-on-failure -R runPPUNestest # will fail if CPU is not correct
+ctest --test-dir build --verbose --output-on-failure -R runPPUTimingTests
+```
+
 ## Usage
 
 To run a ROM, use:
+
 ```bash
-./nesemu rom.nes
+./build/nesemu rom.nes
 ```
+
 If you want to print trace to stdout, include the `--trace` flag:
+
 ```bash
-./nesemu rom.nes --trace > trace.log
+./build/nesemu rom.nes --trace > trace.log
 ```
 
 ## Controls
@@ -40,24 +76,3 @@ If you want to print trace to stdout, include the `--trace` flag:
 | ↓      | S, Down arrow  |
 | ←      | A, Left arrow  |
 | →      | D, Right arrow |
-
-
-## Building & Testing
-
-Compilation uses cmake:
-```bash
-cmake -S . -B build
-cmake --build build -j
-```
-
-To run all tests:
-```bash
-ctest --test-dir build --verbose
-```
-To run specific tests:
-```bash
-ctest --test-dir build --verbose --output-on-failure -R runCPUHarteTests # runs 2,560,000 instructions, expect to take a while
-ctest --test-dir build --verbose --output-on-failure -R runCPUNestest # runs independent of PPU
-ctest --test-dir build --verbose --output-on-failure -R runPPUNestest # will fail if CPU is not correct
-ctest --test-dir build --verbose --output-on-failure -R runPPUTimingTests
-```
