@@ -32,7 +32,7 @@ void initialise_SDL(SDL_Window *&sdlWindow, SDL_Renderer *&sdlRenderer,
                                  SDL_GetError());
     }
 
-    if (!SDL_CreateWindowAndRenderer("grice.software - NES EMU",
+    if (!SDL_CreateWindowAndRenderer("NES Emulator - tobygrice.com",
                                      RENDER_WIDTH,  // width, in pixels
                                      RENDER_HEIGHT, // height, in pixels
                                      0,              // flags
