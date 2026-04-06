@@ -24,6 +24,7 @@ Clone the repo:
 
 ```bash
 git clone https://github.com/tobygrice/nes-emu
+cd nes-emu
 ```
 
 Compilation uses cmake.
