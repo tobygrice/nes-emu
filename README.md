@@ -17,6 +17,34 @@ The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). T
 - [x] Input
 - [x] PPU Scrolling
 
+## Usage
+
+Download binaries from latest release, or build from source using the instructions under the *Building & Testing* section below.
+
+To run a ROM, use:
+
+```bash
+./build/nesemu rom.nes
+```
+
+If you want to print trace to stdout, include the `--trace` flag:
+
+```bash
+./build/nesemu rom.nes --trace > trace.log
+```
+
+### Controls
+
+| Joypad | Input Key/s    |
+| ------ | -------------- |
+| A      | Z, J           |
+| B      | X, K           |
+| START  | ENTER, SPACE   |
+| SELECT | TAB, SHIFT     |
+| ↑      | W, Up arrow    |
+| ↓      | S, Down arrow  |
+| ←      | A, Left arrow  |
+| →      | D, Right arrow |
 
 ## Building & Testing
 
@@ -50,30 +78,3 @@ ctest --test-dir build --verbose --output-on-failure -R runCPUNestest # runs ind
 ctest --test-dir build --verbose --output-on-failure -R runPPUNestest # will fail if CPU is not correct
 ctest --test-dir build --verbose --output-on-failure -R runPPUTimingTests
 ```
-
-## Usage
-
-To run a ROM, use:
-
-```bash
-./build/nesemu rom.nes
-```
-
-If you want to print trace to stdout, include the `--trace` flag:
-
-```bash
-./build/nesemu rom.nes --trace > trace.log
-```
-
-## Controls
-
-| Joypad | Input Key/s    |
-| ------ | -------------- |
-| A      | Z, J           |
-| B      | X, K           |
-| START  | ENTER, SPACE   |
-| SELECT | TAB, SHIFT     |
-| ↑      | W, Up arrow    |
-| ↓      | S, Down arrow  |
-| ←      | A, Left arrow  |
-| →      | D, Right arrow |
