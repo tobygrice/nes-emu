@@ -4,7 +4,7 @@ This NES emulator is a personal project to experiment with distributed systems a
 
 I found that parallelising the system used around 3 times as much compute, due to the significant overhead required for scheduling and component coordination. Furthermore, CPU schedulers are too imprecise to coordinate each component to a single tick, so component operations had to be batched. This resulted in a less performant *and* less accurate emulator. As such, I decided to revert it to a serial implementation that runs with single-tick granularity.
 
-The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). There are significant scrolling bugs, so while Super Mario Bros. runs, it crashes shortly into 1-1. Early titles without scrolling run great (eg. Pacman).
+The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). There are scrolling bugs I have not been able to resolve, so while Super Mario Bros. runs, it crashes shortly into 1-1. Early titles without scrolling run great (eg. Pacman).
 
 ## Development Progress
 
