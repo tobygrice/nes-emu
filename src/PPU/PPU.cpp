@@ -1,4 +1,5 @@
 #include "../../include/PPU/PPU.h"
+#include <string>
 
 namespace {
 
