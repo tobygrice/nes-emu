@@ -2,7 +2,6 @@
 #define PPUSTATUS_H
 
 #include <cstdint>
-#include <stdexcept>
 
 class PPUStatus {
   private:

@@ -2,7 +2,6 @@
 #define PPUCTRL_H
 
 #include <cstdint>
-#include <stdexcept>
 
 // register classes are C++ clones of the ebook definitions
 // - didn't want to take any risks at this low level

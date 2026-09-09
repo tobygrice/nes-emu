@@ -6,7 +6,6 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "../include/NES.h"

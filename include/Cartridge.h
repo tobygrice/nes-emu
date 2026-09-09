@@ -40,7 +40,6 @@
 #define CARTRIDGE_H
 
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <vector>
 
