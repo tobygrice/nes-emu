@@ -64,6 +64,17 @@ cmake --build build -j
 
 Executable will be built as `./build/nesemu`.
 
+With Visual Studio on Windows, select the configuration explicitly:
+
+```powershell
+cmake --build build --config Debug -j
+cmake --build build --config Release -j
+```
+
+The executable is `./build/Debug/nesemu.exe`. The build copies `SDL3.dll`
+beside the executables so they can run. Tests are placed in `./build/tests`,
+allowing the same `ctest` command below to work on Windows.
+
 To run all tests:
 
 ```bash

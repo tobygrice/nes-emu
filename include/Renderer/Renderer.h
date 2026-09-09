@@ -3,13 +3,7 @@
 
 #include <SDL3/SDL.h>
 
-#include <cstdint>
-#include <iostream>
 #include <memory>
-#include <stdexcept>
-#include <string>
-#include <tuple>
-#include <vector>
 
 #include "Frame.h"
 
@@ -42,11 +36,6 @@ class Renderer {
     std::unique_ptr<SDL_Window, WindowDeleter> sdlWindow;
     std::unique_ptr<SDL_Renderer, RendererDeleter> sdlRenderer;
     std::unique_ptr<SDL_Texture, TextureDeleter> sdlTexture;
-    std::vector<uint8_t> upscaledPixelData =
-        std::vector<uint8_t>(RENDER_WIDTH * RENDER_HEIGHT * 3, 0);
-    uint64_t fpsWindowStartMs = 0;
-    uint32_t framesInCurrentWindow = 0;
-    float currentFps = 0.0f;
 
   public:
     Renderer(const Renderer &) = delete;
@@ -54,7 +43,10 @@ class Renderer {
     Renderer(Renderer &&) noexcept = default;
     Renderer &operator=(Renderer &&) = delete;
 
-    // Constructor: initializes SDL, creates a window, renderer, and texture.
+    // Initialize SDL and acquire the window, renderer and native-size texture.
+    static Renderer create();
+
+    // Takes ownership of SDL resources. Null resources support headless tests.
     Renderer(SDL_Window *w, SDL_Renderer *r, SDL_Texture *t)
         : sdlWindow(w), sdlRenderer(r), sdlTexture(t) {}
 

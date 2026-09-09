@@ -2,9 +2,6 @@
 #define PPUMASK_H
 
 #include <cstdint>
-#include <vector>
-
-using Colour = std::tuple<uint8_t, uint8_t, uint8_t>;
 
 class PPUMask {
   private:
@@ -39,21 +36,6 @@ class PPUMask {
 
     // returns true if the sprites should be shown
     bool show_sprites() const { return isSet(SHOW_SPRITES); }
-
-    // returns a vector of Colour values corresponding to the emphasised colors
-    std::vector<Colour> emphasise() const {
-        std::vector<Colour> result;
-        if (isSet(EMPHASISE_RED)) {
-            result.push_back({1, 0, 0});
-        }
-        if (isSet(EMPHASISE_GREEN)) {
-            result.push_back({0, 1, 0});
-        }
-        if (isSet(EMPHASISE_BLUE)) {
-            result.push_back({0, 0, 1});
-        }
-        return result;
-    }
 
     // updates the register bits with new data
     void update(uint8_t data) { bits = data; }

@@ -64,7 +64,7 @@ std::string Logger::disassembleInstr(const CPUState &state) {
         // e.g. "LDA $03,X = AB"
         out << "$" << hex2(state.opBytes.at(1)) << ",X";
         out << " @ "
-            << hex2(state.addrInfo.address); // Include computed address
+            << hex2(static_cast<uint8_t>(state.addrInfo.address));
         out << " = " << hex2(state.valueAtAddr);
         break;
 
@@ -72,7 +72,7 @@ std::string Logger::disassembleInstr(const CPUState &state) {
         // e.g. "LDA $03,Y = AB"
         out << "$" << hex2(state.opBytes.at(1)) << ",Y";
         out << " @ "
-            << hex2(state.addrInfo.address); // Include computed address
+            << hex2(static_cast<uint8_t>(state.addrInfo.address));
         out << " = " << hex2(state.valueAtAddr);
         break;
 
@@ -111,8 +111,7 @@ std::string Logger::disassembleInstr(const CPUState &state) {
     case AddressingMode::IndirectX:
         out << "($" << hex2(state.opBytes.at(1)) << ",X)";
         out << " @ "
-            << hex2(state.addrInfo
-                        .pointerAddress); // Intermediate zero-page pointer
+            << hex2(static_cast<uint8_t>(state.addrInfo.pointerAddress));
         out << " = " << hex4(state.addrInfo.address); // Final resolved address
         out << " = " << hex2(state.valueAtAddr);      // Value at final address
         break;

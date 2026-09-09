@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -153,7 +154,8 @@ class CpuPpuStepper {
   public:
     explicit CpuPpuStepper(NES &nes) : nes(nes) {}
 
-    void tick() {
+    std::optional<Frame> tick() {
+        std::optional<Frame> completedFrame;
         nes.cpu.tick();
 
         if (pendingNMIEdge) {
@@ -162,7 +164,10 @@ class CpuPpuStepper {
         }
 
         for (int i = 0; i < 3; i++) {
-            nes.ppu.tick();
+            auto frame = nes.ppu.tick();
+            if (frame) {
+                completedFrame = std::move(frame);
+            }
             const bool nmiState = nes.bus.ppuNMI();
             if (nmiState && !lastNMIState) {
                 if (nes.cpu.completedTakenBranchLastTick()) {
@@ -173,6 +178,7 @@ class CpuPpuStepper {
             }
             lastNMIState = nmiState;
         }
+        return completedFrame;
     }
 
   private:

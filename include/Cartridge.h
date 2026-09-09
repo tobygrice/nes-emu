@@ -39,10 +39,11 @@
 #ifndef CARTRIDGE_H
 #define CARTRIDGE_H
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
-// enum class for addressing modes
 enum class MirroringMode { Vertical, Horizontal, FourScreen };
 enum class NESRegion { NTSC, PAL, None };
 
@@ -51,29 +52,32 @@ class Cartridge {
     bool empty;
     std::vector<uint8_t> prg_rom;
     std::vector<uint8_t> chr_rom;
+    std::array<uint8_t, 0x2000> prg_ram{};
     bool chr_is_ram;
     MirroringMode mirroring;
     NESRegion region;
     uint8_t mapper;
-    size_t prg_rom_size;
-    size_t chr_rom_size;
 
   public:
     Cartridge()
         : empty(true), prg_rom{}, chr_rom{}, chr_is_ram(false),
           mirroring(MirroringMode::Horizontal), region(NESRegion::None),
-          mapper(), prg_rom_size(0), chr_rom_size(0) {}
+          mapper() {}
 
     Cartridge(const std::vector<uint8_t> &raw) : Cartridge() { load(raw); }
 
     void load(const std::vector<uint8_t> &raw);
-    uint8_t read_prg_rom(uint16_t addr);
-    uint8_t read_chr_rom(uint16_t addr);
+    uint8_t read_prg_rom(uint16_t addr) const;
+    uint8_t read_chr_rom(uint16_t addr) const;
     void write_chr_ram(uint16_t addr, uint8_t value);
+    uint8_t read_prg_ram(uint16_t addr) const { return prg_ram[addr & 0x1FFF]; }
+    void write_prg_ram(uint16_t addr, uint8_t value) {
+        prg_ram[addr & 0x1FFF] = value;
+    }
 
-    MirroringMode getMirroring() { return mirroring; }
+    MirroringMode getMirroring() const { return mirroring; }
     void setMirroring(MirroringMode m) { this->mirroring = m; }
-    NESRegion getRegion() { return region; }
+    NESRegion getRegion() const { return region; }
 };
 
 #endif

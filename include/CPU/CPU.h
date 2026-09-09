@@ -6,7 +6,7 @@
 #include <memory>
 #include <vector>
 
-#include "../Bus.h"
+#include "../BusInterface.h"
 #include "../Logger.h"
 #include "AddressResolveInfo.h"
 #include "OpCode.h"
@@ -40,6 +40,7 @@ class CPU {
   void triggerIRQ() { pendingIRQ = true; }
 
   Interrupt checkInterrupt() { return activeInterrupt; }
+  bool isJammed() const { return jammed; }
 
   uint8_t TEST_getA() { return a_register; };
   uint8_t TEST_getX() { return x_register; };
@@ -81,7 +82,7 @@ class CPU {
   Logger& logger;      // logger
 
   const OpCode* currentOpCode = nullptr;
-  uint8_t readBuffer;
+  uint8_t readBuffer = 0;
   std::vector<uint8_t> currentOpBytes;
   uint8_t cyclesRemainingInCurrentInstr = 0;
   uint8_t cyclesRemainingInCurrentInterrupt = 7;
@@ -93,6 +94,7 @@ class CPU {
   bool pendingRES = false;
   bool pendingNMI = false;
   bool pendingIRQ = false;
+  bool jammed = false;
 
   // variable to hold the high byte of operand *before* dereferencing
   // only used by illegal opcodes SHA, SHX, SHY, and TAS
@@ -103,6 +105,7 @@ class CPU {
   bool completedTakenBranchInLastTick = false;
 
   // helpers
+  bool isWriteCycle() const;
   void branch();
   void updateZeroAndNegativeFlags(uint8_t result);
 

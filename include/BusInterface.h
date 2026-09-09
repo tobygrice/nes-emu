@@ -9,6 +9,9 @@ class BusInterface {
   virtual uint8_t read(uint16_t addr) = 0;
   virtual uint8_t peek(uint16_t addr) = 0;
   virtual void write(uint16_t addr, uint8_t value) = 0;
+  // Called once per CPU clock, including clocks on which DMA halts the CPU.
+  // Test buses have no DMA and leave instruction execution uninterrupted.
+  virtual bool tickDMA(bool /* cpuReadCycle */) { return false; }
   virtual uint16_t getPPUScanline() = 0;
   virtual uint16_t getPPUCycle() = 0;
 };

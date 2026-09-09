@@ -13,12 +13,12 @@ Clock::Clock(NES &nes)
       pendingNMIEdge(false),
       frameDuration(std::chrono::steady_clock::duration::zero()) {}
 
-void Clock::setRegion(NESRegion region) {
-    if (region == NESRegion::None) {
+void Clock::setRegion(NESRegion selectedRegion) {
+    if (selectedRegion == NESRegion::None) {
         return;
     }
 
-    this->region = region;
+    region = selectedRegion;
 
     double cyclesPerFrame = (region == NESRegion::NTSC) ? 29780.5 : 33247.5;
     double cpuHz = (region == NESRegion::NTSC) ? MASTER_SPEED_NTSC / 12.0

@@ -16,9 +16,6 @@ class Bus : public BusInterface {
                                         // $0800 – $1FFF: mirrors of CPU RAM
                                         // $2000 - $2007: PPU registers
                                         // $2008 – $3FFF: mirrors of PPU regs
-  std::array<uint8_t, 0x0020> apu_io;   // $4000 – $401F: APU & I/O registers
-  // std::array<uint8_t, 0x1FE0> exp_rom;  // $4020 – $5FFF: cart expansion ROM
-  // std::array<uint8_t, 0x2000> s_ram;    // $6000 – $7FFF: save RAM
   Cartridge& cart;  // $8000 - $FFFF: cartridge ROM
   PPU& ppu;
   uint8_t joypad1Buttons = 0x00;
@@ -26,6 +23,13 @@ class Bus : public BusInterface {
   bool joypadStrobe = false;
 
   uint64_t cycles = 0;  // global cycle counter
+  bool dmaPending = false;
+  bool dmaActive = false;
+  uint8_t dmaPage = 0;
+  uint16_t dmaOffset = 0;
+  uint8_t dmaValue = 0;
+  uint8_t dmaIdleCycles = 0;
+  bool dmaReadPhase = true;
 
  public:
   static constexpr uint8_t JOYPAD_A = 0x01;
@@ -44,15 +48,10 @@ class Bus : public BusInterface {
 
   Bus(PPU& ppu, Cartridge& cart)
       : cpu_ram{},
-        apu_io{},
-        // exp_rom{},
-        // s_ram{},
         cart(cart),
         ppu(ppu),
         cycles(0)
-  {
-    apu_io.fill(0xFF);  // init FF
-  }
+  {}
 
   inline bool ppuNMI() { return ppu.getNMI(); }
   inline uint16_t getPPUScanline() override { return ppu.getScanline(); }
@@ -60,6 +59,36 @@ class Bus : public BusInterface {
 
   inline uint64_t getCycleCount() const { return cycles; }
   inline void resetCycles() { cycles = 0; }
+  bool isDMAActive() const { return dmaPending || dmaActive; }
+
+  bool tickDMA(bool cpuReadCycle) override {
+    ++cycles;
+    if (dmaPending && !dmaActive && cpuReadCycle) {
+      dmaPending = false;
+      dmaActive = true;
+      dmaOffset = 0;
+      dmaReadPhase = true;
+      // Halt for one cycle, plus alignment when the next cycle cannot read.
+      // OAM reads use even CPU clocks and writes use odd CPU clocks.
+      dmaIdleCycles = (cycles & 1) ? 1 : 2;
+    }
+    if (!dmaActive) {
+      return false;
+    }
+    if (dmaIdleCycles != 0) {
+      --dmaIdleCycles;
+    } else if (dmaReadPhase) {
+      dmaValue = read((static_cast<uint16_t>(dmaPage) << 8) | dmaOffset);
+      dmaReadPhase = false;
+    } else {
+      ppu.write_to_oam_data(dmaValue);
+      dmaReadPhase = true;
+      if (++dmaOffset == 256) {
+        dmaActive = false;
+      }
+    }
+    return true;
+  }
   inline void setJoypad1Buttons(uint8_t buttons) {
     joypad1Buttons = buttons;
     if (joypadStrobe) {
@@ -101,7 +130,9 @@ class Bus : public BusInterface {
       return static_cast<uint8_t>(0x40 | value);
     } else if (addr == 0x4017) {
       return 0x40;
-    } else if (addr >= 0x8000 && addr <= 0xFFFF) {
+    } else if (addr >= 0x6000 && addr <= 0x7FFF) {
+      return cart.read_prg_ram(addr);
+    } else if (addr >= 0x8000) {
       return cart.read_prg_rom(addr);
     } else {
       // error point / TO-DO: missing exp_rom, s_ram and apu_io
@@ -121,7 +152,9 @@ class Bus : public BusInterface {
     } else if (addr >= 0x4000 && addr <= 0x401F) {
       // Nintendulator-style trace convention for I/O space.
       return 0xFF;
-    } else if (addr >= 0x8000 && addr <= 0xFFFF) {
+    } else if (addr >= 0x6000 && addr <= 0x7FFF) {
+      return cart.read_prg_ram(addr);
+    } else if (addr >= 0x8000) {
       return cart.read_prg_rom(addr);
     } else {
       return 0;
@@ -153,20 +186,10 @@ class Bus : public BusInterface {
       // mirror down to 0x2000-0x2007 and recurse
       write(addr & 0x2007, value);
     } else if (addr == 0x4014) {
-      // data written to 0x4014 is the high byte of a memery block
-      // in CPU RAM.
-      std::array<uint8_t, 256> buffer;
-      // compute the start address
-      uint16_t start_addr = static_cast<uint16_t>(value) << 8;
-
-      for (uint16_t i = 0; i < 256; i++) {
-        buffer[i] = read(start_addr + i);
-      }
-      ppu.write_oam_dma(buffer);
-
-      // TODO: fix cycle counting here (error point)
-      // uint16_t add_cycles = (cycles % 2 == 1) ? 514 : 513;
-      // tick(add_cycles);  // This would need PPU ticks (add_cycles * 3)
+      // Transfer begins on the next CPU read cycle. Consecutive writes from
+      // read-modify-write instructions replace the pending source page.
+      dmaPage = value;
+      dmaPending = true;
     } else if (addr >= 0x4000 && addr <= 0x4015) {
       // apu write
     } else if (addr == 0x4016) {
@@ -180,6 +203,8 @@ class Bus : public BusInterface {
       joypadStrobe = newStrobe;
     } else if (addr == 0x4017) {
       // joypad 2
+    } else if (addr >= 0x6000 && addr <= 0x7FFF) {
+      cart.write_prg_ram(addr, value);
     } else {
       // error point / TO-DO: missing exp_rom, s_ram and apu_io
     }

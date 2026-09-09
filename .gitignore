@@ -1,11 +1,9 @@
-.gitignore
 .DS_Store
 .vscode
 docs/.obsidian
-build
+/build/
 romtests
 logs
-build-debug
-build-release
-buildclean
-buildfast
+/build-*/
+/buildclean/
+/buildfast/

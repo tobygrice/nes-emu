@@ -5,19 +5,25 @@
 
 class PPUAddr {
   private:
-    uint8_t high; // high byte of the address
-    uint8_t low;  // low byte of the address
-    bool hi_ptr;  // true if next update should write to the high byte
-
-    void set(uint16_t data); // sets addr register, applies mirroring
+    // PPUCTRL, PPUSCROLL and PPUADDR share these rendering registers.
+    uint16_t v = 0; // current VRAM address / rendering position (15 bits)
+    uint16_t t = 0; // temporary address / scroll position (15 bits)
+    uint8_t x = 0;  // fine horizontal scroll
+    bool w = false; // second write to either PPUSCROLL or PPUADDR
 
   public:
-    PPUAddr();
-
-    uint16_t get() const;        // return combined high/low bytes
-    void update(uint8_t data);   // updates high or low byte per hi_ptr flag
-    void increment(uint8_t inc); // adds `inc` to address, applies mirroring
-    void reset_latch();          // next write is to high byte
+    uint16_t get() const { return v; }
+    uint16_t temporary() const { return t; }
+    uint8_t fine_x() const { return x; }
+    void write_ctrl(uint8_t data);
+    void write_scroll(uint8_t data);
+    void update(uint8_t data);
+    void increment(uint8_t inc);
+    void increment_x();
+    void increment_y();
+    void copy_x();
+    void copy_y();
+    void reset_latch() { w = false; }
 };
 
 #endif // PPUADDR_H

@@ -72,6 +72,9 @@ jobs:
         run: >
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_TESTING=OFF
+          -DSDL_SHARED=OFF
+          -DSDL_STATIC=ON
           -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${{ github.workspace }}/build
           -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${{ github.workspace }}/build
 

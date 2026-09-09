@@ -1,12 +1,14 @@
 #include "../include/Cartridge.h"
 
+#include <algorithm>
 #include <stdexcept>
+#include <string>
 
 /**
  * Read from PRG ROM, panics if no cartridge is loaded or PRG ROM is empty.
  * Mirrors down address if PRG ROM is 16KiB.
  */
-uint8_t Cartridge::read_prg_rom(uint16_t addr) {
+uint8_t Cartridge::read_prg_rom(uint16_t addr) const {
     if (empty) {
         throw std::runtime_error("Error: no cartridge loaded.");
     }
@@ -14,6 +16,9 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
         throw std::runtime_error("Error: cartridge PRG ROM is empty.");
     }
 
+    if (addr < 0x8000) {
+        throw std::out_of_range("PRG ROM address must be in $8000-$FFFF");
+    }
     size_t index = static_cast<size_t>(addr - 0x8000);
 
     // mirror if prg_rom is 16KiB. Will need to modify this if additional
@@ -32,7 +37,7 @@ uint8_t Cartridge::read_prg_rom(uint16_t addr) {
 /**
  * Read from CHR ROM, panics if no cartridge is loaded or CHR ROM is empty
  */
-uint8_t Cartridge::read_chr_rom(uint16_t addr) {
+uint8_t Cartridge::read_chr_rom(uint16_t addr) const {
     if (empty) {
         throw std::runtime_error(
             "Error: attempted to read from CHR ROM with no cartridge loaded.");
@@ -45,16 +50,16 @@ uint8_t Cartridge::read_chr_rom(uint16_t addr) {
 }
 
 /**
- * Write to CHR RAM, panics if CHR is ROM (or empty)
+ * Writes affect CHR RAM only; cartridges with CHR ROM ignore them.
  */
 void Cartridge::write_chr_ram(uint16_t addr, uint8_t value) {
     if (empty) {
         throw std::runtime_error(
             "Error: attempted to write to CHR RAM with no cartridge loaded.");
     }
-    // if (!chr_is_ram) {
-    //     throw std::runtime_error("Error: attempted to write to CHR ROM.");
-    // }
+    if (!chr_is_ram) {
+        return;
+    }
     if (chr_rom.empty()) {
         throw std::runtime_error("Error: attempted to write to empty CHR RAM.");
     }
@@ -77,30 +82,40 @@ void Cartridge::load(const std::vector<uint8_t> &romDump) {
         throw std::invalid_argument("NES2.0 format is not supported yet.");
     }
 
-    mapper = (romDump[7] & 0b11110000) | (romDump[6] >> 4);
+    const uint8_t loadedMapper = (romDump[7] & 0xF0) | (romDump[6] >> 4);
 
     // FLAGS 9
     // 76543210
     // ||||||||
     // |||||||+- TV system (0: NTSC; 1: PAL)
     // +++++++-- Reserved, set to zero
-    region = romDump[9] == 0 ? NESRegion::NTSC : NESRegion::PAL;
+    const NESRegion loadedRegion = (romDump[9] & 1) ? NESRegion::PAL
+                                                  : NESRegion::NTSC;
 
-    if (mapper != 0x00) {
-        throw std::runtime_error("mapper not implemented");
+    if (loadedMapper != 0) {
+        throw std::invalid_argument("Unsupported mapper " +
+                                    std::to_string(loadedMapper) +
+                                    "; only mapper 0 (NROM) is supported");
     }
 
-    prg_rom_size = romDump[4] * 16384; // PRG ROM size given in 16KiB blocks
-    chr_rom_size = romDump[5] * 8192;  // CHR ROM size given in 8KiB blocks
+    if (romDump[4] != 1 && romDump[4] != 2) {
+        throw std::invalid_argument("NROM requires 16 or 32 KiB of PRG ROM");
+    }
+    if (romDump[5] > 1) {
+        throw std::invalid_argument("NROM supports only 8 KiB of CHR ROM or RAM");
+    }
+    const size_t prg_rom_size = romDump[4] * size_t{16384};
+    const size_t chr_rom_size = romDump[5] * size_t{8192};
+    MirroringMode loadedMirroring;
 
     // determine mirroring mode:
     if (romDump[6] & 0b00001000) {
         // bit 3 of flags 6 is set [alt layout]
-        mirroring = MirroringMode::FourScreen;
+        loadedMirroring = MirroringMode::FourScreen;
     } else {
         // bit 0 of flags 6 set ? vertical mirroring, else horizontal
-        mirroring = (romDump[6] & 0b1) ? MirroringMode::Vertical
-                                       : MirroringMode::Horizontal;
+        loadedMirroring = (romDump[6] & 1) ? MirroringMode::Vertical
+                                           : MirroringMode::Horizontal;
     }
 
     bool skip_trainer = (romDump[6] & 0b00000100) != 0;
@@ -113,17 +128,28 @@ void Cartridge::load(const std::vector<uint8_t> &romDump) {
         throw std::invalid_argument("Invalid ROM file: insufficient data");
     }
 
-    prg_rom.assign(romDump.begin() + prg_rom_start,
-                   romDump.begin() + prg_rom_start + prg_rom_size);
+    // Build replacement storage before changing the current cartridge. A bad
+    // or truncated replacement ROM must leave the loaded cartridge intact.
+    std::vector<uint8_t> loadedPrg(romDump.begin() + prg_rom_start,
+                                   romDump.begin() + chr_rom_start);
+    std::vector<uint8_t> loadedChr;
     if (chr_rom_size == 0) {
         // iNES uses CHR size 0 to indicate 8 KiB of CHR-RAM
-        chr_rom.assign(8192, 0);
-        chr_is_ram = true;
+        loadedChr.assign(8192, 0);
     } else {
-        chr_rom.assign(romDump.begin() + chr_rom_start,
-                       romDump.begin() + chr_rom_start + chr_rom_size);
-        chr_is_ram = false;
+        loadedChr.assign(romDump.begin() + chr_rom_start,
+                         romDump.begin() + chr_rom_start + chr_rom_size);
     }
 
+    prg_rom.swap(loadedPrg);
+    chr_rom.swap(loadedChr);
+    prg_ram.fill(0);
+    if (skip_trainer) {
+        std::copy_n(romDump.begin() + 16, 512, prg_ram.begin() + 0x1000);
+    }
+    mapper = loadedMapper;
+    region = loadedRegion;
+    mirroring = loadedMirroring;
+    chr_is_ram = chr_rom_size == 0;
     empty = false;
 }

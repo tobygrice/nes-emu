@@ -10,7 +10,6 @@
 #include "Registers/PPUAddr.h"
 #include "Registers/PPUCtrl.h"
 #include "Registers/PPUMask.h"
-#include "Registers/PPUScroll.h"
 #include "Registers/PPUStatus.h"
 
 class PPU {
@@ -22,21 +21,34 @@ class PPU {
     uint8_t attribute = 0;
     uint8_t patternLow = 0;
     uint8_t patternHigh = 0;
+    uint16_t patternShiftLow = 0;
+    uint16_t patternShiftHigh = 0;
+    uint16_t attributeShiftLow = 0;
+    uint16_t attributeShiftHigh = 0;
+
+    struct ScanlineSprite {
+        uint8_t x = 0;
+        uint8_t attributes = 0;
+        uint8_t patternLow = 0;
+        uint8_t patternHigh = 0;
+        bool spriteZero = false;
+    };
+    std::array<ScanlineSprite, 8> sprites{};
+    uint8_t spriteCount = 0;
 
     // Registers
     PPUCtrl ctrl;         // 0x2000
     PPUMask mask;         // 0x2001
     PPUStatus status;     // 0x2002
-    PPUScroll scroll;     // 0x2005
-    PPUAddr addr;         // 0x2006
+    PPUAddr addr;         // shared scrolling/address state ($2000/$2005/$2006)
     uint8_t data_buf = 0; // 0x2007 read buffer
 
     uint8_t oam_addr = 0;                // 0x2003
     std::array<uint8_t, 256> oam_data{}; // 0x2004 sprite memory
     std::array<uint8_t, 32> palette_table{};
 
-    // CIRAM backing the mirrored nametable space at $2000-$2FFF.
-    std::array<uint8_t, 2048> vram{};
+    // Standard cartridges use 2 KiB CIRAM; four-screen boards expose all 4 KiB.
+    std::array<uint8_t, 4096> vram{};
     Cartridge &cart;
 
     uint16_t cycles = 0;
@@ -52,13 +64,11 @@ class PPU {
     // Private helpers
     uint16_t mirrorVRAMAddress(uint16_t addr);
     static uint8_t mirrorPaletteAddress(uint8_t addr);
-    void pushBackgroundPixelPair(Frame &frame, uint8_t attributeQuadrant,
-                                 uint8_t leftBit,
-                                 bool backgroundRenderingEnabled);
-    bool spriteZeroPixelOpaque(int screenX, int screenY) const;
-    void evaluateSpriteZeroHit(int screenX, int screenY,
-                               bool backgroundOpaque);
-    void renderSprites(Frame &frame);
+    bool renderingEnabled() const;
+    void incrementDataAddress();
+    void fetchBackground();
+    void renderPixel();
+    void evaluateSprites(int nextScanline);
 
   public:
     PPU(const PPU &) = delete;

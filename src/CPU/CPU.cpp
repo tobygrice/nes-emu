@@ -1,16 +1,12 @@
 #include "../../include/CPU/CPU.h"
 
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 
 // https://github.com/SingleStepTests/65x02/tree/main/nes6502
 
 namespace {
-inline bool isSideEffectReadAddress(uint16_t addr) {
-  // PPU/APU/I/O reads can mutate internal device state. Avoid debug/log reads.
-  return addr >= 0x2000 && addr <= 0x401F;
-}
-
 inline bool modeHasReadableOperand(AddressingMode mode) {
   switch (mode) {
     case AddressingMode::Implied:
@@ -27,6 +23,15 @@ inline bool modeHasReadableOperand(AddressingMode mode) {
 void CPU::tick() {
   cycleCount++;
   completedTakenBranchInLastTick = false;
+  if (bus.tickDMA(!isWriteCycle())) {
+    return;
+  }
+  if (jammed) {
+    if (!pendingRES) return;
+    jammed = false;
+    pendingNMI = false;
+    pendingIRQ = false;
+  }
 
   switch (activeInterrupt) {
     case Interrupt::NONE: {
@@ -144,6 +149,41 @@ void CPU::tick() {
   return;
 }
 
+bool CPU::isWriteCycle() const {
+  if (activeInterrupt == Interrupt::NMI || activeInterrupt == Interrupt::IRQ) {
+    return cyclesRemainingInCurrentInterrupt >= 3 &&
+           cyclesRemainingInCurrentInterrupt <= 5;
+  }
+  if (activeInterrupt != Interrupt::NONE || !currentOpCode ||
+      cyclesRemainingInCurrentInstr == 0) {
+    return false;
+  }
+
+  const auto handler = currentOpCode->handler;
+  if (handler == &CPU::op_BRK) {
+    return cyclesRemainingInCurrentInstr >= 3 &&
+           cyclesRemainingInCurrentInstr <= 5;
+  }
+  if (handler == &CPU::op_JSR) {
+    return cyclesRemainingInCurrentInstr == 2 ||
+           cyclesRemainingInCurrentInstr == 3;
+  }
+  if (handler == &CPU::op_ASL || handler == &CPU::op_LSR ||
+      handler == &CPU::op_ROL || handler == &CPU::op_ROR ||
+      handler == &CPU::op_INC || handler == &CPU::op_DEC ||
+      handler == &CPU::opi_SLO || handler == &CPU::opi_SRE ||
+      handler == &CPU::opi_RLA || handler == &CPU::opi_RRA ||
+      handler == &CPU::opi_ISC || handler == &CPU::opi_DCP) {
+    return cyclesRemainingInCurrentInstr <= 2;
+  }
+  return cyclesRemainingInCurrentInstr == 1 &&
+         (handler == &CPU::op_STA || handler == &CPU::op_STX ||
+          handler == &CPU::op_STY || handler == &CPU::op_PHA ||
+          handler == &CPU::op_PHP || handler == &CPU::opi_SAX ||
+          handler == &CPU::opi_SHA || handler == &CPU::opi_SHX ||
+          handler == &CPU::opi_SHY || handler == &CPU::opi_TAS);
+}
+
 /**
  * Function to return the address of the operand given the addressing mode.
  *
@@ -208,12 +248,12 @@ void CPU::computeAbsoluteAddress() {
     case AddressingMode::ZeroPageX: {
       switch (currAddrResCtx.state) {
         case ResolutionState::Init: {
-          // readOperand();
+          readOperand();
           currAddrResCtx.state = ResolutionState::ReadOperand;
           break;
         }
         case ResolutionState::ReadOperand: {
-          readOperand();
+          bus.read(currentOpBytes[1]);  // dummy read before adding X
           currAddrResCtx.state = ResolutionState::ComputeAddress;
           break;
         }
@@ -233,6 +273,9 @@ void CPU::computeAbsoluteAddress() {
     case AddressingMode::ZeroPageY: {
       if (currAddrResCtx.state == ResolutionState::Init) {
         readOperand();
+        currAddrResCtx.state = ResolutionState::ReadOperand;
+      } else if (currAddrResCtx.state == ResolutionState::ReadOperand) {
+        bus.read(currentOpBytes[1]);  // dummy read before adding Y
         currAddrResCtx.state = ResolutionState::ComputeAddress;
       } else {  // ComputeAddress
         uint8_t addr = static_cast<uint8_t>(currentOpBytes[1] + y_register);
@@ -260,6 +303,10 @@ void CPU::computeAbsoluteAddress() {
           if (((base & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
               !currentOpCode->ignorePageCrossings) {
             currAddrResCtx.waitPageCrossed = true;
+          }
+          if (currAddrResCtx.waitPageCrossed ||
+              currentOpCode->ignorePageCrossings) {
+            bus.read((base & 0xFF00) | (currAddrResCtx.address & 0xFF));
           }
           currAddrResCtx.state = ResolutionState::Done;
           break;
@@ -290,6 +337,10 @@ void CPU::computeAbsoluteAddress() {
           if (((base & 0xFF00) != (currAddrResCtx.address & 0xFF00)) &&
               !currentOpCode->ignorePageCrossings) {
             currAddrResCtx.waitPageCrossed = true;
+          }
+          if (currAddrResCtx.waitPageCrossed ||
+              currentOpCode->ignorePageCrossings) {
+            bus.read((base & 0xFF00) | (currAddrResCtx.address & 0xFF));
           }
 
           currAddrResCtx.state = ResolutionState::Done;
@@ -353,12 +404,12 @@ void CPU::computeAbsoluteAddress() {
     case AddressingMode::IndirectX: {
       switch (currAddrResCtx.state) {
         case ResolutionState::Init: {
-          // burn cycle
+          readOperand();
           currAddrResCtx.state = ResolutionState::ReadOperand;
           break;
         }
         case ResolutionState::ReadOperand: {
-          readOperand();
+          bus.read(currentOpBytes[1]);  // dummy read before adding X
           currAddrResCtx.state = ResolutionState::ReadIndirect_Low;
           break;
         }
@@ -420,6 +471,11 @@ void CPU::computeAbsoluteAddress() {
             // MSB of base address and resulting addition address is different
             currAddrResCtx.waitPageCrossed = true;  // +1 cycle for page crossed
           }
+          if (currAddrResCtx.waitPageCrossed ||
+              currentOpCode->ignorePageCrossings) {
+            bus.read((currAddrResCtx.pointerAddress & 0xFF00) |
+                     (currAddrResCtx.address & 0xFF));
+          }
           currAddrResCtx.state = ResolutionState::Done;
           break;
         }
@@ -436,11 +492,7 @@ void CPU::computeAbsoluteAddress() {
   }
   if (logState && currAddrResCtx.state == ResolutionState::Done &&
       modeHasReadableOperand(currentOpCode->mode)) {
-    if (isSideEffectReadAddress(currAddrResCtx.address)) {
-      currentValueAtAddress = bus.peek(currAddrResCtx.address);
-    } else {
-      currentValueAtAddress = bus.read(currAddrResCtx.address);
-    }
+    currentValueAtAddress = bus.peek(currAddrResCtx.address);
   }
 }
 
@@ -629,7 +681,7 @@ void CPU::op_ASL(uint16_t addr) {
       readBuffer = bus.read(addr);
       break;
     case 2:
-      // emulate dummy read cycle
+      bus.write(addr, readBuffer);  // NMOS 6502 writes the old value first
       status = (status & ~FLAG_CARRY) | ((readBuffer & 0x80) ? 0x01 : 0);
       readBuffer <<= 1;  // shift value left
       break;
@@ -855,7 +907,7 @@ void CPU::op_DEC(uint16_t addr) {
       readBuffer = bus.read(addr);
       break;
     case 2:
-      // emulate additional dummy read cycle
+      bus.write(addr, readBuffer);
       readBuffer--;
       break;
     case 1:
@@ -882,6 +934,7 @@ void CPU::op_INC(uint16_t addr) {
       readBuffer = bus.read(addr);
       break;
     case 2:
+      bus.write(addr, readBuffer);
       readBuffer++;
       break;
     case 1:
@@ -930,8 +983,7 @@ void CPU::op_LSR(uint16_t addr) {
       readBuffer = bus.read(addr);
       break;
     case 2:
-      // on actual hardware, dummy write unshifted value in this cycle
-      // bus.write(addr, readBuffer);
+      bus.write(addr, readBuffer);
       status = (status & ~FLAG_CARRY) | ((readBuffer & 0x01) ? FLAG_CARRY : 0);
       readBuffer >>= 1;  // shift value right
       break;
@@ -1000,7 +1052,7 @@ void CPU::op_ROL(uint16_t addr) {
       break;
     }
     case 2: {
-      // dummy write same value back to addr here
+      bus.write(addr, readBuffer);
       uint8_t result = (readBuffer << 1) | (status & FLAG_CARRY ? 1 : 0);
       if (readBuffer & 0x80) {
         status |= FLAG_CARRY;  // bit 7 of value is set, set carry flag
@@ -1037,7 +1089,7 @@ void CPU::op_ROR(uint16_t addr) {
       break;
     }
     case 2: {
-      // dummy write same value back to addr here
+      bus.write(addr, readBuffer);
       uint8_t result = (readBuffer >> 1) | (status & FLAG_CARRY ? 0x80 : 0);
       if (readBuffer & 0x01) {
         status |= FLAG_CARRY;  // bit 0 of value is set, set carry flag
@@ -1119,9 +1171,15 @@ void CPU::op_SBC(uint16_t addr) {
 void CPU::op_SEC(uint16_t /* implied */) { status |= FLAG_CARRY; }
 void CPU::op_SED(uint16_t /* implied */) { status |= FLAG_DECIMAL; }
 void CPU::op_SEI(uint16_t /* implied */) { status |= FLAG_INTERRUPT; }
-void CPU::op_STA(uint16_t addr) { bus.write(addr, a_register); }
-void CPU::op_STX(uint16_t addr) { bus.write(addr, x_register); }
-void CPU::op_STY(uint16_t addr) { bus.write(addr, y_register); }
+void CPU::op_STA(uint16_t addr) {
+  if (cyclesRemainingInCurrentInstr == 1) bus.write(addr, a_register);
+}
+void CPU::op_STX(uint16_t addr) {
+  if (cyclesRemainingInCurrentInstr == 1) bus.write(addr, x_register);
+}
+void CPU::op_STY(uint16_t addr) {
+  if (cyclesRemainingInCurrentInstr == 1) bus.write(addr, y_register);
+}
 void CPU::op_TAX(uint16_t /* implied */) {
   x_register = a_register;
   updateZeroAndNegativeFlags(x_register);
@@ -1254,7 +1312,9 @@ void CPU::opi_SAX(uint16_t addr) {
   changing
    * the contents of either register) and stores the result in memory. Does
    * not affect any flags in the processor status register.*/
-  bus.write(addr, a_register & x_register);
+  if (cyclesRemainingInCurrentInstr == 1) {
+    bus.write(addr, a_register & x_register);
+  }
 }
 void CPU::opi_SBX(uint16_t addr) {
   /* aka AXS+SAX: ANDs the contents of the A and X registers (leaving the
@@ -1270,9 +1330,11 @@ void CPU::opi_SBX(uint16_t addr) {
    * the Carry flag, though it does affect the Carry flag. It does not
    affect
    * the Overflow flag. */
-  x_register = (a_register & x_register) - bus.read(addr);
-  // set carry flag (C) if result > 255
-  if (x_register > 0xFF) {
+  const uint8_t source = a_register & x_register;
+  const uint8_t operand = bus.read(addr);
+  x_register = static_cast<uint8_t>(source - operand);
+  // Like CMP/SBC, carry means no borrow. Test before truncating the result.
+  if (source >= operand) {
     status |= FLAG_CARRY;
   } else {
     status &= ~FLAG_CARRY;  // else clear carry flag
@@ -1280,11 +1342,13 @@ void CPU::opi_SBX(uint16_t addr) {
   updateZeroAndNegativeFlags(x_register);
 }
 void CPU::opi_SHA(uint16_t addr) {
+  if (cyclesRemainingInCurrentInstr != 1) return;
   /* Stores A AND X AND (high-byte of addr. + 1) at addr. Unstable. */
   uint8_t high_plus_one = currentHighByte + 1;
   bus.write(addr, (a_register & x_register) & high_plus_one);
 }
 void CPU::opi_SHX(uint16_t addr) {
+  if (cyclesRemainingInCurrentInstr != 1) return;
   /* aka A11,SXA,XAS: Stores X AND (high-byte of addr. + 1) at addr.
   Unstable.
    */
@@ -1292,6 +1356,7 @@ void CPU::opi_SHX(uint16_t addr) {
   bus.write(addr, x_register & high_plus_one);
 }
 void CPU::opi_SHY(uint16_t addr) {
+  if (cyclesRemainingInCurrentInstr != 1) return;
   /* aka SAY: Stores Y AND (high-byte of addr. + 1) at addr. Unstable. */
   uint8_t high_plus_one = currentHighByte + 1;
   bus.write(addr, y_register & high_plus_one);
@@ -1310,6 +1375,7 @@ void CPU::opi_SRE(uint16_t addr) {
   if (cyclesRemainingInCurrentInstr == 1) op_EOR(addr);
 }
 void CPU::opi_TAS(uint16_t addr) {
+  if (cyclesRemainingInCurrentInstr != 1) return;
   /* ANDs the contents of the A and X registers (without changing the
   contents
    * of either register) and transfers the result to the stack pointer. It
@@ -1320,5 +1386,5 @@ void CPU::opi_TAS(uint16_t addr) {
   bus.write(addr, sp & high_plus_one);
 }
 void CPU::opi_SBC(uint16_t addr) { op_SBC(addr); }
-void CPU::opi_NOP(uint16_t addr) { return; }
-void CPU::opi_KIL(uint16_t addr) { return; }
+void CPU::opi_NOP(uint16_t /* unused */) { return; }
+void CPU::opi_KIL(uint16_t /* unused */) { jammed = true; }

@@ -8,7 +8,6 @@
 
 #include "../../include/CPU/CPU.h"
 #include "../../include/TestBus.h"
-// #include "../../include/CPU/OpCode.h"
 #include "../../include/Logger.h"
 
 using json = nlohmann::json;
@@ -70,11 +69,11 @@ CPUTestState parse_state(const json &j) {
 }
 
 TEST_F(CPUHarteTests, runAllHarteTests) {
-    uint num_passed_tests = 0;
-    // logger.mute();
+    unsigned int num_passed_tests = 0;
+    logger.mute();
 
     for (uint16_t opcode = 0x00; opcode <= 0xFF; opcode++) {
-        const OpCode *op = OpCode::getOpCode(opcode); // look up opcode
+        const OpCode *op = OpCode::getOpCode(static_cast<uint8_t>(opcode));
         if (op) {
             if (!op->isDocumented)
                 continue; // only test documented opcodes
@@ -94,8 +93,8 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
             CPUTestState initial = parse_state(test["initial"]);
             CPUTestState expected = parse_state(test["final"]);
 
-            uint8_t expectedCycles = test["cycles"].size();
-            uint8_t actualCycles = 0;
+            const auto expectedCycles = test["cycles"].size();
+            std::size_t actualCycles = 0;
 
             cpu.TEST_setA(initial.a);
             cpu.TEST_setX(initial.x);
@@ -110,10 +109,14 @@ TEST_F(CPUHarteTests, runAllHarteTests) {
             cpu.tick(); // start executing new instruction
             actualCycles++;
             // continue ticking until instruction is complete:
-            while (cpu.TEST_getCyclesRemainingInCurrentInstr() > 0) {
+            while (cpu.TEST_getCyclesRemainingInCurrentInstr() > 0 &&
+                   actualCycles < 16) {
                 cpu.tick();
                 actualCycles++;
             }
+
+            ASSERT_EQ(cpu.TEST_getCyclesRemainingInCurrentInstr(), 0)
+                << "Instruction did not finish: " << test["name"];
 
             ASSERT_EQ(actualCycles, expectedCycles)
                 << " @ instruction " << test["name"] << " after passing "

@@ -2,15 +2,13 @@
 #define FRAME_H
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <stdexcept>
-#include <tuple>
 #include <vector>
 
 #include "../Constants.h"
 
-using Colour = std::tuple<uint8_t, uint8_t, uint8_t>;
+using Colour = std::array<uint8_t, 3>;
 
 // NES palette lookup table: index 0x00 to 0x3F.
 inline constexpr std::array<Colour, 64> NES_PALETTE = {{
@@ -97,6 +95,10 @@ class Frame {
 
     // PPU determines colour and sets pixel
     void push(uint8_t colour, bool isBackgroundOpaque = false) {
+        if (currentPixelIndex >= backgroundOpaque.size() ||
+            currentPixel + 2 >= pixelData.size()) {
+            throw std::out_of_range("Frame contains more than 256 x 240 pixels");
+        }
         const auto &[r, g, b] = NES_PALETTE[colour & 0x3F]; // 0-63
         pixelData[currentPixel] = r;
         pixelData[currentPixel + 1] = g;

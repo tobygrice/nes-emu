@@ -1,48 +1,70 @@
 #include "../../../include/PPU/Registers/PPUAddr.h"
 
-PPUAddr::PPUAddr() : high(0), low(0), hi_ptr(true) {}
-
-// combine high/low bytes into standard uint16_t object
-uint16_t PPUAddr::get() const {
-    return (static_cast<uint16_t>(high) << 8) | low;
+// Address layout: yyy NN YYYYY XXXXX (fine Y, nametable, coarse Y, coarse X).
+// https://www.nesdev.org/wiki/PPU_scrolling
+void PPUAddr::write_ctrl(uint8_t data) {
+    t = static_cast<uint16_t>((t & ~0x0C00) | ((data & 3) << 10));
 }
 
-// sets high/low bytes from a 16bit address
-void PPUAddr::set(uint16_t data) {
-    high = static_cast<uint8_t>(data >> 8);
-    low = static_cast<uint8_t>(data & 0x00FF);
-}
-
-// sets high or low byte to `data` (according to hi_ptr flag)
-void PPUAddr::update(uint8_t data) {
-    if (hi_ptr) {
-        high = data;
+void PPUAddr::write_scroll(uint8_t data) {
+    if (!w) {
+        t = static_cast<uint16_t>((t & ~0x001F) | (data >> 3));
+        x = data & 7;
     } else {
-        low = data;
+        t = static_cast<uint16_t>((t & ~0x73E0) | ((data & 0xF8) << 2) |
+                                  ((data & 7) << 12));
     }
+    w = !w;
+}
 
-    // toggle hi_ptr indicator
-    hi_ptr = !hi_ptr;
-
-    // mirror if address exceeds 0x3FFF
-    if (get() > 0b11111111111111) {
-        set(get() & 0b11111111111111);
+void PPUAddr::update(uint8_t data) {
+    if (!w) {
+        // The first write also clears bit 14, but does not change v yet.
+        t = static_cast<uint16_t>((t & 0x00FF) | ((data & 0x3F) << 8));
+    } else {
+        t = static_cast<uint16_t>((t & 0x7F00) | data);
+        v = t;
     }
+    w = !w;
 }
 
 void PPUAddr::increment(uint8_t inc) {
-    uint8_t oldLow = low;
+    v = static_cast<uint16_t>((v + inc) & 0x7FFF);
+}
 
-    low = static_cast<uint8_t>(low + inc);
-    if (oldLow > low) {
-        // low byte wrapped around, increment high byte
-        high = static_cast<uint8_t>(high + 1);
-    }
-
-    // mirror if address exceeds 0x3FFF
-    if (get() > 0x3fff) {
-        set(get() & 0x3fff);
+void PPUAddr::increment_x() {
+    if ((v & 0x001F) == 31) {
+        v = static_cast<uint16_t>((v & ~0x001F) ^ 0x0400);
+    } else {
+        ++v;
     }
 }
 
-void PPUAddr::reset_latch() { hi_ptr = true; }
+void PPUAddr::increment_y() {
+    if ((v & 0x7000) != 0x7000) {
+        v += 0x1000;
+        return;
+    }
+
+    v &= ~0x7000;
+    uint16_t coarseY = (v & 0x03E0) >> 5;
+    if (coarseY == 29) {
+        coarseY = 0;
+        v ^= 0x0800;
+    } else if (coarseY == 31) {
+        // Rows 30 and 31 address the attribute table; row 31 wraps without
+        // crossing to the next nametable.
+        coarseY = 0;
+    } else {
+        ++coarseY;
+    }
+    v = static_cast<uint16_t>((v & ~0x03E0) | (coarseY << 5));
+}
+
+void PPUAddr::copy_x() {
+    v = static_cast<uint16_t>((v & ~0x041F) | (t & 0x041F));
+}
+
+void PPUAddr::copy_y() {
+    v = static_cast<uint16_t>((v & ~0x7BE0) | (t & 0x7BE0));
+}
