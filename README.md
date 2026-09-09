@@ -21,16 +21,16 @@ The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). N
 
 Download binaries from latest release, or build from source using the instructions under the *Building & Testing* section below.
 
-To run a ROM, use:
+To run a ROM, pass it as an argument:
 
 ```bash
-./build/nesemu rom.nes
+./nesemu rom.nes
 ```
 
-If you want to print trace to stdout, include the `--trace` flag:
+If you want to print trace to stdout, include the `--trace` flag (recommend outputting to a file):
 
 ```bash
-./build/nesemu rom.nes --trace > trace.log
+./nesemu rom.nes --trace > trace.log
 ```
 
 ### Controls
@@ -55,23 +55,20 @@ git clone https://github.com/tobygrice/nes-emu
 cd nes-emu
 ```
 
-Compilation uses cmake.
+Compilation uses cmake:
 
 ```bash
 cmake -S . -B build
-cmake --build build -j
 ```
 
-Executable will be built as `./build/nesemu`.
+Then:
 
-To compile on Windows, explicitly state config:
-
-```powershell
-cmake --build build --config Debug -j
-cmake --build build --config Release -j
+```bash
+cmake --build build -j # on unix
+cmake --build build --config Release -j # on windows
 ```
 
-The executable is `./build/[Debug/Release]/nesemu.exe`. The build copies `SDL3.dll`beside the executables so they can run.
+Executable will be `/build/nesemu` on unix and `/build/Release/nesemu.exe` on Windows.
 
 To run all tests:
 
