@@ -4,7 +4,7 @@ This NES emulator is a personal project to experiment with distributed systems a
 
 I found that parallelising the system used around 3 times as much compute, due to the significant overhead required for scheduling and component coordination. Furthermore, CPU schedulers are too imprecise to coordinate each component to a single tick, so component operations had to be batched. This resulted in a less performant *and* less accurate emulator. As such, I decided to revert it to a serial implementation that runs with single-tick granularity.
 
-The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). There are scrolling bugs I have not been able to resolve, so while Super Mario Bros. runs, it crashes shortly into 1-1. Early titles without scrolling run great (eg. Pacman).
+The emulator is functional for ROMs using iNES 1.0, with no mapper (mapper 0). No APU is implemented, so games run without sound.
 
 ## Development Progress
 
@@ -64,16 +64,14 @@ cmake --build build -j
 
 Executable will be built as `./build/nesemu`.
 
-With Visual Studio on Windows, select the configuration explicitly:
+To compile on Windows, explicitly state config:
 
 ```powershell
 cmake --build build --config Debug -j
 cmake --build build --config Release -j
 ```
 
-The executable is `./build/Debug/nesemu.exe`. The build copies `SDL3.dll`
-beside the executables so they can run. Tests are placed in `./build/tests`,
-allowing the same `ctest` command below to work on Windows.
+The executable is `./build/[Debug/Release]/nesemu.exe`. The build copies `SDL3.dll`beside the executables so they can run.
 
 To run all tests:
 
